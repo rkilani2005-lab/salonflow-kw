@@ -9,6 +9,16 @@
    SheetTitle,
  } from '@/components/ui/sheet';
  import {
+   AlertDialog,
+   AlertDialogAction,
+   AlertDialogCancel,
+   AlertDialogContent,
+   AlertDialogDescription,
+   AlertDialogFooter,
+   AlertDialogHeader,
+   AlertDialogTitle,
+ } from '@/components/ui/alert-dialog';
+ import {
    Form,
    FormControl,
    FormField,
@@ -24,8 +34,8 @@
  import { Skeleton } from '@/components/ui/skeleton';
  import { ScrollArea } from '@/components/ui/scroll-area';
  import { Avatar, AvatarFallback } from '@/components/ui/avatar';
- import { Clock, Coffee, Briefcase, Mail, Phone, Palette } from 'lucide-react';
- import { useStaffWithServices, useUpdateStaff, useServices } from '@/hooks/useStaff';
+ import { Clock, Coffee, Briefcase, Mail, Phone, Palette, Trash2 } from 'lucide-react';
+ import { useStaffWithServices, useUpdateStaff, useDeleteStaff, useServices } from '@/hooks/useStaff';
  
  const formSchema = z.object({
    name: z.string().min(2),
@@ -51,9 +61,11 @@
  
  const StaffDetailSheet = ({ staffId, open, onOpenChange }: StaffDetailSheetProps) => {
    const [isEditing, setIsEditing] = useState(false);
+   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
    const { data: staff, isLoading } = useStaffWithServices(staffId);
    const { data: allServices } = useServices();
    const updateStaff = useUpdateStaff();
+   const deleteStaff = useDeleteStaff();
  
    const form = useForm<FormData>({
      resolver: zodResolver(formSchema),
@@ -104,7 +116,14 @@
  
    const handleClose = () => {
      setIsEditing(false);
+     setShowDeleteDialog(false);
      onOpenChange(false);
+   };
+ 
+   const handleDelete = async () => {
+     if (!staffId) return;
+     await deleteStaff.mutateAsync(staffId);
+     handleClose();
    };
  
    if (!staffId) return null;
@@ -230,6 +249,14 @@
                  <Button onClick={() => setIsEditing(true)} className="w-full">
                    Edit Staff
                  </Button>
+                   <Button 
+                     variant="outline" 
+                     className="w-full text-destructive hover:text-destructive"
+                     onClick={() => setShowDeleteDialog(true)}
+                   >
+                     <Trash2 className="h-4 w-4 mr-2" />
+                     Delete Staff
+                   </Button>
                </div>
              ) : (
                <Form {...form}>
@@ -452,6 +479,28 @@
            </ScrollArea>
          ) : null}
        </SheetContent>
+       
+       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+         <AlertDialogContent>
+           <AlertDialogHeader>
+             <AlertDialogTitle>Delete Staff Member</AlertDialogTitle>
+             <AlertDialogDescription>
+               Are you sure you want to delete <span className="font-semibold">{staff?.name}</span>? 
+               This action cannot be undone. All service skill assignments will also be removed.
+             </AlertDialogDescription>
+           </AlertDialogHeader>
+           <AlertDialogFooter>
+             <AlertDialogCancel>Cancel</AlertDialogCancel>
+             <AlertDialogAction
+               onClick={handleDelete}
+               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+               disabled={deleteStaff.isPending}
+             >
+               {deleteStaff.isPending ? 'Deleting...' : 'Delete'}
+             </AlertDialogAction>
+           </AlertDialogFooter>
+         </AlertDialogContent>
+       </AlertDialog>
      </Sheet>
    );
  };
