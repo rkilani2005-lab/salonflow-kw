@@ -361,6 +361,7 @@ export type Database = {
           name: string
           name_ar: string | null
           phone: string | null
+          tenant_id: string | null
           updated_at: string
           working_hours_end: string
           working_hours_start: string
@@ -377,6 +378,7 @@ export type Database = {
           name: string
           name_ar?: string | null
           phone?: string | null
+          tenant_id?: string | null
           updated_at?: string
           working_hours_end?: string
           working_hours_start?: string
@@ -393,11 +395,20 @@ export type Database = {
           name?: string
           name_ar?: string | null
           phone?: string | null
+          tenant_id?: string | null
           updated_at?: string
           working_hours_end?: string
           working_hours_start?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "staff_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staff_services: {
         Row: {
