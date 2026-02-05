@@ -316,6 +316,7 @@ export type Database = {
           name: string
           name_ar: string | null
           price: number
+          tenant_id: string | null
           updated_at: string
         }
         Insert: {
@@ -330,6 +331,7 @@ export type Database = {
           name: string
           name_ar?: string | null
           price?: number
+          tenant_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -344,9 +346,18 @@ export type Database = {
           name?: string
           name_ar?: string | null
           price?: number
+          tenant_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "services_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staff: {
         Row: {
