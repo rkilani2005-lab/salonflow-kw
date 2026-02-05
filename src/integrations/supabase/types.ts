@@ -547,6 +547,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role:
@@ -558,6 +559,7 @@ export type Database = {
         | "inventory_clerk"
         | "accountant"
         | "readonly"
+        | "super_admin"
       booking_status:
         | "planned"
         | "confirmed"
@@ -712,6 +714,7 @@ export const Constants = {
         "inventory_clerk",
         "accountant",
         "readonly",
+        "super_admin",
       ],
       booking_status: [
         "planned",
