@@ -75,18 +75,20 @@
  };
  
  export const useServices = () => {
+   const { tenant } = useAuth();
+ 
    return useQuery({
-     queryKey: ['services'],
+     queryKey: ['services', tenant?.id],
      queryFn: async () => {
        const { data, error } = await supabase
          .from('services')
          .select('*')
-         .eq('is_active', true)
          .order('name');
  
        if (error) throw error;
        return data as Service[];
      },
+     enabled: !!tenant?.id,
    });
  };
  
