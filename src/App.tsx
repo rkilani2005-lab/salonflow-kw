@@ -10,6 +10,7 @@ import Calendar from "./pages/Calendar";
 import Booking from "./pages/Booking";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
+import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,7 +51,7 @@ const App = () => (
               <Route path="/inventory" element={<ComingSoon title="Inventory" />} />
               <Route path="/reports" element={<ComingSoon title="Reports" />} />
               <Route path="/settings" element={<ComingSoon title="Settings" />} />
-              <Route path="/subscription" element={<ComingSoon title="Subscription" />} />
+              <Route path="/subscription" element={<Subscription />} />
             </Route>
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
