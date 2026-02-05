@@ -22,16 +22,34 @@
    subscription_plan: string;
  }
  
+interface Branch {
+  id: string;
+  name: string;
+  name_ar: string | null;
+  address: string | null;
+  phone: string | null;
+  opening_time: string;
+  closing_time: string;
+  is_active: boolean;
+}
+
+type AppRole = 'owner' | 'manager' | 'receptionist' | 'cashier' | 'stylist' | 'inventory_clerk' | 'accountant' | 'readonly';
+
  interface AuthContextType {
    user: User | null;
    session: Session | null;
    profile: Profile | null;
    tenant: Tenant | null;
+  branches: Branch[];
+  currentBranch: Branch | null;
+  userRoles: AppRole[];
    loading: boolean;
    signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
    signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
    signOut: () => Promise<void>;
    refreshProfile: () => Promise<void>;
+  switchBranch: (branchId: string) => void;
+  hasRole: (role: AppRole) => boolean;
  }
  
  const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,6 +59,9 @@
    const [session, setSession] = useState<Session | null>(null);
    const [profile, setProfile] = useState<Profile | null>(null);
    const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [currentBranch, setCurrentBranch] = useState<Branch | null>(null);
+  const [userRoles, setUserRoles] = useState<AppRole[]>([]);
    const [loading, setLoading] = useState(true);
  
    const fetchProfile = async (userId: string) => {
@@ -59,8 +80,35 @@
          .eq('id', profileData.tenant_id)
          .single();
        setTenant(tenantData);
+
+      // Fetch branches for this tenant
+      const { data: branchesData } = await supabase
+        .from('branches')
+        .select('*')
+        .eq('tenant_id', profileData.tenant_id)
+        .eq('is_active', true);
+      setBranches(branchesData || []);
+
+      // Set current branch
+      if (branchesData && branchesData.length > 0) {
+        const defaultBranch = profileData.branch_id 
+          ? branchesData.find(b => b.id === profileData.branch_id) || branchesData[0]
+          : branchesData[0];
+        setCurrentBranch(defaultBranch);
+      }
+
+      // Fetch user roles
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('tenant_id', profileData.tenant_id);
+      setUserRoles((rolesData || []).map(r => r.role as AppRole));
      } else {
        setTenant(null);
+      setBranches([]);
+      setCurrentBranch(null);
+      setUserRoles([]);
      }
    };
  
@@ -70,6 +118,17 @@
      }
    };
  
+  const switchBranch = (branchId: string) => {
+    const branch = branches.find(b => b.id === branchId);
+    if (branch) {
+      setCurrentBranch(branch);
+    }
+  };
+
+  const hasRole = (role: AppRole): boolean => {
+    return userRoles.includes(role) || userRoles.includes('owner');
+  };
+
    useEffect(() => {
      const { data: { subscription } } = supabase.auth.onAuthStateChange(
        async (event, session) => {
@@ -81,6 +140,9 @@
          } else {
            setProfile(null);
            setTenant(null);
+          setBranches([]);
+          setCurrentBranch(null);
+          setUserRoles([]);
          }
          setLoading(false);
        }
@@ -136,11 +198,16 @@
        session,
        profile,
        tenant,
+      branches,
+      currentBranch,
+      userRoles,
        loading,
        signUp,
        signIn,
        signOut,
-       refreshProfile
+      refreshProfile,
+      switchBranch,
+      hasRole
      }}>
        {children}
      </AuthContext.Provider>
