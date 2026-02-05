@@ -14,7 +14,309 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bookings: {
+        Row: {
+          booking_date: string
+          client_id: string | null
+          client_name: string
+          client_phone: string
+          created_at: string
+          deposit_amount: number | null
+          deposit_status: Database["public"]["Enums"]["payment_status"] | null
+          duration: number
+          end_time: string
+          id: string
+          is_online_booking: boolean
+          notes: string | null
+          payment_id: string | null
+          payment_url: string | null
+          price: number
+          service_category: Database["public"]["Enums"]["service_category"]
+          service_id: string | null
+          service_name: string
+          staff_id: string | null
+          start_time: string
+          status: Database["public"]["Enums"]["booking_status"]
+          updated_at: string
+        }
+        Insert: {
+          booking_date: string
+          client_id?: string | null
+          client_name: string
+          client_phone: string
+          created_at?: string
+          deposit_amount?: number | null
+          deposit_status?: Database["public"]["Enums"]["payment_status"] | null
+          duration: number
+          end_time: string
+          id?: string
+          is_online_booking?: boolean
+          notes?: string | null
+          payment_id?: string | null
+          payment_url?: string | null
+          price?: number
+          service_category?: Database["public"]["Enums"]["service_category"]
+          service_id?: string | null
+          service_name: string
+          staff_id?: string | null
+          start_time: string
+          status?: Database["public"]["Enums"]["booking_status"]
+          updated_at?: string
+        }
+        Update: {
+          booking_date?: string
+          client_id?: string | null
+          client_name?: string
+          client_phone?: string
+          created_at?: string
+          deposit_amount?: number | null
+          deposit_status?: Database["public"]["Enums"]["payment_status"] | null
+          duration?: number
+          end_time?: string
+          id?: string
+          is_online_booking?: boolean
+          notes?: string | null
+          payment_id?: string | null
+          payment_url?: string | null
+          price?: number
+          service_category?: Database["public"]["Enums"]["service_category"]
+          service_id?: string | null
+          service_name?: string
+          staff_id?: string | null
+          start_time?: string
+          status?: Database["public"]["Enums"]["booking_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string
+          tier: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone: string
+          tier?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string
+          tier?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payment_transactions: {
+        Row: {
+          amount: number
+          booking_id: string | null
+          created_at: string
+          currency: string
+          id: string
+          invoice_id: string | null
+          payment_provider: string
+          raw_response: Json | null
+          status: Database["public"]["Enums"]["payment_status"]
+          transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          booking_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          invoice_id?: string | null
+          payment_provider?: string
+          raw_response?: Json | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          booking_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          invoice_id?: string | null
+          payment_provider?: string
+          raw_response?: Json | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      services: {
+        Row: {
+          category: Database["public"]["Enums"]["service_category"]
+          color: string | null
+          created_at: string
+          deposit_amount: number | null
+          deposit_required: boolean
+          duration: number
+          id: string
+          is_active: boolean
+          name: string
+          name_ar: string | null
+          price: number
+          updated_at: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["service_category"]
+          color?: string | null
+          created_at?: string
+          deposit_amount?: number | null
+          deposit_required?: boolean
+          duration?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          name_ar?: string | null
+          price?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["service_category"]
+          color?: string | null
+          created_at?: string
+          deposit_amount?: number | null
+          deposit_required?: boolean
+          duration?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_ar?: string | null
+          price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      staff: {
+        Row: {
+          avatar_url: string | null
+          break_end: string | null
+          break_start: string | null
+          color: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          name_ar: string | null
+          phone: string | null
+          updated_at: string
+          working_hours_end: string
+          working_hours_start: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          break_end?: string | null
+          break_start?: string | null
+          color?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          name_ar?: string | null
+          phone?: string | null
+          updated_at?: string
+          working_hours_end?: string
+          working_hours_start?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          break_end?: string | null
+          break_start?: string | null
+          color?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_ar?: string | null
+          phone?: string | null
+          updated_at?: string
+          working_hours_end?: string
+          working_hours_start?: string
+        }
+        Relationships: []
+      }
+      staff_services: {
+        Row: {
+          service_id: string
+          staff_id: string
+        }
+        Insert: {
+          service_id: string
+          staff_id: string
+        }
+        Update: {
+          service_id?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_services_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +325,23 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      booking_status:
+        | "planned"
+        | "confirmed"
+        | "checked_in"
+        | "in_service"
+        | "completed"
+        | "cancelled"
+        | "no_show"
+      payment_status: "pending" | "paid" | "failed" | "refunded" | "partial"
+      service_category:
+        | "hair"
+        | "nails"
+        | "facial"
+        | "makeup"
+        | "waxing"
+        | "massage"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +468,26 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      booking_status: [
+        "planned",
+        "confirmed",
+        "checked_in",
+        "in_service",
+        "completed",
+        "cancelled",
+        "no_show",
+      ],
+      payment_status: ["pending", "paid", "failed", "refunded", "partial"],
+      service_category: [
+        "hair",
+        "nails",
+        "facial",
+        "makeup",
+        "waxing",
+        "massage",
+        "other",
+      ],
+    },
   },
 } as const
