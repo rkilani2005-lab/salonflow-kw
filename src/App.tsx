@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import SuperAdminRoute from "@/components/admin/SuperAdminRoute";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AdminLayout from "@/components/admin/AdminLayout";
+import Landing from "./pages/Landing";
 import Calendar from "./pages/Calendar";
 import Booking from "./pages/Booking";
 import Auth from "./pages/Auth";
@@ -33,6 +34,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             {/* Public routes */}
+            <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/book" element={<Booking />} />
             <Route path="/booking/success" element={<Booking />} />
@@ -51,7 +53,7 @@ const App = () => (
                 <DashboardLayout />
               </ProtectedRoute>
             }>
-              <Route path="/" element={<Calendar />} />
+              <Route path="/dashboard" element={<Calendar />} />
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/clients" element={<Clients />} />
                <Route path="/staff" element={<Staff />} />

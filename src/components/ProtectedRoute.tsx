@@ -33,6 +33,12 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/onboarding" replace />;
   }
 
+  // If on a protected route and authenticated with tenant, allow access
+  // Redirect to dashboard if somehow landing on root
+  if (location.pathname === '/') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <>{children}</>;
 };
 
