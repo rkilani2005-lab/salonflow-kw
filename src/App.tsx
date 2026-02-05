@@ -11,6 +11,7 @@ import Booking from "./pages/Booking";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Subscription from "./pages/Subscription";
+import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,7 +45,7 @@ const App = () => (
             }>
               <Route path="/" element={<Calendar />} />
               <Route path="/calendar" element={<Calendar />} />
-              <Route path="/clients" element={<ComingSoon title="Clients" />} />
+              <Route path="/clients" element={<Clients />} />
               <Route path="/staff" element={<ComingSoon title="Staff" />} />
               <Route path="/services" element={<ComingSoon title="Services" />} />
               <Route path="/pos" element={<ComingSoon title="Point of Sale" />} />

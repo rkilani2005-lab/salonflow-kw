@@ -169,6 +169,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string
+          tenant_id: string | null
           tier: string
           updated_at: string
         }
@@ -179,6 +180,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone: string
+          tenant_id?: string | null
           tier?: string
           updated_at?: string
         }
@@ -189,10 +191,19 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string
+          tenant_id?: string | null
           tier?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clients_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_transactions: {
         Row: {
