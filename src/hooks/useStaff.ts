@@ -143,6 +143,33 @@
    });
  };
  
+ export const useDeleteStaff = () => {
+   const queryClient = useQueryClient();
+   const { toast } = useToast();
+ 
+   return useMutation({
+     mutationFn: async (staffId: string) => {
+       // First delete staff_services associations
+       await supabase.from('staff_services').delete().eq('staff_id', staffId);
+       
+       // Then delete the staff member
+       const { error } = await supabase
+         .from('staff')
+         .delete()
+         .eq('id', staffId);
+ 
+       if (error) throw error;
+     },
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ['staff'] });
+       toast({ title: 'Staff member deleted successfully' });
+     },
+     onError: (error) => {
+       toast({ title: 'Failed to delete staff', description: error.message, variant: 'destructive' });
+     },
+   });
+ };
+ 
  export const useUpdateStaff = () => {
    const queryClient = useQueryClient();
    const { toast } = useToast();
