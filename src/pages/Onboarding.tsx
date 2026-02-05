@@ -143,11 +143,11 @@
          .update({ branch_id: branchData.id })
          .eq('user_id', user.id);
  
-       triggerConfetti();
-       toast.success('🎉 Your salon is ready!');
-       await refreshProfile();
-       
-       setTimeout(() => navigate('/'), 1500);
+        triggerConfetti();
+        toast.success('🎉 Your salon is ready!');
+        await refreshProfile();
+        
+        setTimeout(() => navigate('/dashboard'), 1500);
      } catch (error: any) {
        console.error('Onboarding error:', error);
        toast.error(error.message || 'Failed to complete setup');

@@ -1,52 +1,54 @@
- import { useState } from 'react';
- import { useNavigate } from 'react-router-dom';
- import { useAuth } from '@/contexts/AuthContext';
- import { Button } from '@/components/ui/button';
- import { Input } from '@/components/ui/input';
- import { Label } from '@/components/ui/label';
- import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
- import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
- import { toast } from 'sonner';
- import { Scissors, Sparkles } from 'lucide-react';
- 
- const Auth = () => {
-   const [email, setEmail] = useState('');
-   const [password, setPassword] = useState('');
-   const [fullName, setFullName] = useState('');
-   const [loading, setLoading] = useState(false);
-   const { signIn, signUp } = useAuth();
-   const navigate = useNavigate();
- 
-   const handleSignIn = async (e: React.FormEvent) => {
-     e.preventDefault();
-     setLoading(true);
-     const { error } = await signIn(email, password);
-     setLoading(false);
-     
-     if (error) {
-       toast.error(error.message);
-     } else {
-       toast.success('Welcome back!');
-       navigate('/');
-     }
-   };
- 
-   const handleSignUp = async (e: React.FormEvent) => {
-     e.preventDefault();
-     if (!fullName.trim()) {
-       toast.error('Please enter your full name');
-       return;
-     }
-     setLoading(true);
-     const { error } = await signUp(email, password, fullName);
-     setLoading(false);
-     
-     if (error) {
-       toast.error(error.message);
-     } else {
-       toast.success('Account created! Please check your email to verify your account.');
-     }
-   };
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
+import { Scissors, Sparkles } from 'lucide-react';
+
+const Auth = () => {
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get('mode') === 'signup' ? 'signup' : 'signin';
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { signIn, signUp } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await signIn(email, password);
+    setLoading(false);
+    
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Welcome back!');
+      navigate('/dashboard');
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName.trim()) {
+      toast.error('Please enter your full name');
+      return;
+    }
+    setLoading(true);
+    const { error } = await signUp(email, password, fullName);
+    setLoading(false);
+    
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Account created! Please check your email to verify your account.');
+    }
+  };
  
    return (
      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10 flex items-center justify-center p-4">
@@ -59,12 +61,12 @@
            <p className="text-muted-foreground mt-2">Ladies Salon Management Platform</p>
          </div>
  
-         <Card className="border-2">
-           <Tabs defaultValue="signin" className="w-full">
-             <TabsList className="grid w-full grid-cols-2">
-               <TabsTrigger value="signin">Sign In</TabsTrigger>
-               <TabsTrigger value="signup">Start Free Trial</TabsTrigger>
-             </TabsList>
+        <Card className="border-2">
+          <Tabs defaultValue={defaultTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="signin">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Start Free Trial</TabsTrigger>
+            </TabsList>
              
              <TabsContent value="signin">
                <form onSubmit={handleSignIn}>
