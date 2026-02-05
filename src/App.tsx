@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import Calendar from "./pages/Calendar";
 import Booking from "./pages/Booking";
 import Auth from "./pages/Auth";
@@ -27,22 +28,30 @@ const App = () => (
             <Route path="/booking/success" element={<Booking />} />
             <Route path="/booking/failed" element={<Booking />} />
             
-            {/* Protected routes */}
+            {/* Protected onboarding route (no layout) */}
             <Route path="/onboarding" element={
               <ProtectedRoute>
                 <Onboarding />
               </ProtectedRoute>
             } />
-            <Route path="/" element={
+            
+            {/* Protected routes with dashboard layout */}
+            <Route element={
               <ProtectedRoute>
-                <Calendar />
+                <DashboardLayout />
               </ProtectedRoute>
-            } />
-            <Route path="/calendar" element={
-              <ProtectedRoute>
-                <Calendar />
-              </ProtectedRoute>
-            } />
+            }>
+              <Route path="/" element={<Calendar />} />
+              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/clients" element={<ComingSoon title="Clients" />} />
+              <Route path="/staff" element={<ComingSoon title="Staff" />} />
+              <Route path="/services" element={<ComingSoon title="Services" />} />
+              <Route path="/pos" element={<ComingSoon title="Point of Sale" />} />
+              <Route path="/inventory" element={<ComingSoon title="Inventory" />} />
+              <Route path="/reports" element={<ComingSoon title="Reports" />} />
+              <Route path="/settings" element={<ComingSoon title="Settings" />} />
+              <Route path="/subscription" element={<ComingSoon title="Subscription" />} />
+            </Route>
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
@@ -51,6 +60,16 @@ const App = () => (
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
+);
+
+// Placeholder component for unimplemented pages
+const ComingSoon = ({ title }: { title: string }) => (
+  <div className="flex items-center justify-center h-full min-h-[400px]">
+    <div className="text-center">
+      <h1 className="text-2xl font-bold text-foreground mb-2">{title}</h1>
+      <p className="text-muted-foreground">This feature is coming soon!</p>
+    </div>
+  </div>
 );
 
 export default App;
