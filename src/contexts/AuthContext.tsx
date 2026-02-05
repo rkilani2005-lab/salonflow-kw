@@ -33,7 +33,7 @@ interface Branch {
   is_active: boolean;
 }
 
-type AppRole = 'owner' | 'manager' | 'receptionist' | 'cashier' | 'stylist' | 'inventory_clerk' | 'accountant' | 'readonly';
+type AppRole = 'owner' | 'manager' | 'receptionist' | 'cashier' | 'stylist' | 'inventory_clerk' | 'accountant' | 'readonly' | 'super_admin';
 
  interface AuthContextType {
    user: User | null;

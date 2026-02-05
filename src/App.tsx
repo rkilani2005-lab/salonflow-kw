@@ -5,15 +5,21 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import SuperAdminRoute from "@/components/admin/SuperAdminRoute";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import AdminLayout from "@/components/admin/AdminLayout";
 import Calendar from "./pages/Calendar";
 import Booking from "./pages/Booking";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Subscription from "./pages/Subscription";
 import Clients from "./pages/Clients";
- import Staff from "./pages/Staff";
- import Services from "./pages/Services";
+import Staff from "./pages/Staff";
+import Services from "./pages/Services";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminTenants from "./pages/admin/AdminTenants";
+import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +61,20 @@ const App = () => (
               <Route path="/reports" element={<ComingSoon title="Reports" />} />
               <Route path="/settings" element={<ComingSoon title="Settings" />} />
               <Route path="/subscription" element={<Subscription />} />
+            </Route>
+            
+            {/* Super Admin routes */}
+            <Route element={
+              <SuperAdminRoute>
+                <AdminLayout />
+              </SuperAdminRoute>
+            }>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/tenants" element={<AdminTenants />} />
+              <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
+              <Route path="/admin/analytics" element={<AdminAnalytics />} />
+              <Route path="/admin/users" element={<ComingSoon title="User Management" />} />
+              <Route path="/admin/settings" element={<ComingSoon title="Admin Settings" />} />
             </Route>
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
