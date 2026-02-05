@@ -294,9 +294,21 @@ src/
 ## Future Roadmap (Post-MVP)
 
 - WhatsApp Business API integration
-- KNET/MyFatoorah payment gateway
+- ~~KNET/MyFatoorah payment gateway~~ ✅ IMPLEMENTED
 - Advanced accounting & payroll export
-- Online appointment deposits
+- ~~Online appointment deposits~~ ✅ IMPLEMENTED
 - Customer mobile app
 - Enterprise API integrations
+
+---
+
+## Implementation Progress
+
+### Completed Features
+- [x] Versum-style booking calendar with drag-and-drop
+- [x] Staff roster sidebar with visibility toggles
+- [x] Online booking page (`/book`)
+- [x] MyFatoorah payment integration for deposits
+- [x] Database schema for services, staff, clients, bookings
+- [x] Payment transaction logging
 
