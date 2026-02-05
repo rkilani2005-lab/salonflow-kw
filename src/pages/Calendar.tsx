@@ -113,9 +113,20 @@
      });
    }, [toast]);
  
-   const todayStr = date.toISOString().split('T')[0];
-   const todayAppointments = appointments.filter((a) => a.date === todayStr);
+  // Filter appointments based on view
+  const getFilteredAppointments = () => {
+    if (view === 'day') {
+      const dayStr = date.toISOString().split('T')[0];
+      return appointments.filter((a) => a.date === dayStr);
+    }
+    // For week/month views, return all appointments (filtering happens in the view components)
+    return appointments;
+  };
+  
+  const filteredAppointments = getFilteredAppointments();
  
+  const todayStr = date.toISOString().split('T')[0];
+
    return (
      <div className="h-screen flex flex-col bg-background">
        <CalendarHeader
@@ -139,10 +150,12 @@
  
          <CalendarGrid
            staff={mockStaff}
-           appointments={todayAppointments}
+          appointments={filteredAppointments}
            visibleStaffIds={visibleStaffIds}
            startHour={8}
            endHour={21}
+          view={view}
+          date={date}
            onSlotClick={handleSlotClick}
            onAppointmentMove={handleAppointmentMove}
          />

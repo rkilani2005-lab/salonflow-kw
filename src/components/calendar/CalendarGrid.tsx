@@ -1,6 +1,8 @@
  import { DndContext, DragEndEvent, DragOverlay, pointerWithin } from '@dnd-kit/core';
  import { Staff, Appointment } from '@/types/calendar';
  import { StaffColumn } from './StaffColumn';
+import { WeekView } from './WeekView';
+import { MonthView } from './MonthView';
  import { AppointmentCard } from './AppointmentCard';
  import { useState } from 'react';
  import { useToast } from '@/hooks/use-toast';
@@ -11,6 +13,8 @@
    visibleStaffIds: string[];
    startHour: number;
    endHour: number;
+  view: 'day' | 'week' | 'month';
+  date: Date;
    onSlotClick: (staffId: string, time: string) => void;
    onAppointmentMove: (appointmentId: string, newStaffId: string, newTime: string) => void;
  }
@@ -23,6 +27,8 @@
    visibleStaffIds,
    startHour,
    endHour,
+  view,
+  date,
    onSlotClick,
    onAppointmentMove,
  }: CalendarGridProps) {
@@ -31,6 +37,31 @@
  
    const visibleStaff = staff.filter((s) => visibleStaffIds.includes(s.id));
  
+  // For week/month views, render different components
+  if (view === 'week') {
+    return (
+      <WeekView
+        staff={staff}
+        appointments={appointments}
+        visibleStaffIds={visibleStaffIds}
+        startHour={startHour}
+        endHour={endHour}
+        date={date}
+        onSlotClick={onSlotClick}
+      />
+    );
+  }
+
+  if (view === 'month') {
+    return (
+      <MonthView
+        appointments={appointments}
+        date={date}
+        onDateClick={(clickedDate) => onSlotClick(visibleStaffIds[0] || '', '09:00')}
+      />
+    );
+  }
+
    // Generate 15-minute time slots
    const timeSlots: string[] = [];
    for (let h = startHour; h < endHour; h++) {
