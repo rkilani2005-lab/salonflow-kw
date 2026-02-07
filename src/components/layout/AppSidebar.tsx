@@ -40,12 +40,13 @@
    roles?: string[];
  };
  
- const mainNavItems: NavItem[] = [
-   { title: 'Calendar', url: '/calendar', icon: Calendar },
-   { title: 'Clients', url: '/clients', icon: Users, roles: ['owner', 'manager', 'receptionist'] },
-   { title: 'Staff', url: '/staff', icon: UserCog, roles: ['owner', 'manager'] },
-   { title: 'Services', url: '/services', icon: Scissors, roles: ['owner', 'manager'] },
- ];
+const mainNavItems: NavItem[] = [
+  { title: 'Dashboard', url: '/dashboard', icon: BarChart3 },
+  { title: 'Calendar', url: '/calendar', icon: Calendar },
+  { title: 'Clients', url: '/clients', icon: Users, roles: ['owner', 'manager', 'receptionist'] },
+  { title: 'Staff', url: '/staff', icon: UserCog, roles: ['owner', 'manager'] },
+  { title: 'Services', url: '/services', icon: Scissors, roles: ['owner', 'manager'] },
+];
  
  const businessNavItems: NavItem[] = [
    { title: 'POS', url: '/pos', icon: CreditCard, roles: ['owner', 'manager', 'receptionist', 'cashier'] },
