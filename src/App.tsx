@@ -9,6 +9,7 @@ import SuperAdminRoute from "@/components/admin/SuperAdminRoute";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Landing from "./pages/Landing";
+import Dashboard from "./pages/Dashboard";
 import Calendar from "./pages/Calendar";
 import Booking from "./pages/Booking";
 import Auth from "./pages/Auth";
@@ -17,6 +18,8 @@ import Subscription from "./pages/Subscription";
 import Clients from "./pages/Clients";
 import Staff from "./pages/Staff";
 import Services from "./pages/Services";
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminTenants from "./pages/admin/AdminTenants";
 import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
@@ -53,15 +56,15 @@ const App = () => (
                 <DashboardLayout />
               </ProtectedRoute>
             }>
-              <Route path="/dashboard" element={<Calendar />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/clients" element={<Clients />} />
-               <Route path="/staff" element={<Staff />} />
-               <Route path="/services" element={<Services />} />
+              <Route path="/staff" element={<Staff />} />
+              <Route path="/services" element={<Services />} />
               <Route path="/pos" element={<ComingSoon title="Point of Sale" />} />
               <Route path="/inventory" element={<ComingSoon title="Inventory" />} />
-              <Route path="/reports" element={<ComingSoon title="Reports" />} />
-              <Route path="/settings" element={<ComingSoon title="Settings" />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="/subscription" element={<Subscription />} />
             </Route>
             
