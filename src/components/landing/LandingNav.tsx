@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Globe, Zap } from 'lucide-react';
+import { Globe } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import zainaLogo from '@/assets/zaina-logo.png';
 
 const LandingNav = () => {
   const { t, language, setLanguage } = useLanguage();
@@ -11,10 +12,11 @@ const LandingNav = () => {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 group">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center glow-primary transition-all group-hover:scale-105">
-            <Zap className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="font-display font-bold text-xl tracking-tight">ZAINA</span>
+          <img 
+            src={zainaLogo} 
+            alt="ZAINA Logo" 
+            className="h-10 w-auto transition-transform group-hover:scale-105"
+          />
         </Link>
         
         {/* Nav Links */}
