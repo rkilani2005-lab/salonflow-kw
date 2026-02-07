@@ -1,60 +1,71 @@
-import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Check, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Check, Brain, Sparkles } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Link } from 'react-router-dom';
 
 const plans = [
   {
-    name: 'Starter',
-    nameAr: 'المبتدئ',
+    nameKey: 'pricing.starter.name',
+    descKey: 'pricing.starter.desc',
     price: '15',
-    description: 'Perfect for small salons',
-    descriptionAr: 'مثالي للصالونات الصغيرة',
     features: [
-      { en: 'Up to 3 staff members', ar: 'حتى 3 موظفين' },
-      { en: 'Basic scheduling', ar: 'جدولة أساسية' },
-      { en: 'Client management', ar: 'إدارة العملاء' },
-      { en: 'Online booking page', ar: 'صفحة حجز عبر الإنترنت' },
-      { en: 'Email support', ar: 'دعم البريد الإلكتروني' },
+      'Up to 2 staff members',
+      'Basic booking system',
+      'Client management',
+      'SMS reminders',
+      'Email support',
     ],
-    popular: false,
-    icon: Sparkles,
+    featuresAr: [
+      'حتى 2 موظفين',
+      'نظام حجز أساسي',
+      'إدارة العملاء',
+      'تذكيرات SMS',
+      'دعم بالبريد الإلكتروني',
+    ],
   },
   {
-    name: 'Professional',
-    nameAr: 'المحترف',
+    nameKey: 'pricing.pro.name',
+    descKey: 'pricing.pro.desc',
     price: '35',
-    description: 'For growing salons',
-    descriptionAr: 'للصالونات المتنامية',
-    features: [
-      { en: 'Up to 10 staff members', ar: 'حتى 10 موظفين' },
-      { en: 'Advanced scheduling', ar: 'جدولة متقدمة' },
-      { en: 'Full client management', ar: 'إدارة عملاء كاملة' },
-      { en: 'Online payments (MyFatoorah)', ar: 'الدفع عبر الإنترنت (ماي فاتورة)' },
-      { en: 'Multi-branch support', ar: 'دعم الفروع المتعددة' },
-      { en: 'Priority support', ar: 'دعم ذو أولوية' },
-    ],
     popular: true,
-    icon: null,
+    features: [
+      'Up to 10 staff members',
+      'Advanced scheduling',
+      'Inventory management',
+      'WhatsApp integration',
+      'Priority support',
+      'Basic analytics',
+    ],
+    featuresAr: [
+      'حتى 10 موظفين',
+      'جدولة متقدمة',
+      'إدارة المخزون',
+      'تكامل واتساب',
+      'دعم ذو أولوية',
+      'تحليلات أساسية',
+    ],
   },
   {
-    name: 'AI Powered',
-    nameAr: 'الذكاء الاصطناعي',
+    nameKey: 'pricing.ai.name',
+    descKey: 'pricing.ai.desc',
     price: '75',
-    description: 'Enterprise features with AI',
-    descriptionAr: 'ميزات المؤسسات مع الذكاء الاصطناعي',
     features: [
-      { en: 'Unlimited staff', ar: 'موظفين غير محدودين' },
-      { en: 'AI appointment optimization', ar: 'تحسين المواعيد بالذكاء الاصطناعي' },
-      { en: 'Predictive analytics', ar: 'تحليلات تنبؤية' },
-      { en: 'Custom integrations', ar: 'تكاملات مخصصة' },
-      { en: 'Dedicated account manager', ar: 'مدير حساب مخصص' },
-      { en: '24/7 phone support', ar: 'دعم هاتفي على مدار الساعة' },
+      'Unlimited staff',
+      'AI-powered predictions',
+      'Smart campaigns',
+      'Revenue forecasting',
+      'Multi-branch support',
+      '24/7 dedicated support',
     ],
-    popular: false,
-    icon: Brain,
+    featuresAr: [
+      'موظفين غير محدود',
+      'توقعات مدعومة بالـ AI',
+      'حملات ذكية',
+      'توقع الإيرادات',
+      'دعم متعدد الفروع',
+      'دعم مخصص 24/7',
+    ],
+    gradient: true,
   },
 ];
 
@@ -62,70 +73,89 @@ const PricingSection = () => {
   const { t, language } = useLanguage();
   
   return (
-    <section id="pricing" className="py-20">
-      <div className="container mx-auto px-4">
+    <section id="pricing" className="py-24 relative">
+      <div className="absolute inset-0 grid-overlay opacity-20" />
+      
+      <div className="container mx-auto px-4 relative z-10">
+        {/* Header */}
         <div className="text-center mb-16">
-          <Badge variant="outline" className="mb-4 border-primary text-primary">
-            {language === 'ar' ? 'الأسعار' : 'Pricing'}
-          </Badge>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            {t('pricing.title')}
+          <h2 className="font-display text-4xl md:text-5xl font-bold mb-4">
+            <span className="text-gradient">{t('pricing.title')}</span>
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             {t('pricing.subtitle')}
           </p>
         </div>
         
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        {/* Pricing Cards */}
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {plans.map((plan) => (
-            <Card 
-              key={plan.name} 
-              className={`relative ${plan.popular ? 'border-primary border-2 shadow-lg scale-105' : 'border-2'}`}
+            <div 
+              key={plan.nameKey}
+              className={`relative rounded-xl p-8 transition-all hover:scale-[1.02] ${
+                plan.gradient 
+                  ? 'bg-gradient-to-br from-primary to-accent text-primary-foreground glow-primary' 
+                  : 'bg-card border border-border hover:border-primary/30'
+              }`}
             >
+              {/* Popular badge */}
               {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="bg-primary">{t('pricing.popular')}</Badge>
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-accent-foreground px-4 py-1 rounded-full text-sm font-medium">
+                  {t('pricing.popular')}
                 </div>
               )}
               
-              {plan.icon && (
-                <div className="absolute top-4 right-4">
-                  <plan.icon className="w-5 h-5 text-primary" />
-                </div>
-              )}
+              {/* Plan name */}
+              <div className="mb-6">
+                <h3 className={`font-display text-2xl font-bold mb-1 ${plan.gradient ? 'text-primary-foreground' : 'text-foreground'}`}>
+                  {t(plan.nameKey)}
+                </h3>
+                <p className={plan.gradient ? 'text-primary-foreground/80' : 'text-muted-foreground'}>
+                  {t(plan.descKey)}
+                </p>
+              </div>
               
-              <CardHeader className="text-center pb-2">
-                <CardTitle className="text-xl">
-                  {language === 'ar' ? plan.nameAr : plan.name}
-                </CardTitle>
-                <CardDescription>
-                  {language === 'ar' ? plan.descriptionAr : plan.description}
-                </CardDescription>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground"> {t('pricing.month')}</span>
-                </div>
-              </CardHeader>
+              {/* Price */}
+              <div className="mb-8">
+                <span className={`text-5xl font-display font-bold ${plan.gradient ? 'text-primary-foreground' : 'text-foreground'}`}>
+                  {plan.price}
+                </span>
+                <span className={plan.gradient ? 'text-primary-foreground/80' : 'text-muted-foreground'}>
+                  {' '}{t('pricing.month')}
+                </span>
+              </div>
               
-              <CardContent>
-                <ul className="space-y-3 mb-6">
-                  {plan.features.map((feature) => (
-                    <li key={feature.en} className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-primary flex-shrink-0" />
-                      <span className="text-sm">
-                        {language === 'ar' ? feature.ar : feature.en}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                
-                <Link to="/auth?mode=signup">
-                  <Button className="w-full" variant={plan.popular ? 'default' : 'outline'}>
-                    {t('pricing.start')}
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+              {/* Features */}
+              <ul className="space-y-3 mb-8">
+                {(language === 'ar' ? plan.featuresAr : plan.features).map((feature, index) => (
+                  <li key={index} className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${
+                      plan.gradient ? 'bg-primary-foreground/20' : 'bg-primary/10'
+                    }`}>
+                      <Check className={`w-3 h-3 ${plan.gradient ? 'text-primary-foreground' : 'text-primary'}`} />
+                    </div>
+                    <span className={plan.gradient ? 'text-primary-foreground/90' : 'text-foreground'}>
+                      {feature}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              
+              {/* CTA */}
+              <Link to="/auth?mode=signup" className="block">
+                <Button 
+                  className={`w-full font-medium ${
+                    plan.gradient 
+                      ? 'bg-primary-foreground text-primary hover:bg-primary-foreground/90' 
+                      : 'bg-gradient-to-r from-primary to-accent hover:opacity-90'
+                  }`}
+                  size="lg"
+                >
+                  {plan.gradient && <Zap className="w-4 h-4 mr-2" />}
+                  {t('pricing.start')}
+                </Button>
+              </Link>
+            </div>
           ))}
         </div>
       </div>

@@ -16,79 +16,76 @@ const translations: Record<string, Record<Language, string>> = {
   'nav.resources': { en: 'Resources', ar: 'الموارد' },
   'nav.testimonials': { en: 'Testimonials', ar: 'آراء العملاء' },
   'nav.signin': { en: 'Sign In', ar: 'تسجيل الدخول' },
-  'nav.trial': { en: 'Start Free Trial', ar: 'ابدأ التجربة المجانية' },
+  'nav.trial': { en: 'Get Smarter', ar: 'ابدأ بذكاء' },
   
-  // Hero
-  'hero.title1': { en: 'Salon Management', ar: 'إدارة الصالونات' },
-  'hero.title2': { en: 'Powered by AI', ar: 'مدعومة بالذكاء الاصطناعي' },
-  'hero.subtitle': { en: 'The first AI-powered salon management platform built for Kuwait. Automate bookings, predict trends, and grow your business.', ar: 'أول منصة لإدارة الصالونات مدعومة بالذكاء الاصطناعي في الكويت. أتمتة الحجوزات، توقع الاتجاهات، وتنمية أعمالك.' },
-  'hero.cta': { en: 'Start Free Trial', ar: 'ابدأ التجربة المجانية' },
-  'hero.demo': { en: 'Request Demo', ar: 'اطلب عرض توضيحي' },
+  // Hero - ZAINA edgy copy
+  'hero.badge': { en: 'AI-Powered Intelligence', ar: 'ذكاء مدعوم بالـ AI' },
+  'hero.title1': { en: 'The unfair advantage', ar: 'الميزة غير العادلة' },
+  'hero.title2': { en: 'for your salon.', ar: 'لصالونك.' },
+  'hero.subtitle': { en: 'Run your salon on autopilot. ZAINA is the AI brain that fills your seats, knows your clients, and grows your business while you focus on what you do best.', ar: 'شغّل صالونك بالطيّار الآلي. ZAINA هي العقل الذكي الذي يملأ مقاعدك، يعرف عملاءك، وينمي عملك بينما تركز على ما تتقنه.' },
+  'hero.cta': { en: 'Get Smarter', ar: 'ابدأ بذكاء' },
+  'hero.demo': { en: 'See It In Action', ar: 'شاهد العرض' },
   'hero.trusted': { en: 'Trusted by 500+ salons across Kuwait', ar: 'موثوق به من قبل أكثر من 500 صالون في الكويت' },
   
-  // Features section
-  'features.tagline': { en: 'We keep your business on pace with your passion.', ar: 'نحافظ على عملك بمستوى شغفك.' },
+  // Smart Powers (Features)
+  'powers.title': { en: 'Your Salon\'s Smart Powers', ar: 'قوى صالونك الذكية' },
+  'powers.subtitle': { en: 'Stop managing. Start dominating.', ar: 'توقف عن الإدارة. ابدأ بالسيطرة.' },
   
-  'features.time.title': { en: 'Save Your Time', ar: 'وفّر وقتك' },
-  'features.time.desc': { en: 'Say goodbye to the race against time. Our AI-powered automation handles appointment reminders, client follow-ups, and scheduling conflicts automatically.', ar: 'قل وداعاً للسباق مع الوقت. تتولى الأتمتة المدعومة بالذكاء الاصطناعي إرسال تذكيرات المواعيد ومتابعة العملاء وحل تعارضات المواعيد تلقائياً.' },
-  'features.time.item1': { en: 'AI-powered appointment optimization', ar: 'تحسين المواعيد بالذكاء الاصطناعي' },
-  'features.time.item2': { en: 'Smart client database & history', ar: 'قاعدة بيانات ذكية للعملاء' },
-  'features.time.item3': { en: 'Automated marketing campaigns', ar: 'حملات تسويقية آلية' },
+  'powers.booking.title': { en: 'AI-Powered Scheduling', ar: 'جدولة مدعومة بالـ AI' },
+  'powers.booking.desc': { en: 'It knows your busiest times before you do. Fill seats effortlessly with predictive booking that maximizes every hour.', ar: 'يعرف أوقات ذروتك قبلك. املأ المقاعد بسهولة مع حجوزات تنبؤية تستغل كل ساعة.' },
   
-  'features.manage.title': { en: 'Manage Easily', ar: 'إدارة سهلة' },
-  'features.manage.desc': { en: 'Managing a salon can be easy, pleasant and stress-free. Create an efficient team, track inventory, and control everything from your phone—anywhere, anytime.', ar: 'يمكن أن تكون إدارة الصالون سهلة وممتعة وخالية من التوتر. أنشئ فريقاً فعالاً، تتبع المخزون، وتحكم في كل شيء من هاتفك.' },
-  'features.manage.item1': { en: 'Multi-branch dashboard', ar: 'لوحة تحكم متعددة الفروع' },
-  'features.manage.item2': { en: 'Employee scheduling & commissions', ar: 'جدولة الموظفين والعمولات' },
-  'features.manage.item3': { en: 'Inventory & stock control', ar: 'التحكم في المخزون' },
+  'powers.clients.title': { en: 'Client Intelligence', ar: 'ذكاء العملاء' },
+  'powers.clients.desc': { en: 'Know exactly what they want before they walk in. Personalization at scale that makes every client feel like a VIP.', ar: 'اعرف ما يريدون قبل دخولهم. تخصيص واسع يجعل كل عميل يشعر بأنه VIP.' },
   
-  'features.customers.title': { en: 'Attract More Customers', ar: 'اجذب المزيد من العملاء' },
-  'features.customers.desc': { en: 'AI-powered marketing tools are your secret weapon. Our system predicts client behavior, sends personalized offers, and fills your calendar 24/7.', ar: 'أدوات التسويق المدعومة بالذكاء الاصطناعي هي سلاحك السري. نظامنا يتنبأ بسلوك العميل ويرسل عروضاً مخصصة ويملأ جدولك على مدار الساعة.' },
-  'features.customers.item1': { en: '24/7 online booking with AI', ar: 'حجز على مدار الساعة مع الذكاء الاصطناعي' },
-  'features.customers.item2': { en: 'Personalized SMS & WhatsApp', ar: 'رسائل نصية وواتساب مخصصة' },
-  'features.customers.item3': { en: 'Smart loyalty program', ar: 'برنامج ولاء ذكي' },
+  'powers.analytics.title': { en: 'Revenue Prediction', ar: 'توقع الإيرادات' },
+  'powers.analytics.desc': { en: 'See the future of your business. AI analytics that spot trends, catch problems, and find opportunities you\'d miss.', ar: 'شاهد مستقبل عملك. تحليلات AI تكتشف الاتجاهات والمشاكل والفرص التي قد تفوتك.' },
   
-  'features.success.title': { en: 'Measure Your Success', ar: 'قِس نجاحك' },
-  'features.success.desc': { en: 'AI-powered analytics turn your data into actionable insights. See revenue predictions, identify top performers, and catch potential issues before they happen.', ar: 'تحول التحليلات المدعومة بالذكاء الاصطناعي بياناتك إلى رؤى قابلة للتنفيذ. شاهد توقعات الإيرادات وحدد الأفضل أداءً.' },
-  'features.success.item1': { en: 'Predictive revenue analytics', ar: 'تحليلات تنبؤية للإيرادات' },
-  'features.success.item2': { en: 'Employee performance insights', ar: 'رؤى أداء الموظفين' },
-  'features.success.item3': { en: 'Customer churn prediction', ar: 'توقع تراجع العملاء' },
+  'powers.marketing.title': { en: 'Smart Campaigns', ar: 'حملات ذكية' },
+  'powers.marketing.desc': { en: 'Marketing that thinks for itself. Automated messages that hit at the right moment and bring clients back.', ar: 'تسويق يفكر بنفسه. رسائل آلية تصل في الوقت المناسب وتعيد العملاء.' },
   
   // Stats
   'stats.salons': { en: 'Active Salons', ar: 'صالون نشط' },
   'stats.bookings': { en: 'Monthly Bookings', ar: 'حجز شهرياً' },
   'stats.uptime': { en: 'Uptime', ar: 'وقت التشغيل' },
-  'stats.rating': { en: 'Customer Rating', ar: 'تقييم العملاء' },
+  'stats.revenue': { en: 'Revenue Boost', ar: 'زيادة الإيرادات' },
   
-  // Industries
-  'industries.title': { en: 'See how SalonFlow works', ar: 'شاهد كيف يعمل SalonFlow' },
-  'industries.nail': { en: 'Nail Studios', ar: 'استوديوهات الأظافر' },
-  'industries.hair': { en: 'Hair Salons', ar: 'صالونات الشعر' },
-  'industries.beauty': { en: 'Beauty Salons', ar: 'صالونات التجميل' },
-  'industries.spa': { en: 'SPAs & Wellness', ar: 'السبا والعافية' },
-  'industries.barber': { en: 'Barbershops', ar: 'صالونات الحلاقة' },
+  // Testimonials (DM style)
+  'testimonials.title': { en: 'The Vibe Check', ar: 'آراء أصحاب الصالونات' },
+  'testimonials.subtitle': { en: 'Real salon owners. Real results.', ar: 'أصحاب صالونات حقيقيون. نتائج حقيقية.' },
   
   // Pricing
-  'pricing.title': { en: 'Simple, Transparent Pricing', ar: 'أسعار بسيطة وشفافة' },
-  'pricing.subtitle': { en: 'Choose the plan that fits your salon. All plans include a 14-day free trial.', ar: 'اختر الخطة التي تناسب صالونك. جميع الخطط تشمل تجربة مجانية لمدة 14 يوماً.' },
-  'pricing.month': { en: 'KWD/month', ar: 'د.ك/شهر' },
+  'pricing.title': { en: 'Pick Your Power Level', ar: 'اختر مستوى قوتك' },
+  'pricing.subtitle': { en: 'All plans include 14-day free trial. No credit card required.', ar: 'جميع الخطط تشمل تجربة مجانية 14 يوم. بدون بطاقة ائتمان.' },
+  'pricing.month': { en: 'KWD/mo', ar: 'د.ك/شهر' },
   'pricing.popular': { en: 'Most Popular', ar: 'الأكثر شعبية' },
-  'pricing.start': { en: 'Start Free Trial', ar: 'ابدأ التجربة' },
+  'pricing.start': { en: 'Start Free', ar: 'ابدأ مجاناً' },
+  
+  'pricing.starter.name': { en: 'Starter', ar: 'المبتدئ' },
+  'pricing.starter.desc': { en: 'For solo stylists', ar: 'للمستقلين' },
+  'pricing.pro.name': { en: 'Pro', ar: 'المحترف' },
+  'pricing.pro.desc': { en: 'For growing salons', ar: 'للصالونات النامية' },
+  'pricing.ai.name': { en: 'AI Ultimate', ar: 'AI الأقصى' },
+  'pricing.ai.desc': { en: 'Full AI power', ar: 'قوة AI كاملة' },
   
   // Resources
-  'resources.title': { en: 'Resources & Guides', ar: 'الموارد والأدلة' },
-  'resources.subtitle': { en: 'Learn how to grow your salon business with our free resources.', ar: 'تعلم كيفية تنمية أعمال صالونك مع مواردنا المجانية.' },
-  'resources.guide1.title': { en: 'Instagram Marketing for Salons', ar: 'التسويق عبر انستغرام للصالونات' },
-  'resources.guide1.desc': { en: 'Master the art of social media marketing with tips from industry experts.', ar: 'أتقن فن التسويق عبر وسائل التواصل الاجتماعي مع نصائح خبراء الصناعة.' },
-  'resources.guide2.title': { en: 'Salon Operations Manual', ar: 'دليل عمليات الصالون' },
-  'resources.guide2.desc': { en: 'A complete checklist for creating efficient salon procedures.', ar: 'قائمة تحقق كاملة لإنشاء إجراءات صالون فعالة.' },
-  'resources.guide3.title': { en: 'AI in Beauty Industry', ar: 'الذكاء الاصطناعي في صناعة التجميل' },
-  'resources.guide3.desc': { en: 'How artificial intelligence is transforming salon management in Kuwait.', ar: 'كيف يغير الذكاء الاصطناعي إدارة الصالونات في الكويت.' },
+  'resources.title': { en: 'Level Up Your Game', ar: 'طوّر مستواك' },
+  'resources.subtitle': { en: 'Free guides to dominate your market.', ar: 'أدلة مجانية للسيطرة على سوقك.' },
   'resources.download': { en: 'Download Free', ar: 'تحميل مجاني' },
   
+  'resources.guide1.title': { en: 'The AI Salon Playbook', ar: 'دليل الصالون الذكي' },
+  'resources.guide1.desc': { en: 'How to use AI to 10x your bookings and client retention.', ar: 'كيف تستخدم AI لمضاعفة حجوزاتك 10 مرات.' },
+  
+  'resources.guide2.title': { en: 'Instagram Growth Hacks', ar: 'حيل نمو انستغرام' },
+  'resources.guide2.desc': { en: 'The exact strategies top Kuwait salons use to go viral.', ar: 'الاستراتيجيات التي تستخدمها صالونات الكويت للانتشار.' },
+  
+  'resources.guide3.title': { en: 'Pricing Psychology', ar: 'سيكولوجية التسعير' },
+  'resources.guide3.desc': { en: 'How to charge premium prices without losing clients.', ar: 'كيف ترفع أسعارك بدون خسارة العملاء.' },
+  
   // CTA
-  'cta.title': { en: 'Ready to Transform Your Salon?', ar: 'هل أنت مستعد لتحويل صالونك؟' },
-  'cta.subtitle': { en: 'Join 500+ salon owners using AI to grow their business. Start your free 14-day trial today.', ar: 'انضم إلى أكثر من 500 صاحب صالون يستخدمون الذكاء الاصطناعي لتنمية أعمالهم. ابدأ تجربتك المجانية لمدة 14 يوماً اليوم.' },
-  'cta.nolimit': { en: 'No limitations, no obligations, no cancellation fees.', ar: 'بدون قيود، بدون التزامات، بدون رسوم إلغاء.' },
+  'cta.title': { en: 'Stop managing.', ar: 'توقف عن الإدارة.' },
+  'cta.title2': { en: 'Start growing.', ar: 'ابدأ بالنمو.' },
+  'cta.subtitle': { en: 'Join 500+ salon owners using ZAINA to dominate their market.', ar: 'انضم لأكثر من 500 صاحب صالون يستخدمون ZAINA للسيطرة على سوقهم.' },
+  'cta.nolimit': { en: 'No credit card • No setup fees • Cancel anytime', ar: 'بدون بطاقة ائتمان • بدون رسوم إعداد • إلغاء في أي وقت' },
   
   // Footer
   'footer.product': { en: 'Product', ar: 'المنتج' },
@@ -101,11 +98,7 @@ const translations: Record<string, Record<Language, string>> = {
   'footer.contact': { en: 'Contact', ar: 'اتصل بنا' },
   'footer.privacy': { en: 'Privacy Policy', ar: 'سياسة الخصوصية' },
   'footer.demo': { en: 'Demo', ar: 'عرض توضيحي' },
-  'footer.copyright': { en: '© 2024 SalonFlow. All rights reserved. Built with ❤️ in Kuwait.', ar: '© 2024 SalonFlow. جميع الحقوق محفوظة. صُنع بـ ❤️ في الكويت.' },
-  
-  // Testimonials
-  'testimonials.title': { en: 'Trusted by Salon Owners', ar: 'موثوق به من أصحاب الصالونات' },
-  'testimonials.subtitle': { en: 'See what salon owners across Kuwait are saying about SalonFlow.', ar: 'شاهد ما يقوله أصحاب الصالونات في الكويت عن SalonFlow.' },
+  'footer.copyright': { en: '© 2024 ZAINA. All rights reserved. Built with ⚡ in Kuwait.', ar: '© 2024 ZAINA. جميع الحقوق محفوظة. صُنع بـ ⚡ في الكويت.' },
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
