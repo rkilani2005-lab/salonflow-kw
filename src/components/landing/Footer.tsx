@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Zap } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import zainaLogo from '@/assets/zaina-logo.png';
 
 const Footer = () => {
   const { t, language } = useLanguage();
@@ -12,10 +12,11 @@ const Footer = () => {
           {/* Brand */}
           <div>
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <Zap className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="font-display font-bold text-xl tracking-tight">ZAINA</span>
+              <img 
+                src={zainaLogo} 
+                alt="ZAINA Logo" 
+                className="h-10 w-auto"
+              />
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
               {language === 'ar' 

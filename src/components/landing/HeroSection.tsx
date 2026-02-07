@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Zap, Brain, Network } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import zainaLogo from '@/assets/zaina-logo.png';
 
 const HeroSection = () => {
   const { t, isRTL } = useLanguage();
@@ -61,39 +62,34 @@ const HeroSection = () => {
             
             {/* Trust badge */}
             <p className="text-sm text-muted-foreground flex items-center gap-2">
-              <Zap className="w-4 h-4 text-primary" />
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse-glow" />
               {t('hero.trusted')}
             </p>
           </div>
           
-          {/* Hero Visual - Abstract AI Brain */}
+          {/* Hero Visual - ZAINA Logo */}
           <div className={`hidden lg:flex items-center justify-center ${isRTL ? 'lg:order-1' : ''}`}>
             <div className="relative">
               {/* Main visual container */}
-              <div className="w-[500px] h-[500px] relative">
-                {/* Rotating ring */}
+              <div className="w-[500px] h-[500px] relative flex items-center justify-center">
+                {/* Rotating rings */}
                 <div className="absolute inset-0 rounded-full border border-primary/20 animate-spin" style={{ animationDuration: '20s' }} />
-                <div className="absolute inset-4 rounded-full border border-accent/20 animate-spin" style={{ animationDuration: '15s', animationDirection: 'reverse' }} />
+                <div className="absolute inset-8 rounded-full border border-accent/20 animate-spin" style={{ animationDuration: '15s', animationDirection: 'reverse' }} />
                 
-                {/* Center brain/network icon */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-48 h-48 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 backdrop-blur-xl border border-primary/30 flex items-center justify-center glow-primary">
-                    <Brain className="w-24 h-24 text-primary animate-float" />
-                  </div>
-                </div>
-                
-                {/* Floating elements */}
-                <div className="absolute top-16 left-16 w-16 h-16 rounded-lg bg-card border border-border shadow-lg flex items-center justify-center animate-float" style={{ animationDelay: '0.5s' }}>
-                  <Network className="w-8 h-8 text-accent" />
-                </div>
-                <div className="absolute bottom-20 right-16 w-14 h-14 rounded-lg bg-card border border-border shadow-lg flex items-center justify-center animate-float" style={{ animationDelay: '1s' }}>
-                  <Zap className="w-7 h-7 text-primary" />
+                {/* Center logo */}
+                <div className="relative z-10 animate-float">
+                  <img 
+                    src={zainaLogo} 
+                    alt="ZAINA - The AI Advantage for Salons" 
+                    className="w-72 h-auto drop-shadow-2xl"
+                  />
                 </div>
                 
                 {/* Glowing dots */}
-                <div className="absolute top-1/3 right-0 w-3 h-3 rounded-full bg-primary animate-pulse-glow" />
-                <div className="absolute bottom-1/3 left-0 w-2 h-2 rounded-full bg-accent animate-pulse-glow" style={{ animationDelay: '0.5s' }} />
-                <div className="absolute top-0 left-1/3 w-2 h-2 rounded-full bg-primary animate-pulse-glow" style={{ animationDelay: '1.5s' }} />
+                <div className="absolute top-1/4 right-8 w-3 h-3 rounded-full bg-primary animate-pulse-glow" />
+                <div className="absolute bottom-1/4 left-8 w-2 h-2 rounded-full bg-accent animate-pulse-glow" style={{ animationDelay: '0.5s' }} />
+                <div className="absolute top-8 left-1/3 w-2 h-2 rounded-full bg-primary animate-pulse-glow" style={{ animationDelay: '1.5s' }} />
+                <div className="absolute bottom-12 right-1/3 w-2 h-2 rounded-full bg-accent animate-pulse-glow" style={{ animationDelay: '1s' }} />
               </div>
             </div>
           </div>
