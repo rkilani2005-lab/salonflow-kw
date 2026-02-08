@@ -205,6 +205,44 @@ export type Database = {
           },
         ]
       }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          description: string | null
+          expense_date: string
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          description?: string | null
+          expense_date?: string
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string | null
+          expense_date?: string
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_transactions: {
         Row: {
           amount: number
@@ -534,6 +572,153 @@ export type Database = {
           },
         ]
       }
+      whatsapp_config: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          max_retry_attempts: number
+          owner_phone_numbers: string[] | null
+          staff_phone_numbers: string[] | null
+          tenant_id: string
+          updated_at: string
+          voice_enabled: boolean
+          welcome_message_ar: string | null
+          welcome_message_en: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          max_retry_attempts?: number
+          owner_phone_numbers?: string[] | null
+          staff_phone_numbers?: string[] | null
+          tenant_id: string
+          updated_at?: string
+          voice_enabled?: boolean
+          welcome_message_ar?: string | null
+          welcome_message_en?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          max_retry_attempts?: number
+          owner_phone_numbers?: string[] | null
+          staff_phone_numbers?: string[] | null
+          tenant_id?: string
+          updated_at?: string
+          voice_enabled?: boolean
+          welcome_message_ar?: string | null
+          welcome_message_en?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_conversations: {
+        Row: {
+          conversation_state: Json | null
+          conversation_type: Database["public"]["Enums"]["whatsapp_conversation_type"]
+          created_at: string
+          id: string
+          intervention_reason: string | null
+          last_message_at: string
+          needs_human_intervention: boolean
+          phone_number: string
+          tenant_id: string
+        }
+        Insert: {
+          conversation_state?: Json | null
+          conversation_type?: Database["public"]["Enums"]["whatsapp_conversation_type"]
+          created_at?: string
+          id?: string
+          intervention_reason?: string | null
+          last_message_at?: string
+          needs_human_intervention?: boolean
+          phone_number: string
+          tenant_id: string
+        }
+        Update: {
+          conversation_state?: Json | null
+          conversation_type?: Database["public"]["Enums"]["whatsapp_conversation_type"]
+          created_at?: string
+          id?: string
+          intervention_reason?: string | null
+          last_message_at?: string
+          needs_human_intervention?: boolean
+          phone_number?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_messages: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          detected_language:
+            | Database["public"]["Enums"]["whatsapp_detected_language"]
+            | null
+          direction: Database["public"]["Enums"]["whatsapp_message_direction"]
+          id: string
+          message_content: string
+          message_type: Database["public"]["Enums"]["whatsapp_message_type"]
+          metadata: Json | null
+          original_audio_url: string | null
+          transcription: string | null
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          detected_language?:
+            | Database["public"]["Enums"]["whatsapp_detected_language"]
+            | null
+          direction: Database["public"]["Enums"]["whatsapp_message_direction"]
+          id?: string
+          message_content: string
+          message_type?: Database["public"]["Enums"]["whatsapp_message_type"]
+          metadata?: Json | null
+          original_audio_url?: string | null
+          transcription?: string | null
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          detected_language?:
+            | Database["public"]["Enums"]["whatsapp_detected_language"]
+            | null
+          direction?: Database["public"]["Enums"]["whatsapp_message_direction"]
+          id?: string
+          message_content?: string
+          message_type?: Database["public"]["Enums"]["whatsapp_message_type"]
+          metadata?: Json | null
+          original_audio_url?: string | null
+          transcription?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -578,6 +763,15 @@ export type Database = {
         | "massage"
         | "other"
       subscription_plan: "starter" | "professional" | "ai"
+      whatsapp_conversation_type: "customer" | "admin"
+      whatsapp_detected_language: "en" | "ar"
+      whatsapp_message_direction: "inbound" | "outbound"
+      whatsapp_message_type:
+        | "text"
+        | "voice"
+        | "booking_offer"
+        | "report"
+        | "handoff"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -736,6 +930,16 @@ export const Constants = {
         "other",
       ],
       subscription_plan: ["starter", "professional", "ai"],
+      whatsapp_conversation_type: ["customer", "admin"],
+      whatsapp_detected_language: ["en", "ar"],
+      whatsapp_message_direction: ["inbound", "outbound"],
+      whatsapp_message_type: [
+        "text",
+        "voice",
+        "booking_offer",
+        "report",
+        "handoff",
+      ],
     },
   },
 } as const
