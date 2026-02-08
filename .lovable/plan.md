@@ -1,314 +1,504 @@
 
 
-# SalonFlow Kuwait - Complete Implementation Plan
+# WhatsApp AI Agent with Voice Message Support - Enhanced Plan
 
 ## Overview
-A comprehensive multi-tenant SaaS platform for Ladies Salons in Kuwait with subscription billing, advanced booking calendar with drag-and-drop, and business automation capabilities.
+Build a comprehensive AI-driven WhatsApp integration for ZAINA that operates in two modes: **Customer Booking Assistant** (automatic for customers) and **Business Intelligence Manager** (for owners/staff). **NEW: The system will also understand and respond to voice messages from customers**, transcribing them in real-time and processing them like text messages.
 
 ---
 
-## Phase 0: Foundation & Infrastructure
+## Architecture
 
-### 0.1 Database Architecture (Supabase)
-- **Multi-tenant schema** with strict RLS isolation
-- **Core tables**: 
-  - `tenants` (company info, subscription status, trial dates, add-on flags)
-  - `branches` (per-tenant locations with operating hours)
-  - `plans` (Starter 29 KWD, Professional +16 KWD, AI +14 KWD)
-  - `user_roles` (separate table for RBAC - Owner, Manager, Receptionist, Cashier, Stylist, Inventory Clerk, Accountant, Read-only)
-  - `profiles` (user details linked to tenant/branch)
-  - `audit_logs` (sensitive action tracking)
-- **KWD currency** with 3 decimal precision throughout
-- **Feature flag functions** for subscription-based access control
-
-### 0.2 Authentication & Onboarding Wizard
-- **Sign-up**: Email/Password → Auto-create tenant → Assign Owner role → Start 14-day trial
-- **Forced onboarding wizard** before dashboard:
-  1. Salon details (name, logo, default tax 0%)
-  2. First branch setup (name, address, opening hours)
-  3. First staff member creation
-  4. Completion with confetti celebration
-- **Trial management**: Day 7 & 12 reminders, expiry lock with upgrade prompt
-
-### 0.3 App Shell & Navigation
-- Branch switcher in header (always visible)
-- Role-based sidebar navigation
-- Premium feature overlays (not 404s) for locked modules
-- Arabic/English toggle with RTL support
-
----
-
-## Phase 1: Core Salon Operations
-
-### 1.1 Staff & Resource Management
-- **Staff profiles** per branch:
-  - Name, avatar, contact, working hours, breaks
-  - Service skills (which services they can perform)
-  - Color assignment for calendar display
-- **Resources** per branch:
-  - Rooms, chairs, machines (Laser Room, Nail Station, Facial Machine)
-  - Capacity and availability scheduling
-- Services can require: 1 staff + optional 1 resource
-
-### 1.2 Booking Calendar (Versum-Style with Drag & Drop)
-
-#### Calendar Layout
-- **Header bar**: Date navigation, "Today" button, Day/Week/Month view toggles
-- **Two-panel design**:
-  - Left: Collapsible staff roster sidebar with mini calendar
-  - Right: Multi-column calendar grid
-
-#### Staff Roster Sidebar
-- Mini calendar for quick date jumping
-- Staff list with:
-  - Checkbox to show/hide each employee's column
-  - Avatar, name, and color indicator
-  - Current status (available, busy, break)
-- Collapse button to maximize calendar space
-
-#### Multi-Column Day View (Primary)
-- **Horizontal columns**: One per visible staff member
-- **Vertical time slots**: 15-minute intervals (opening to closing)
-- **Column headers**: Staff name, working hours indicator
-- **Time gutter**: Left-side time labels
-
-#### Appointment Cards
-- Color-coded by service category
-- Display: Client name, service, duration
-- Status indicators (Planned, Confirmed, Checked-in, In Service, Completed)
-- Hover tooltip with full details
-- Right-click context menu (Edit, Cancel, Check-in, Complete)
-
-#### Drag & Drop Functionality
-- **Vertical drag**: Change appointment time (snap to 15-min grid)
-- **Horizontal drag**: Reassign to different staff
-- **Visual feedback**: Ghost preview while dragging
-- **Conflict detection**: 
-  - Highlight blocked slots during drag
-  - Prevent drop on occupied times or unavailable staff
-  - Toast notification explaining conflicts
-- **Drop confirmation**: Quick confirm dialog with option to notify client
-
-#### Click-to-Create Booking
-- Click empty slot → Opens booking form modal
-- Pre-fills staff and time from click location
-- **Booking Form Modal**:
-  - Client search/selection (or quick-create new)
-  - Service selection with auto-duration
-  - Staff assignment (pre-selected)
-  - Resource selection if service requires it
-  - Date/time picker with buffer options
-  - Deposit toggle, notes field
-
-#### Booking Status Workflow
-Planned → Confirmed → Checked-In → In Service → Completed
-(+ Cancelled/No-show branches)
-
-### 1.3 Client CRM & Loyalty
-- **Client profiles**: Name, mobile, preferences, allergies, visit history, balance
-- **VIP/Normal tier** with configurable rules
-- **Packages/Memberships**: Sell bundles (5 blow-dries, 10 sessions), track consumption
-- **Marketing automation** (Professional tier):
-  - Birthday reminders with offers
-  - Win-back campaigns (no visit for X days)
-  - VIP-only promotions
-- Reminder framework (email/SMS placeholders, WhatsApp-ready)
-
-### 1.4 POS System (Tablet PWA, Offline-First)
-- **2-column tablet layout**: Services/Products grid | Cart
-- **Offline support**: IndexedDB caching, sync with conflict handling
-- **Cart features**:
-  - Services + retail products on one invoice
-  - Quick add (manual item entry)
-  - Discount with role-based approval
-  - Tips support
-  - Split payment (Cash/KNET)
-- **Cash drawer sessions**: Open → In/Out → Close → End-of-Day per device
-- Link to booking for service completion
-
-### 1.5 Inventory Module
-- **Branch-specific stock** management
-- **Product catalog**: SKU, barcode, UoM, cost, selling price, min stock, supplier
-- **Stock movements**: Purchase receipt, branch transfers, adjustments, returns
-- **Service consumption (BOM)**: Define products/qty consumed per service
-- **Operational rules**:
-  - Stylists: "Consume from stock" during service completion
-  - Reception/Cashier: Sell retail products via POS
-- **Alerts**: Low stock, fast/slow movers, shrinkage indicators
-
----
-
-## Phase 2: Staff Performance & Commissions
-
-### 2.1 Attendance System
-- Mobile-friendly punch in/out per branch
-- Track: Late arrivals, absences, working hours
-- Branch/location selection on punch
-
-### 2.2 Performance Metrics
-- Services performed, sales value, retail upsell
-- Rebooking rate, client ratings (optional)
-- Staff utilization percentage
-
-### 2.3 Commission Engine
-- **Configurable rules** per role/service/product/branch:
-  - % commission on service revenue
-  - % commission on retail sales
-  - Monthly target bonuses
-- Commission ledger per employee
-- Approval workflow and payout status
-
----
-
-## Phase 3: Advanced Customization
-
-### 3.1 Custom Screen Builder (Form Builder)
-- Add custom fields to: Client, Booking, Invoice, Product, Staff, Resource
-- Field types: Text, number, date, dropdown, multi-select, checkbox, file
-- Layout builder with sections/tabs
-- Field rules: Required, visible-if, read-only by role
-- Tenant-level with optional branch overrides
-
-### 3.2 Custom Report Builder
-- Data sources: Bookings, Sales, Clients, Inventory, Attendance, Commissions
-- Column selection including custom fields
-- Filters, grouping, pivots (sum/count/avg)
-- Save, share by role, export CSV
-- Dashboard tiles from saved reports
-
-### 3.3 Workflow Automation Engine
-- **Triggers**: Booking changes, low stock, discount threshold, refund, no-visit X days, birthday, commission pending
-- **Conditions**: Branch, role, amounts, VIP tier, service category, time
-- **Actions**: Notifications, task creation, email/SMS placeholder, auto-assign
-- Audit log and enable/disable per workflow
-
----
-
-## Phase 4: AI Layer (Premium Add-on - +14 KWD)
-
-### 4.1 Tenant AI Assistant
-- Chat interface for owners/managers
-- Natural language queries: "Revenue by branch last week", "Stylists with best rebooking rate"
-- Dynamic report generation
-- Role-based data visibility, explainable calculations
-
-### 4.2 AI Insights Engine
-- Proactive daily/weekly notifications:
-  - Sales anomalies, cancellation spikes
-  - Low stock risk, staff utilization imbalance
-  - Customer churn risk, upsell opportunities
-- One-click workflow/report creation from insights
-
-### 4.3 Platform Owner Dashboard
-- Global admin (no cross-tenant leakage)
-- Metrics: Tenant count, GMV, MAU/DAU, retention, churn risk
-- Feature usage analytics
-- SaaS owner AI assistant
-
----
-
-## Phase 5: Accounting MVP
-
-- Basic chart of accounts template
-- Auto-posting: POS → Revenue/Cash, Purchases → Inventory/Payables, Consumption → COGS
-- Reports: Sales by day/service/staff/branch, cash session summary, inventory valuation, P&L
-
----
-
-## Subscription Management
-
-### Plan Overview Card
-- Current plan display with status (Active/Trial/Overdue)
-- Dynamic calculator: Base + Professional Pack + AI Add-on = Total (KWD 3 decimals)
-- Upgrade toggles with instant price preview
-
-### Feature Guardrails
-- Premium Feature overlay for locked modules (Marketing, AI, Commission Engine)
-- Clear upgrade CTA with value proposition
-
----
-
-## Demo Data (Kuwait Context)
-
-- **2 branches**: Salmiya, Hawally
-- **10 staff**: Fatima, Noura, Sara, Maryam, Huda, etc. with varied skills/hours
-- **8 resources**: Laser Room 1 & 2, Nail Stations, Facial Machine, Hair Stations
-- **40 services**: Hair styling, nails, facials, makeup, waxing, etc.
-- **80 products**: Shampoo, dye, nail polish, skincare items
-- **200 clients**: Mix of VIP and Normal tiers
-
----
-
-## Technical Architecture
-
-### Stack
-- **Backend**: Supabase (Auth + Database + RLS + Edge Functions)
-- **Frontend**: React, Tailwind CSS, Shadcn UI, TanStack Query
-- **Offline**: IndexedDB for POS persistence
-- **Calendar**: @dnd-kit for drag-and-drop interactions
-
-### Key Components
-```
-src/
-├── pages/
-│   ├── Index.tsx (Landing/Login)
-│   ├── Onboarding.tsx (Setup wizard)
-│   ├── Dashboard.tsx (Role-based home)
-│   ├── Calendar.tsx (Booking calendar)
-│   ├── Clients.tsx
-│   ├── POS.tsx
-│   ├── Inventory.tsx
-│   ├── Staff.tsx
-│   ├── Settings.tsx
-│   └── Subscription.tsx
-├── components/
-│   ├── calendar/
-│   │   ├── CalendarHeader.tsx
-│   │   ├── StaffRosterSidebar.tsx
-│   │   ├── MiniCalendar.tsx
-│   │   ├── CalendarGrid.tsx
-│   │   ├── StaffColumn.tsx
-│   │   ├── AppointmentCard.tsx
-│   │   └── BookingFormDialog.tsx
-│   ├── layout/
-│   │   ├── AppShell.tsx
-│   │   ├── Sidebar.tsx
-│   │   └── BranchSwitcher.tsx
-│   └── subscription/
-│       ├── PlanCard.tsx
-│       └── FeatureGate.tsx
-├── contexts/
-│   ├── TenantContext.tsx
-│   └── SubscriptionContext.tsx
-├── hooks/
-│   ├── useCalendarDragDrop.ts
-│   └── useFeatureAccess.ts
-└── types/
-    ├── tenant.ts
-    ├── booking.ts
-    └── calendar.ts
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    ZAINA WhatsApp AI System with Voice                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐        │
+│  │   WhatsApp   │────▶│   Edge Function  │────▶│   Lovable AI     │        │
+│  │   Webhook    │     │  (whatsapp-agent)│     │ (gemini-3-flash) │        │
+│  └──────┬───────┘     └────────┬─────────┘     └──────────────────┘        │
+│         │                      │                                            │
+│         │ Voice Messages       │                                            │
+│         ▼                      │                                            │
+│  ┌──────────────┐              │                                            │
+│  │  ElevenLabs  │──────────────┘                                            │
+│  │    Scribe    │  (Transcription)                                          │
+│  │  (scribe_v2) │                                                           │
+│  └──────────────┘                                                           │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────┐       │
+│  │                        Supabase Database                         │       │
+│  │  ┌─────────────┬──────────────┬─────────────┬────────────────┐  │       │
+│  │  │  bookings   │   services   │    staff    │ whatsapp_chats │  │       │
+│  │  └─────────────┴──────────────┴─────────────┴────────────────┘  │       │
+│  └─────────────────────────────────────────────────────────────────┘       │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────┐       │
+│  │                      Dashboard UI                                │       │
+│  │  ┌────────────────────┬─────────────────────────────────────┐   │       │
+│  │  │ Settings & Config  │  Live Chat Simulator (Split View)   │   │       │
+│  │  │ - Owner numbers    │  ┌──────────┐    ┌──────────────┐   │   │       │
+│  │  │ - Voice settings   │  │ Customer │    │ Admin Query  │   │   │       │
+│  │  │ - Enable/disable   │  │   Mode   │    │    Mode      │   │   │       │
+│  │  │ - Handoff rules    │  │ + Voice  │    └──────────────┘   │   │       │
+│  │  └────────────────────┴──┴──────────┴───────────────────────┘   │       │
+│  └─────────────────────────────────────────────────────────────────┘       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Future Roadmap (Post-MVP)
+## Phase 1: Database Schema
 
-- WhatsApp Business API integration
-- ~~KNET/MyFatoorah payment gateway~~ ✅ IMPLEMENTED
-- Advanced accounting & payroll export
-- ~~Online appointment deposits~~ ✅ IMPLEMENTED
-- Customer mobile app
-- Enterprise API integrations
+### New Tables
+
+**1. `whatsapp_config` - Tenant-specific WhatsApp settings**
+- id: uuid (PK)
+- tenant_id: uuid (FK to tenants)
+- is_enabled: boolean
+- owner_phone_numbers: text[] (verified owner numbers)
+- staff_phone_numbers: text[] (verified staff numbers)
+- welcome_message_en: text
+- welcome_message_ar: text
+- voice_enabled: boolean (NEW - enable voice message processing)
+- max_retry_attempts: integer (default: 2)
+- created_at, updated_at: timestamps
+
+**2. `whatsapp_conversations` - Chat history and state**
+- id: uuid (PK)
+- tenant_id: uuid (FK to tenants)
+- phone_number: text
+- conversation_type: enum ('customer', 'admin')
+- conversation_state: jsonb (booking flow state)
+- needs_human_intervention: boolean
+- intervention_reason: text
+- last_message_at: timestamp
+- created_at: timestamp
+
+**3. `whatsapp_messages` - Individual message log**
+- id: uuid (PK)
+- conversation_id: uuid (FK to whatsapp_conversations)
+- direction: enum ('inbound', 'outbound')
+- message_content: text
+- detected_language: enum ('en', 'ar')
+- message_type: enum ('text', 'voice', 'booking_offer', 'report', 'handoff') - **NEW: 'voice' type**
+- original_audio_url: text (NEW - store voice message URL)
+- transcription: text (NEW - store voice transcription)
+- metadata: jsonb (slot options, report data, transcription confidence, etc.)
+- created_at: timestamp
+
+**4. `expenses` - For owner expense tracking queries**
+- id: uuid (PK)
+- tenant_id: uuid (FK to tenants)
+- category: text (supplies, rent, utilities, etc.)
+- description: text
+- amount: numeric
+- expense_date: date
+- created_at: timestamp
+
+### RLS Policies
+- Conversations and messages scoped to tenant_id
+- Config table: owners/managers can read/write
+- Messages: read-only for authenticated users in tenant
 
 ---
 
-## Implementation Progress
+## Phase 2: Edge Functions
 
-### Completed Features
-- [x] Versum-style booking calendar with drag-and-drop
-- [x] Staff roster sidebar with visibility toggles
-- [x] Online booking page (`/book`)
-- [x] MyFatoorah payment integration for deposits
-- [x] Database schema for services, staff, clients, bookings
-- [x] Payment transaction logging
+### 1. `whatsapp-webhook` - Incoming message handler
+**Responsibilities:**
+- Receive WhatsApp webhook payloads
+- Validate webhook signature
+- Detect message type (text vs voice)
+- Route to appropriate handler
+
+### 2. `whatsapp-transcribe` - Voice Message Transcription (NEW)
+**Responsibilities:**
+- Receive voice message audio from WhatsApp
+- Download the audio file using WhatsApp Media API
+- Send to ElevenLabs Scribe API (`scribe_v2`) for transcription
+- Detect language (English/Arabic) automatically
+- Return transcribed text with confidence score
+
+**Implementation:**
+```typescript
+// Fetch audio from WhatsApp
+const audioResponse = await fetch(mediaUrl, {
+  headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` }
+});
+const audioBuffer = await audioResponse.arrayBuffer();
+
+// Transcribe with ElevenLabs Scribe
+const formData = new FormData();
+formData.append('file', new Blob([audioBuffer]), 'voice.ogg');
+formData.append('model_id', 'scribe_v2');
+formData.append('language_code', 'auto'); // Auto-detect EN/AR
+
+const transcription = await fetch(
+  'https://api.elevenlabs.io/v1/speech-to-text',
+  {
+    method: 'POST',
+    headers: { 'xi-api-key': ELEVENLABS_API_KEY },
+    body: formData
+  }
+);
+```
+
+### 3. `whatsapp-agent` - Core AI processing
+**Responsibilities:**
+- Accept both text messages AND transcribed voice text
+- Detect language (English/Arabic) from message
+- Determine user type (customer vs owner/staff)
+- Process customer booking requests:
+  - Parse intent (book, reschedule, cancel)
+  - Query available slots from bookings + staff schedules
+  - Offer 2-3 time options
+  - Confirm and create booking
+- Process admin queries:
+  - Natural language to database query
+  - Revenue summaries (daily, weekly, monthly)
+  - Customer insights (top clients, popular services)
+  - Expense tracking
+- Handle handoff logic (flag after 2 failed attempts)
+
+**Voice-Specific Handling:**
+- Store original audio URL for reference
+- Log transcription alongside message
+- Handle low-confidence transcriptions (ask for clarification)
+
+### 4. `whatsapp-send` - Outbound message sender
+**Responsibilities:**
+- Format messages for WhatsApp API
+- Handle RTL formatting for Arabic
+- Send confirmation messages
+- Trigger daily summary reports
+
+---
+
+## Phase 3: Voice Message Flow (NEW)
+
+### Customer Voice Message Processing
+
+```text
+1. Customer sends voice message on WhatsApp
+   ↓
+2. WhatsApp webhook receives audio message
+   ↓
+3. Download audio from WhatsApp Media API
+   ↓
+4. Send to ElevenLabs Scribe API
+   - Model: scribe_v2 (batch transcription)
+   - Auto-detect language (EN/AR)
+   - Get word-level timestamps
+   ↓
+5. Store transcription in whatsapp_messages
+   - message_type: 'voice'
+   - original_audio_url: WhatsApp media URL
+   - transcription: "أريد حجز موعد غداً"
+   - detected_language: 'ar'
+   ↓
+6. Process transcribed text through AI agent
+   (Same flow as text messages)
+   ↓
+7. Send text response back to customer
+   ↓
+8. If transcription confidence < 80%:
+   → Ask customer to repeat or type message
+   EN: "I didn't quite catch that. Could you please type your request?"
+   AR: "لم أفهم جيداً. هل يمكنك كتابة طلبك؟"
+```
+
+### Supported Voice Scenarios
+
+**Booking via Voice:**
+- Customer: [Voice] "أبي أحجز موعد قص شعر يوم الثلاثاء" (I want to book a haircut on Tuesday)
+- AI: Transcribes → Detects Arabic → Parses intent → Offers slots in Arabic
+
+**Service Inquiry via Voice:**
+- Customer: [Voice] "What services do you offer?"
+- AI: Transcribes → Detects English → Lists services with prices
+
+**Cancellation via Voice:**
+- Customer: [Voice] "I need to cancel my appointment tomorrow"
+- AI: Transcribes → Finds booking → Confirms cancellation
+
+---
+
+## Phase 4: AI Agent Logic
+
+### Customer Mode Flow (Text & Voice)
+```text
+1. Customer sends message (text OR voice)
+   ↓
+2. If voice message:
+   a. Download audio from WhatsApp
+   b. Transcribe with ElevenLabs Scribe
+   c. Log original audio + transcription
+   ↓
+3. Detect language (auto from text/transcription)
+   ↓
+4. Parse intent:
+   - "I want to book" → Booking flow
+   - "What services?" → List services
+   - "Cancel my appointment" → Cancellation flow
+   ↓
+5. Booking Flow:
+   a. Ask for service preference
+   b. Query available slots (bookings + staff schedules)
+   c. Offer 2-3 options: "Option 1: Tue 10am, Option 2: Wed 3pm..."
+   d. Customer selects → Create booking → Send confirmation
+   ↓
+6. If AI cannot understand after 2 attempts:
+   → Flag for human intervention
+   → Notify salon manager
+```
+
+### Admin Mode Flow
+```text
+1. Owner/staff sends message (text only for security)
+   ↓
+2. Verify phone number against whatsapp_config
+   ↓
+3. Parse query type:
+   - "Revenue today?" → Query bookings, sum prices
+   - "Weekly sales?" → Aggregate by week
+   - "Top customers?" → Group by client, count visits
+   - "Most popular service?" → Group by service_name
+   - "Expenses this month?" → Query expenses table
+   ↓
+4. Format response with:
+   - Summary text (bilingual)
+   - Key metrics highlighted
+   - Comparison to previous period (if applicable)
+```
+
+### Security Guardrails
+- Financial data ONLY accessible to verified owner/staff phones
+- Customer queries cannot access revenue/expense data
+- Phone number verification against stored config
+- Server-side validation only (never client-side)
+- Voice messages from admin phones still require text verification for sensitive data
+
+---
+
+## Phase 5: Dashboard UI
+
+### New Page: `/whatsapp-agent`
+
+**Design: Edgy AI aesthetic (Dark mode primary)**
+- Background: Charcoal (#111827)
+- Accent: Gold (#D4AF37) with Cyber elements
+- Cards: Dark with subtle gold borders
+- Typography: Space Grotesk for headings
+
+### Settings Panel (Left Side)
+```text
+┌─────────────────────────────────────┐
+│  WhatsApp AI Agent                  │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                     │
+│  [Toggle] Enable WhatsApp Agent     │
+│                                     │
+│  [Toggle] Enable Voice Messages ◀── NEW
+│                                     │
+│  Owner Phone Numbers               │
+│  ┌─────────────────────────────┐   │
+│  │ +965 9876 5432  [x]         │   │
+│  │ [+ Add Number]              │   │
+│  └─────────────────────────────┘   │
+│                                     │
+│  Staff Phone Numbers               │
+│  ┌─────────────────────────────┐   │
+│  │ +965 1234 5678  [x]         │   │
+│  │ [+ Add Number]              │   │
+│  └─────────────────────────────┘   │
+│                                     │
+│  Welcome Messages                  │
+│  ┌─────────────────────────────┐   │
+│  │ English: "Welcome to..."    │   │
+│  │ Arabic: "أهلاً وسهلاً..."     │   │
+│  └─────────────────────────────┘   │
+│                                     │
+│  [Save Settings]                   │
+└─────────────────────────────────────┘
+```
+
+### Live Simulator (Right Side - Split View)
+
+**Customer Mode Tab (with Voice Indicator):**
+```text
+┌─────────────────────────────────────┐
+│  📱 Customer Simulator             │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                     │
+│  [Customer voice bubble - NEW]     │
+│  ┌─────────────────────────────┐   │
+│  │ 🎤 Voice Message (0:05)     │ ◀│
+│  │ "أريد حجز موعد للشعر"       │   │ ◀── Transcription shown
+│  └─────────────────────────────┘   │
+│                                     │
+│                [AI response]       │
+│  ▶│ ┌─────────────────────────┐   │
+│    │ "أهلاً! لدينا هذه المواعيد   │   │
+│    │ المتاحة:                  │   │
+│    │ 1️⃣ الثلاثاء 10 صباحاً     │   │
+│    │ 2️⃣ الأربعاء 3 مساءً       │   │
+│    └─────────────────────────┘   │
+│                                     │
+│  ┌──────────────────────┬─────┐   │
+│  │ Type or record... 🎤 │ [▶] │   │ ◀── NEW: Voice input option
+│  └──────────────────────┴─────┘   │
+└─────────────────────────────────────┘
+```
+
+**Admin Mode Tab:**
+```text
+┌─────────────────────────────────────┐
+│  👔 Admin Query Simulator          │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                     │
+│  [Admin bubble]                    │
+│  ┌─────────────────────────────┐   │
+│  │ "What was revenue today?"   │ ◀│
+│  └─────────────────────────────┘   │
+│                                     │
+│                [AI response]       │
+│  ▶│ ┌─────────────────────────┐   │
+│    │ 📊 Today's Revenue       │   │
+│    │ ━━━━━━━━━━━━━━━━━━━━━━━  │   │
+│    │ Total: 485 KWD           │   │
+│    │ Appointments: 12         │   │
+│    │ Avg per booking: 40 KWD  │   │
+│    │                          │   │
+│    │ +12% vs yesterday 📈     │   │
+│    └─────────────────────────┘   │
+│                                     │
+│  ┌─────────────────────────────┐   │
+│  │ Ask ZAINA anything...  [▶] │   │
+│  └─────────────────────────────┘   │
+└─────────────────────────────────────┘
+```
+
+### Conversation Log Panel
+- List of flagged conversations needing human intervention
+- Voice messages show 🎤 icon with transcription
+- Click to view full chat history including audio playback
+- Mark as resolved action
+
+---
+
+## Phase 6: Handoff Logic
+
+### Trigger Conditions
+1. AI cannot parse intent after 2 messages (text or voice)
+2. Voice transcription confidence below 60% twice in a row
+3. Customer explicitly requests human help
+4. Complex query outside AI capabilities
+
+### Handoff Flow
+```text
+1. Flag conversation in database:
+   - needs_human_intervention = true
+   - intervention_reason = "AI could not understand voice message"
+
+2. Send message to customer:
+   EN: "I'm connecting you with our team. They'll respond shortly!"
+   AR: "سأوصلك بفريقنا. سيردون عليك قريباً!"
+
+3. Notify salon manager:
+   - Dashboard notification badge
+   - Optional: WhatsApp message to owner phone
+```
+
+---
+
+## Technical Details
+
+### Required API Keys/Secrets (NEW)
+- `ELEVENLABS_API_KEY` - For voice transcription (Scribe API)
+- `WHATSAPP_BUSINESS_TOKEN` - For WhatsApp Business API
+- `WHATSAPP_PHONE_NUMBER_ID` - WhatsApp phone number ID
+- `WHATSAPP_VERIFY_TOKEN` - Webhook verification token
+
+### Files to Create
+
+**Edge Functions:**
+- `supabase/functions/whatsapp-webhook/index.ts` - Webhook handler
+- `supabase/functions/whatsapp-transcribe/index.ts` - Voice transcription (NEW)
+- `supabase/functions/whatsapp-agent/index.ts` - Core AI logic
+- `supabase/functions/whatsapp-send/index.ts` - Outbound messages
+
+**Frontend Components:**
+- `src/pages/WhatsAppAgent.tsx` - Main settings page
+- `src/components/whatsapp/WhatsAppSettings.tsx` - Config panel
+- `src/components/whatsapp/ChatSimulator.tsx` - Interactive simulator
+- `src/components/whatsapp/VoiceRecorder.tsx` - Voice input for simulator (NEW)
+- `src/components/whatsapp/VoiceMessageBubble.tsx` - Display voice messages (NEW)
+- `src/components/whatsapp/ConversationLog.tsx` - Message history
+- `src/components/whatsapp/MessageBubble.tsx` - RTL-aware chat bubble
+- `src/hooks/useWhatsAppConfig.ts` - Config CRUD hook
+- `src/hooks/useWhatsAppSimulator.ts` - Simulator state hook
+
+**Styling:**
+- Dark mode theme with gold accents
+- RTL support for Arabic messages
+- Voice waveform visualization for audio messages
+- Responsive split-panel layout
+
+### Database Migration
+- Create 4 new tables with RLS
+- Add `whatsapp_agent` nav item to sidebar
+- Enable realtime for conversations table
+
+---
+
+## Implementation Order
+
+1. **Database Schema** - Create tables, RLS, triggers
+2. **Secrets Setup** - Request ElevenLabs API key from user
+3. **Voice Transcription Function** - ElevenLabs Scribe integration
+4. **Core Agent Function** - AI processing with voice support
+5. **WhatsApp Settings UI** - Config management with voice toggle
+6. **Chat Simulator** - Interactive testing with voice input
+7. **Conversation Log** - View flagged conversations with audio
+8. **Navigation Update** - Add sidebar link
+9. **Integration Testing** - End-to-end flows including voice
+
+---
+
+## Voice Message Specifications
+
+### Supported Audio Formats
+- OGG/Opus (WhatsApp default)
+- MP3
+- WAV
+- M4A
+
+### Language Support
+- English (eng)
+- Arabic (ara)
+- Auto-detection mode
+
+### Transcription Limits
+- Max audio duration: 5 minutes per message
+- Response time: ~2-3 seconds for short messages
+
+### Error Handling
+- Network timeout: Retry up to 2 times
+- Transcription failure: Ask customer to type instead
+- Low confidence (<60%): Request clarification
+
+---
+
+## Security Considerations
+
+- Owner/staff phone verification is server-side only
+- Financial data queries restricted to verified phones
+- RLS policies enforce tenant isolation
+- Webhook signature validation prevents spoofing
+- No customer access to revenue/expense data
+- Voice messages from admin phones require text verification for sensitive operations
+- Audio files are not stored permanently (only transcriptions)
 
