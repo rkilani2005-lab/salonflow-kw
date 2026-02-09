@@ -124,16 +124,17 @@
  
        if (branchError) throw branchError;
  
-       // 5. Create first staff member
-       const { error: staffError } = await supabase
-         .from('staff')
-         .insert({
-           name: staff.name,
-           phone: staff.phone || null,
-           email: staff.email || null,
-           working_hours_start: branch.openingTime,
-           working_hours_end: branch.closingTime,
-         });
+        // 5. Create first staff member
+        const { error: staffError } = await supabase
+          .from('staff')
+          .insert({
+            tenant_id: tenantData.id,
+            name: staff.name,
+            phone: staff.phone || null,
+            email: staff.email || null,
+            working_hours_start: branch.openingTime,
+            working_hours_end: branch.closingTime,
+          });
  
        if (staffError) throw staffError;
  
