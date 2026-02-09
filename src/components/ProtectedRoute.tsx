@@ -3,9 +3,10 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  allowSuperAdmin?: boolean;
 }
 
-const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+const ProtectedRoute = ({ children, allowSuperAdmin = false }: ProtectedRouteProps) => {
   const { user, tenant, userRoles, loading } = useAuth();
   const location = useLocation();
 
@@ -22,14 +23,14 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // Super admins bypass onboarding and go to admin panel
+  // Super admins bypass onboarding and go to admin panel (unless allowSuperAdmin is true)
   const isSuperAdmin = userRoles.includes('super_admin' as any);
-  if (isSuperAdmin) {
+  if (isSuperAdmin && !allowSuperAdmin) {
     return <Navigate to="/admin" replace />;
   }
 
-  // Logged in but no tenant (hasn't completed onboarding)
-  if (!tenant?.onboarding_completed && location.pathname !== '/onboarding') {
+  // Logged in but no tenant (hasn't completed onboarding) - skip for super admins
+  if (!isSuperAdmin && !tenant?.onboarding_completed && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
   }
 

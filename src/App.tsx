@@ -51,6 +51,13 @@ const App = () => (
               </ProtectedRoute>
             } />
             
+            {/* WhatsApp Agent - standalone page with its own layout */}
+            <Route path="/whatsapp-agent" element={
+              <ProtectedRoute allowSuperAdmin={true}>
+                <WhatsAppAgent />
+              </ProtectedRoute>
+            } />
+            
             {/* Protected routes with dashboard layout */}
             <Route element={
               <ProtectedRoute>
@@ -67,7 +74,6 @@ const App = () => (
               <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/subscription" element={<Subscription />} />
-              <Route path="/whatsapp-agent" element={<WhatsAppAgent />} />
             </Route>
             
             {/* Super Admin routes */}
