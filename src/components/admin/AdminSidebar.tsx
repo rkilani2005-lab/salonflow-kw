@@ -23,6 +23,7 @@ import {
   LogOut,
   Shield,
   Settings,
+  Bot,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NavLink } from '@/components/NavLink';
@@ -33,6 +34,7 @@ const navItems = [
   { title: 'Subscriptions', url: '/admin/subscriptions', icon: CreditCard },
   { title: 'Analytics', url: '/admin/analytics', icon: BarChart3 },
   { title: 'Users', url: '/admin/users', icon: Users },
+  { title: 'WhatsApp AI', url: '/whatsapp-agent', icon: Bot },
 ];
 
 const AdminSidebar = () => {
