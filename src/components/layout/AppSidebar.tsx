@@ -16,19 +16,20 @@
    SidebarSeparator,
    useSidebar,
  } from '@/components/ui/sidebar';
- import {
-   Calendar,
-   Users,
-   Scissors,
-   Package,
-   CreditCard,
-   BarChart3,
-   Settings,
-   LogOut,
-   Sparkles,
-   Crown,
-   UserCog,
- } from 'lucide-react';
+  import {
+    Calendar,
+    Users,
+    Scissors,
+    Package,
+    CreditCard,
+    BarChart3,
+    Settings,
+    LogOut,
+    Sparkles,
+    Crown,
+    UserCog,
+    Bot,
+  } from 'lucide-react';
  import { Button } from '@/components/ui/button';
  import { Badge } from '@/components/ui/badge';
  import { differenceInDays } from 'date-fns';
@@ -48,11 +49,12 @@ const mainNavItems: NavItem[] = [
   { title: 'Services', url: '/services', icon: Scissors, roles: ['owner', 'manager'] },
 ];
  
- const businessNavItems: NavItem[] = [
-   { title: 'POS', url: '/pos', icon: CreditCard, roles: ['owner', 'manager', 'receptionist', 'cashier'] },
-   { title: 'Inventory', url: '/inventory', icon: Package, roles: ['owner', 'manager', 'inventory_clerk'] },
-   { title: 'Reports', url: '/reports', icon: BarChart3, roles: ['owner', 'manager', 'accountant'] },
- ];
+  const businessNavItems: NavItem[] = [
+    { title: 'POS', url: '/pos', icon: CreditCard, roles: ['owner', 'manager', 'receptionist', 'cashier'] },
+    { title: 'Inventory', url: '/inventory', icon: Package, roles: ['owner', 'manager', 'inventory_clerk'] },
+    { title: 'Reports', url: '/reports', icon: BarChart3, roles: ['owner', 'manager', 'accountant'] },
+    { title: 'WhatsApp AI', url: '/whatsapp-agent', icon: Bot, roles: ['owner', 'manager'] },
+  ];
  
  const AppSidebar = () => {
    const { state } = useSidebar();

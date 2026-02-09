@@ -20,6 +20,7 @@ import Staff from "./pages/Staff";
 import Services from "./pages/Services";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import WhatsAppAgent from "./pages/WhatsAppAgent";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminTenants from "./pages/admin/AdminTenants";
 import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/subscription" element={<Subscription />} />
+              <Route path="/whatsapp-agent" element={<WhatsAppAgent />} />
             </Route>
             
             {/* Super Admin routes */}
