@@ -4,8 +4,8 @@
 import { WeekView } from './WeekView';
 import { MonthView } from './MonthView';
  import { AppointmentCard } from './AppointmentCard';
- import { useState } from 'react';
- import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
  
  interface CalendarGridProps {
    staff: Staff[];
@@ -32,8 +32,14 @@ import { MonthView } from './MonthView';
    onSlotClick,
    onAppointmentMove,
  }: CalendarGridProps) {
-   const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null);
-   const { toast } = useToast();
+  const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null);
+    const [now, setNow] = useState(new Date());
+    const { toast } = useToast();
+
+    useEffect(() => {
+      const timer = setInterval(() => setNow(new Date()), 60000);
+      return () => clearInterval(timer);
+    }, []);
  
    const visibleStaff = staff.filter((s) => visibleStaffIds.includes(s.id));
  
@@ -143,8 +149,8 @@ import { MonthView } from './MonthView';
        onDragStart={handleDragStart}
        onDragEnd={handleDragEnd}
      >
-       <div className="flex-1 flex overflow-auto">
-         {/* Time Gutter */}
+      <div className="flex-1 flex overflow-auto relative">
+          {/* Time Gutter */}
          <div className="w-16 flex-shrink-0 border-r bg-muted/30">
            <div className="h-[52px] border-b" /> {/* Header spacer */}
            <div className="relative" style={{ height: `${totalHours * SLOT_HEIGHT}px` }}>
@@ -174,11 +180,29 @@ import { MonthView } from './MonthView';
            />
          ))}
  
-         {visibleStaff.length === 0 && (
-           <div className="flex-1 flex items-center justify-center text-muted-foreground">
-             <p>Select staff members from the sidebar to view their schedules</p>
-           </div>
-         )}
+          {/* Current Time Indicator */}
+          {(() => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const viewDateStr = date.toISOString().split('T')[0];
+            if (todayStr !== viewDateStr) return null;
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            const startMinutes = startHour * 60;
+            const endMinutes = endHour * 60;
+            if (currentMinutes < startMinutes || currentMinutes > endMinutes) return null;
+            const top = ((currentMinutes - startMinutes) / 60) * SLOT_HEIGHT + 52;
+            return (
+              <div className="absolute left-16 right-0 z-30 pointer-events-none flex items-center" style={{ top: `${top}px` }}>
+                <div className="w-2.5 h-2.5 rounded-full bg-destructive -ml-1.5 shrink-0" />
+                <div className="flex-1 h-0.5 bg-destructive" />
+              </div>
+            );
+          })()}
+
+          {visibleStaff.length === 0 && (
+            <div className="flex-1 flex items-center justify-center text-muted-foreground">
+              <p>Select staff members from the sidebar to view their schedules</p>
+            </div>
+          )}
        </div>
  
        <DragOverlay>

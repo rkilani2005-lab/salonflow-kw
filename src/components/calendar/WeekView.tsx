@@ -1,6 +1,7 @@
- import { Staff, Appointment } from '@/types/calendar';
- import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
- import { cn } from '@/lib/utils';
+import { useState, useEffect } from 'react';
+import { Staff, Appointment } from '@/types/calendar';
+import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
+import { cn } from '@/lib/utils';
  
  interface WeekViewProps {
    staff: Staff[];
@@ -23,9 +24,15 @@
    date,
    onSlotClick,
  }: WeekViewProps) {
-   const weekStart = startOfWeek(date, { weekStartsOn: 0 });
-   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-   const totalHours = endHour - startHour;
+  const weekStart = startOfWeek(date, { weekStartsOn: 0 });
+    const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+    const totalHours = endHour - startHour;
+    const [now, setNow] = useState(new Date());
+
+    useEffect(() => {
+      const timer = setInterval(() => setNow(new Date()), 60000);
+      return () => clearInterval(timer);
+    }, []);
  
    const getAppointmentsForDay = (day: Date) => {
      const dayStr = format(day, 'yyyy-MM-dd');
@@ -120,8 +127,23 @@
                      <p className="truncate opacity-80">{apt.serviceName}</p>
                    </div>
                  );
-               })}
-             </div>
+                })}
+
+                {/* Current Time Indicator */}
+                {isToday && (() => {
+                  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                  const startMinutes = startHour * 60;
+                  const endMinutes = endHour * 60;
+                  if (currentMinutes < startMinutes || currentMinutes > endMinutes) return null;
+                  const top = ((currentMinutes - startMinutes) / 60) * SLOT_HEIGHT;
+                  return (
+                    <div className="absolute left-0 right-0 z-30 pointer-events-none flex items-center" style={{ top: `${top}px` }}>
+                      <div className="w-2.5 h-2.5 rounded-full bg-destructive -ml-1 shrink-0" />
+                      <div className="flex-1 h-0.5 bg-destructive" />
+                    </div>
+                  );
+                })()}
+              </div>
            </div>
          );
        })}
