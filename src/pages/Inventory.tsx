@@ -4,6 +4,7 @@ import { ProductsTab } from '@/components/inventory/ProductsTab';
 import { SuppliersTab } from '@/components/inventory/SuppliersTab';
 import { StockMovementsTab } from '@/components/inventory/StockMovementsTab';
 import { PurchaseOrdersTab } from '@/components/inventory/PurchaseOrdersTab';
+import { VendorInvoicesTab } from '@/components/inventory/VendorInvoicesTab';
 
 const Inventory = () => {
   return (
@@ -50,12 +51,7 @@ const Inventory = () => {
           <StockMovementsTab />
         </TabsContent>
         <TabsContent value="invoices">
-          <div className="flex items-center justify-center h-48 text-muted-foreground">
-            <div className="text-center">
-              <FileText className="h-12 w-12 mx-auto mb-3 opacity-40" />
-              <p>Vendor Invoices — Coming in Phase 2</p>
-            </div>
-          </div>
+          <VendorInvoicesTab />
         </TabsContent>
       </Tabs>
     </div>
