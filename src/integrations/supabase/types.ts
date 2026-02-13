@@ -1230,6 +1230,181 @@ export type Database = {
         }
         Relationships: []
       }
+      transaction_items: {
+        Row: {
+          id: string
+          item_id: string | null
+          item_name: string
+          item_name_ar: string | null
+          item_type: string
+          quantity: number
+          staff_commission_id: string | null
+          total_price: number
+          transaction_id: string
+          unit_price: number
+        }
+        Insert: {
+          id?: string
+          item_id?: string | null
+          item_name: string
+          item_name_ar?: string | null
+          item_type: string
+          quantity?: number
+          staff_commission_id?: string | null
+          total_price: number
+          transaction_id: string
+          unit_price: number
+        }
+        Update: {
+          id?: string
+          item_id?: string | null
+          item_name?: string
+          item_name_ar?: string | null
+          item_type?: string
+          quantity?: number
+          staff_commission_id?: string | null
+          total_price?: number
+          transaction_id?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_items_staff_commission_id_fkey"
+            columns: ["staff_commission_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_items_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transaction_payments: {
+        Row: {
+          amount: number
+          id: string
+          payment_method: Database["public"]["Enums"]["pos_payment_method"]
+          transaction_id: string
+        }
+        Insert: {
+          amount: number
+          id?: string
+          payment_method: Database["public"]["Enums"]["pos_payment_method"]
+          transaction_id: string
+        }
+        Update: {
+          amount?: number
+          id?: string
+          payment_method?: Database["public"]["Enums"]["pos_payment_method"]
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_payments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          booking_id: string | null
+          client_id: string | null
+          created_at: string
+          discount_amount: number
+          discount_approved_by: string | null
+          discount_reason: string | null
+          discount_type: string | null
+          discount_value: number | null
+          grand_total: number
+          id: string
+          notes: string | null
+          staff_id: string | null
+          status: Database["public"]["Enums"]["transaction_status"]
+          subtotal: number
+          tax_amount: number
+          tenant_id: string
+          tip_amount: number
+          updated_at: string
+        }
+        Insert: {
+          booking_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          discount_amount?: number
+          discount_approved_by?: string | null
+          discount_reason?: string | null
+          discount_type?: string | null
+          discount_value?: number | null
+          grand_total?: number
+          id?: string
+          notes?: string | null
+          staff_id?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"]
+          subtotal?: number
+          tax_amount?: number
+          tenant_id: string
+          tip_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          discount_amount?: number
+          discount_approved_by?: string | null
+          discount_reason?: string | null
+          discount_type?: string | null
+          discount_value?: number | null
+          grand_total?: number
+          id?: string
+          notes?: string | null
+          staff_id?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"]
+          subtotal?: number
+          tax_amount?: number
+          tenant_id?: string
+          tip_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -1587,6 +1762,7 @@ export type Database = {
         | "partially_received"
         | "received"
         | "cancelled"
+      pos_payment_method: "cash" | "knet" | "credit_card" | "gift_card"
       product_type: "professional" | "retail" | "both"
       service_category:
         | "hair"
@@ -1612,6 +1788,7 @@ export type Database = {
         | "unrecorded_sale"
         | "other"
       subscription_plan: "starter" | "professional" | "ai"
+      transaction_status: "completed" | "refunded" | "voided"
       vendor_invoice_status:
         | "pending"
         | "partially_paid"
@@ -1794,6 +1971,7 @@ export const Constants = {
         "received",
         "cancelled",
       ],
+      pos_payment_method: ["cash", "knet", "credit_card", "gift_card"],
       product_type: ["professional", "retail", "both"],
       service_category: [
         "hair",
@@ -1822,6 +2000,7 @@ export const Constants = {
         "other",
       ],
       subscription_plan: ["starter", "professional", "ai"],
+      transaction_status: ["completed", "refunded", "voided"],
       vendor_invoice_status: [
         "pending",
         "partially_paid",

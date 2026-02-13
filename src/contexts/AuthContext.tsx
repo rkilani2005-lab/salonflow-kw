@@ -12,15 +12,17 @@
    phone: string | null;
  }
  
- interface Tenant {
-   id: string;
-   name: string;
-   logo_url: string | null;
-   onboarding_completed: boolean;
-   is_trial: boolean;
-   trial_ends_at: string;
-   subscription_plan: string;
- }
+interface Tenant {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  onboarding_completed: boolean;
+  is_trial: boolean;
+  trial_ends_at: string;
+  subscription_plan: string;
+  default_tax_rate: number | null;
+  currency: string | null;
+}
  
 interface Branch {
   id: string;

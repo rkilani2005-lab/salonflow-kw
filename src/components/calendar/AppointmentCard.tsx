@@ -1,13 +1,16 @@
- import { Appointment, SERVICE_CATEGORY_COLORS } from '@/types/calendar';
- import { useDraggable } from '@dnd-kit/core';
- import { CSS } from '@dnd-kit/utilities';
- import { cn } from '@/lib/utils';
- import { Badge } from '@/components/ui/badge';
- import {
-   Tooltip,
-   TooltipContent,
-   TooltipTrigger,
- } from '@/components/ui/tooltip';
+import { Appointment, SERVICE_CATEGORY_COLORS } from '@/types/calendar';
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { useNavigate } from 'react-router-dom';
+import { CreditCard } from 'lucide-react';
  
  interface AppointmentCardProps {
    appointment: Appointment;
@@ -35,8 +38,9 @@
    no_show: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
  };
  
- export function AppointmentCard({ appointment, columnHeight, startHour }: AppointmentCardProps) {
-   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+export function AppointmentCard({ appointment, columnHeight, startHour }: AppointmentCardProps) {
+  const navigate = useNavigate();
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
      id: appointment.id,
      data: appointment,
    });
@@ -91,11 +95,24 @@
              </Badge>
              <span className="text-sm">{appointment.price.toFixed(3)} KWD</span>
            </div>
-           <p className="text-sm">
-             {appointment.startTime} - {appointment.endTime} ({appointment.duration} min)
-           </p>
-         </div>
-       </TooltipContent>
+          <p className="text-sm">
+            {appointment.startTime} - {appointment.endTime} ({appointment.duration} min)
+          </p>
+          {(appointment.status === 'completed' || appointment.status === 'in_service') && (
+            <Button
+              size="sm"
+              className="w-full mt-2"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/pos?bookingId=${appointment.id}`);
+              }}
+            >
+              <CreditCard className="mr-1 h-3 w-3" />
+              Checkout
+            </Button>
+          )}
+        </div>
+      </TooltipContent>
      </Tooltip>
    );
  }
