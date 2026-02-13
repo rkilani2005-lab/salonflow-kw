@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { LowStockAlerts } from '@/components/dashboard/LowStockAlerts';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -148,6 +149,9 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Low Stock Alerts */}
+      <LowStockAlerts />
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
