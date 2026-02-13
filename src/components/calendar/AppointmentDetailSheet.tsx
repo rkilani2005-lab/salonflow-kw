@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import {
   Clock,
   User,
+  Users,
   Scissors,
   CreditCard,
   FileText,
@@ -80,6 +81,7 @@ interface AppointmentDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   appointment: Appointment | null;
+  allAppointments?: Appointment[]; // all appointments to find grouped ones
   staff: Staff[];
   services: Service[];
   clients: Client[];
@@ -91,6 +93,7 @@ export function AppointmentDetailSheet({
   open,
   onOpenChange,
   appointment,
+  allAppointments = [],
   staff,
   services,
   clients,
@@ -396,30 +399,87 @@ export function AppointmentDetailSheet({
 
             {/* SERVICES TAB */}
             <TabsContent value="services" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Service</Label>
-                {isLocked ? (
-                  <div className="rounded-lg border p-3">
+              {/* Grouped services display */}
+              {(() => {
+                const groupedApts = apt.groupId
+                  ? allAppointments.filter((a) => a.groupId === apt.groupId)
+                  : [apt];
+
+                return (
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{
-                            backgroundColor:
-                              SERVICE_CATEGORY_COLORS[apt.serviceCategory],
-                          }}
-                        />
-                        <span className="font-medium text-sm">{apt.serviceName}</span>
-                      </div>
-                      <span className="text-sm font-semibold">
-                        {apt.price.toFixed(3)} KWD
-                      </span>
+                      <Label className="text-sm font-medium">
+                        {groupedApts.length > 1 ? `Services (${groupedApts.length})` : 'Service'}
+                      </Label>
+                      {groupedApts.length > 1 && (
+                        <Badge variant="outline" className="text-xs gap-1">
+                          <Users className="h-3 w-3" />
+                          Multi-Service
+                        </Badge>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {apt.duration} minutes · {apt.serviceCategory}
-                    </p>
+
+                    {groupedApts.map((groupApt) => {
+                      const svc = services.find((s) => s.id === groupApt.serviceId);
+                      const stf = staff.find((s) => s.id === groupApt.staffId);
+                      const isCurrent = groupApt.id === apt.id;
+
+                      return (
+                        <div
+                          key={groupApt.id}
+                          className={cn(
+                            'rounded-lg border p-3 space-y-2',
+                            isCurrent && 'border-primary/50 bg-primary/5'
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-3 h-3 rounded-full"
+                                style={{
+                                  backgroundColor: svc
+                                    ? SERVICE_CATEGORY_COLORS[svc.category]
+                                    : undefined,
+                                }}
+                              />
+                              <span className="font-medium text-sm">
+                                {groupApt.serviceName}
+                              </span>
+                              {isCurrent && (
+                                <Badge variant="secondary" className="text-xs">Current</Badge>
+                              )}
+                            </div>
+                            <span className="text-sm font-semibold">
+                              {groupApt.price.toFixed(3)} KWD
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {groupApt.startTime} - {groupApt.endTime}
+                            </span>
+                            <span>{groupApt.duration} min</span>
+                            {stf && (
+                              <span className="flex items-center gap-1">
+                                <span
+                                  className="w-2 h-2 rounded-full inline-block"
+                                  style={{ backgroundColor: stf.color }}
+                                />
+                                {stf.name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : (
+                );
+              })()}
+
+              {/* Change current service (only if not locked) */}
+              {!isLocked && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Change Service</Label>
                   <Select
                     value={apt.serviceId}
                     onValueChange={(v) => handleFieldChange('serviceId', v)}
@@ -430,15 +490,13 @@ export function AppointmentDetailSheet({
                     <SelectContent>
                       {services.map((s) => (
                         <SelectItem key={s.id} value={s.id}>
-                          <span className="flex items-center justify-between w-full gap-4">
-                            <span className="flex items-center gap-2">
-                              <span
-                                className="w-2.5 h-2.5 rounded-full inline-block"
-                                style={{ backgroundColor: SERVICE_CATEGORY_COLORS[s.category] }}
-                              />
-                              {s.name}
-                            </span>
-                            <span className="text-muted-foreground text-xs">
+                          <span className="flex items-center gap-2">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full inline-block"
+                              style={{ backgroundColor: SERVICE_CATEGORY_COLORS[s.category] }}
+                            />
+                            {s.name}
+                            <span className="text-muted-foreground text-xs ml-2">
                               {s.duration}min · {s.price.toFixed(3)} KWD
                             </span>
                           </span>
@@ -446,46 +504,40 @@ export function AppointmentDetailSheet({
                       ))}
                     </SelectContent>
                   </Select>
-                )}
-              </div>
-
-              {/* Service summary */}
-              {selectedService && !isLocked && (
-                <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
-                  <p className="text-sm font-medium">{selectedService.name}</p>
-                  {selectedService.nameAr && (
-                    <p className="text-sm text-muted-foreground" dir="rtl">
-                      {selectedService.nameAr}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span>{selectedService.duration} min</span>
-                    <span>{selectedService.price.toFixed(3)} KWD</span>
-                    <Badge variant="outline" className="text-xs capitalize">
-                      {selectedService.category}
-                    </Badge>
-                  </div>
                 </div>
               )}
 
               {/* Price summary */}
               <Separator />
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Service Total</span>
-                  <span className="font-semibold">{apt.price.toFixed(3)} KWD</span>
-                </div>
-                {retailItems.length > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Retail Products</span>
-                    <span>{totalRetail.toFixed(3)} KWD</span>
-                  </div>
-                )}
-                <Separator />
-                <div className="flex items-center justify-between text-sm font-semibold">
-                  <span>Grand Total</span>
-                  <span>{grandTotal.toFixed(3)} KWD</span>
-                </div>
+                {(() => {
+                  const groupedApts = apt.groupId
+                    ? allAppointments.filter((a) => a.groupId === apt.groupId)
+                    : [apt];
+                  const serviceTotal = groupedApts.reduce((sum, a) => sum + a.price, 0);
+
+                  return (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {groupedApts.length > 1 ? 'All Services Total' : 'Service Total'}
+                        </span>
+                        <span className="font-semibold">{serviceTotal.toFixed(3)} KWD</span>
+                      </div>
+                      {retailItems.length > 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Retail Products</span>
+                          <span>{totalRetail.toFixed(3)} KWD</span>
+                        </div>
+                      )}
+                      <Separator />
+                      <div className="flex items-center justify-between text-sm font-semibold">
+                        <span>Grand Total</span>
+                        <span>{(serviceTotal + totalRetail).toFixed(3)} KWD</span>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </TabsContent>
 

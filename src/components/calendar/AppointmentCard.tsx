@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, FileText } from 'lucide-react';
+import { CreditCard, FileText, Users } from 'lucide-react';
  
 interface AppointmentCardProps {
   appointment: Appointment;
@@ -59,30 +59,38 @@ export function AppointmentCard({ appointment, columnHeight, startHour, onAppoin
      backgroundColor: SERVICE_CATEGORY_COLORS[appointment.serviceCategory],
    };
  
-   return (
-     <Tooltip>
-       <TooltipTrigger asChild>
-         <div
-           ref={setNodeRef}
-           style={style}
-           className={cn(
-             'absolute left-1 right-1 rounded-md px-2 py-1 cursor-grab active:cursor-grabbing',
-             'text-white shadow-sm overflow-hidden transition-shadow',
-             isDragging && 'opacity-50 shadow-lg z-50'
-           )}
-           {...listeners}
-           {...attributes}
-         >
-           <div className="flex flex-col h-full">
-             <p className="text-xs font-semibold truncate">{appointment.clientName}</p>
-             <p className="text-xs opacity-90 truncate">{appointment.serviceName}</p>
-             {height > 50 && (
-               <p className="text-xs opacity-75 mt-auto">
-                 {appointment.startTime} - {appointment.endTime}
-               </p>
-             )}
-           </div>
-         </div>
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div
+            ref={setNodeRef}
+            style={style}
+            className={cn(
+              'absolute left-1 right-1 rounded-md px-2 py-1 cursor-grab active:cursor-grabbing',
+              'text-white shadow-sm overflow-hidden transition-shadow',
+              isDragging && 'opacity-50 shadow-lg z-50',
+              appointment.groupId && 'ring-2 ring-white/60 ring-offset-1 ring-offset-transparent'
+            )}
+            {...listeners}
+            {...attributes}
+          >
+            <div className="flex flex-col h-full">
+              <div className="flex items-center gap-1">
+                <p className="text-xs font-semibold truncate flex-1">{appointment.clientName}</p>
+                {appointment.groupId && (
+                  <span className="shrink-0 w-4 h-4 rounded-full bg-white/30 flex items-center justify-center">
+                    <Users className="h-2.5 w-2.5" />
+                  </span>
+                )}
+              </div>
+              <p className="text-xs opacity-90 truncate">{appointment.serviceName}</p>
+              {height > 50 && (
+                <p className="text-xs opacity-75 mt-auto">
+                  {appointment.startTime} - {appointment.endTime}
+                </p>
+              )}
+            </div>
+          </div>
        </TooltipTrigger>
        <TooltipContent side="right" className="max-w-xs">
           <div className="space-y-2">
