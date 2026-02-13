@@ -3,8 +3,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { ServiceRecipeEditor } from './ServiceRecipeEditor';
- import {
-   Sheet,
+import { ServiceUsageHistory } from './ServiceUsageHistory';
+import {
+  Sheet,
    SheetContent,
    SheetHeader,
    SheetTitle,
@@ -208,12 +209,18 @@ import { ServiceRecipeEditor } from './ServiceRecipeEditor';
                    </div>
                  </div>
  
-                  {/* Service Recipe (BOM) */}
-                  <ServiceRecipeEditor serviceId={serviceId} />
+                   {/* Service Recipe (BOM) */}
+                   <ServiceRecipeEditor serviceId={serviceId} />
 
-                  <Button onClick={() => setIsEditing(true)} className="w-full">
-                    Edit Service
-                  </Button>
+                   {/* Usage History */}
+                   <div className="space-y-2">
+                     <h4 className="text-sm font-medium text-muted-foreground">Usage History</h4>
+                     <ServiceUsageHistory serviceId={serviceId} />
+                   </div>
+
+                   <Button onClick={() => setIsEditing(true)} className="w-full">
+                     Edit Service
+                   </Button>
                 </div>
              ) : (
                <Form {...form}>

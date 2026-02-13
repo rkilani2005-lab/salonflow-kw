@@ -1,6 +1,8 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ProductStockHistory } from './ProductStockHistory';
 import type { Product } from '@/hooks/useProducts';
 
 interface Props {
@@ -33,56 +35,69 @@ export const ProductDetailSheet = ({ product, onClose }: Props) => {
             </Badge>
           </div>
 
-          <Separator />
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="w-full">
+              <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
+              <TabsTrigger value="history" className="flex-1">Stock History</TabsTrigger>
+            </TabsList>
 
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-muted-foreground">SKU</p>
-              <p className="font-medium">{product.sku || '—'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Barcode</p>
-              <p className="font-medium">{product.barcode || '—'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Current Stock</p>
-              <p className="font-medium">{product.current_stock} {product.usage_unit}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Reorder Point</p>
-              <p className="font-medium">{product.reorder_point} {product.usage_unit}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Cost Price</p>
-              <p className="font-medium">{product.cost_price.toFixed(3)} KWD</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Retail Price</p>
-              <p className="font-medium">{product.retail_price.toFixed(3)} KWD</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Purchase Unit</p>
-              <p className="font-medium">{product.purchase_unit} ({product.purchase_unit_quantity} {product.usage_unit})</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Batch</p>
-              <p className="font-medium">{product.batch_number || '—'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Expiry Date</p>
-              <p className="font-medium">{product.expiry_date || '—'}</p>
-            </div>
-          </div>
+            <TabsContent value="details">
+              <div className="space-y-4 mt-2">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">SKU</p>
+                    <p className="font-medium">{product.sku || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Barcode</p>
+                    <p className="font-medium">{product.barcode || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Current Stock</p>
+                    <p className="font-medium">{product.current_stock} {product.usage_unit}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Reorder Point</p>
+                    <p className="font-medium">{product.reorder_point} {product.usage_unit}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Cost Price</p>
+                    <p className="font-medium">{product.cost_price.toFixed(3)} KWD</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Retail Price</p>
+                    <p className="font-medium">{product.retail_price.toFixed(3)} KWD</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Purchase Unit</p>
+                    <p className="font-medium">{product.purchase_unit} ({product.purchase_unit_quantity} {product.usage_unit})</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Batch</p>
+                    <p className="font-medium">{product.batch_number || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Expiry Date</p>
+                    <p className="font-medium">{product.expiry_date || '—'}</p>
+                  </div>
+                </div>
 
-          {product.description && (
-            <>
-              <Separator />
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Description</p>
-                <p className="text-sm">{product.description}</p>
+                {product.description && (
+                  <>
+                    <Separator />
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Description</p>
+                      <p className="text-sm">{product.description}</p>
+                    </div>
+                  </>
+                )}
               </div>
-            </>
-          )}
+            </TabsContent>
+
+            <TabsContent value="history">
+              <ProductStockHistory productId={product.id} tenantId={product.tenant_id} />
+            </TabsContent>
+          </Tabs>
         </div>
       </SheetContent>
     </Sheet>
