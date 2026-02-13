@@ -983,6 +983,146 @@ export type Database = {
           },
         ]
       }
+      stock_take_entries: {
+        Row: {
+          counted_at: string | null
+          counted_by: string | null
+          counted_quantity: number | null
+          created_at: string
+          id: string
+          product_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_notes: string | null
+          session_id: string
+          status: Database["public"]["Enums"]["stock_take_entry_status"]
+          system_quantity: number
+          unit_cost: number
+          variance: number | null
+          variance_reason:
+            | Database["public"]["Enums"]["stock_take_variance_reason"]
+            | null
+          variance_value: number | null
+        }
+        Insert: {
+          counted_at?: string | null
+          counted_by?: string | null
+          counted_quantity?: number | null
+          created_at?: string
+          id?: string
+          product_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          session_id: string
+          status?: Database["public"]["Enums"]["stock_take_entry_status"]
+          system_quantity?: number
+          unit_cost?: number
+          variance?: number | null
+          variance_reason?:
+            | Database["public"]["Enums"]["stock_take_variance_reason"]
+            | null
+          variance_value?: number | null
+        }
+        Update: {
+          counted_at?: string | null
+          counted_by?: string | null
+          counted_quantity?: number | null
+          created_at?: string
+          id?: string
+          product_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          session_id?: string
+          status?: Database["public"]["Enums"]["stock_take_entry_status"]
+          system_quantity?: number
+          unit_cost?: number
+          variance?: number | null
+          variance_reason?:
+            | Database["public"]["Enums"]["stock_take_variance_reason"]
+            | null
+          variance_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_take_entries_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_take_entries_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "stock_take_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_take_sessions: {
+        Row: {
+          assigned_staff_ids: string[] | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          scope: Database["public"]["Enums"]["stock_take_scope"]
+          scope_filter_id: string | null
+          session_name: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["stock_take_status"]
+          tenant_id: string
+          total_variance_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_staff_ids?: string[] | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          scope?: Database["public"]["Enums"]["stock_take_scope"]
+          scope_filter_id?: string | null
+          session_name: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["stock_take_status"]
+          tenant_id: string
+          total_variance_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_staff_ids?: string[] | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          scope?: Database["public"]["Enums"]["stock_take_scope"]
+          scope_filter_id?: string | null
+          session_name?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["stock_take_status"]
+          tenant_id?: string
+          total_variance_value?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_take_sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           address: string | null
@@ -1456,6 +1596,21 @@ export type Database = {
         | "waxing"
         | "massage"
         | "other"
+      stock_take_entry_status: "pending" | "counted" | "recounting" | "accepted"
+      stock_take_scope:
+        | "full_store"
+        | "retail_only"
+        | "professional_only"
+        | "category"
+      stock_take_status: "open" | "in_progress" | "reviewing" | "completed"
+      stock_take_variance_reason:
+        | "theft"
+        | "broken"
+        | "expired"
+        | "data_entry_error"
+        | "supplier_shortage"
+        | "unrecorded_sale"
+        | "other"
       subscription_plan: "starter" | "professional" | "ai"
       vendor_invoice_status:
         | "pending"
@@ -1647,6 +1802,23 @@ export const Constants = {
         "makeup",
         "waxing",
         "massage",
+        "other",
+      ],
+      stock_take_entry_status: ["pending", "counted", "recounting", "accepted"],
+      stock_take_scope: [
+        "full_store",
+        "retail_only",
+        "professional_only",
+        "category",
+      ],
+      stock_take_status: ["open", "in_progress", "reviewing", "completed"],
+      stock_take_variance_reason: [
+        "theft",
+        "broken",
+        "expired",
+        "data_entry_error",
+        "supplier_shortage",
+        "unrecorded_sale",
         "other",
       ],
       subscription_plan: ["starter", "professional", "ai"],
