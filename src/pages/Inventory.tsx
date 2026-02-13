@@ -3,6 +3,7 @@ import { Package, Truck, ClipboardList, ArrowDownUp, FileText } from 'lucide-rea
 import { ProductsTab } from '@/components/inventory/ProductsTab';
 import { SuppliersTab } from '@/components/inventory/SuppliersTab';
 import { StockMovementsTab } from '@/components/inventory/StockMovementsTab';
+import { PurchaseOrdersTab } from '@/components/inventory/PurchaseOrdersTab';
 
 const Inventory = () => {
   return (
@@ -43,12 +44,7 @@ const Inventory = () => {
           <SuppliersTab />
         </TabsContent>
         <TabsContent value="purchase-orders">
-          <div className="flex items-center justify-center h-48 text-muted-foreground">
-            <div className="text-center">
-              <ClipboardList className="h-12 w-12 mx-auto mb-3 opacity-40" />
-              <p>Purchase Orders — Coming in Phase 2</p>
-            </div>
-          </div>
+          <PurchaseOrdersTab />
         </TabsContent>
         <TabsContent value="stock-movements">
           <StockMovementsTab />
