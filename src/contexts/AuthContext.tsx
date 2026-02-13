@@ -131,31 +131,31 @@ type AppRole = 'owner' | 'manager' | 'receptionist' | 'cashier' | 'stylist' | 'i
 
    useEffect(() => {
      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-       async (event, session) => {
-         setSession(session);
-         setUser(session?.user ?? null);
-         
-         if (session?.user) {
-           setTimeout(() => fetchProfile(session.user.id), 0);
-         } else {
-           setProfile(null);
-           setTenant(null);
-          setBranches([]);
-          setCurrentBranch(null);
-          setUserRoles([]);
-         }
-         setLoading(false);
-       }
+      async (event, session) => {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            await fetchProfile(session.user.id);
+          } else {
+            setProfile(null);
+            setTenant(null);
+           setBranches([]);
+           setCurrentBranch(null);
+           setUserRoles([]);
+          }
+          setLoading(false);
+        }
      );
  
-     supabase.auth.getSession().then(({ data: { session } }) => {
-       setSession(session);
-       setUser(session?.user ?? null);
-       if (session?.user) {
-         fetchProfile(session.user.id);
-       }
-       setLoading(false);
-     });
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await fetchProfile(session.user.id);
+        }
+        setLoading(false);
+      });
  
      return () => subscription.unsubscribe();
    }, []);
