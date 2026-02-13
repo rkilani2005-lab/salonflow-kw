@@ -66,42 +66,50 @@ type AppRole = 'owner' | 'manager' | 'receptionist' | 'cashier' | 'stylist' | 'i
   const [userRoles, setUserRoles] = useState<AppRole[]>([]);
    const [loading, setLoading] = useState(true);
  
-  const fetchProfile = async (userId: string) => {
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-    
-    setProfile(profileData);
+   const fetchProfile = async (userId: string) => {
+     try {
+       const { data: profileData } = await supabase
+         .from('profiles')
+         .select('*')
+         .eq('user_id', userId)
+         .single();
+       
+       setProfile(profileData);
 
-    if (profileData?.tenant_id) {
-      // Fetch tenant, branches, and roles in parallel
-      const [tenantResult, branchesResult, rolesResult] = await Promise.all([
-        supabase.from('tenants').select('*').eq('id', profileData.tenant_id).single(),
-        supabase.from('branches').select('*').eq('tenant_id', profileData.tenant_id).eq('is_active', true),
-        supabase.from('user_roles').select('role').eq('user_id', userId).eq('tenant_id', profileData.tenant_id),
-      ]);
+       if (profileData?.tenant_id) {
+         const [tenantResult, branchesResult, rolesResult] = await Promise.all([
+           supabase.from('tenants').select('*').eq('id', profileData.tenant_id).single(),
+           supabase.from('branches').select('*').eq('tenant_id', profileData.tenant_id).eq('is_active', true),
+           supabase.from('user_roles').select('role').eq('user_id', userId).eq('tenant_id', profileData.tenant_id),
+         ]);
 
-      setTenant(tenantResult.data);
-      const branchesData = branchesResult.data || [];
-      setBranches(branchesData);
+         setTenant(tenantResult.data);
+         const branchesData = branchesResult.data || [];
+         setBranches(branchesData);
 
-      if (branchesData.length > 0) {
-        const defaultBranch = profileData.branch_id 
-          ? branchesData.find(b => b.id === profileData.branch_id) || branchesData[0]
-          : branchesData[0];
-        setCurrentBranch(defaultBranch);
-      }
+         if (branchesData.length > 0) {
+           const defaultBranch = profileData.branch_id 
+             ? branchesData.find(b => b.id === profileData.branch_id) || branchesData[0]
+             : branchesData[0];
+           setCurrentBranch(defaultBranch);
+         }
 
-      setUserRoles((rolesResult.data || []).map(r => r.role as AppRole));
-    } else {
-      setTenant(null);
-      setBranches([]);
-      setCurrentBranch(null);
-      setUserRoles([]);
-    }
-  };
+         setUserRoles((rolesResult.data || []).map(r => r.role as AppRole));
+       } else {
+         setTenant(null);
+         setBranches([]);
+         setCurrentBranch(null);
+         setUserRoles([]);
+       }
+     } catch (err) {
+       console.error('Failed to fetch profile:', err);
+       setProfile(null);
+       setTenant(null);
+       setBranches([]);
+       setCurrentBranch(null);
+       setUserRoles([]);
+     }
+   };
  
    const refreshProfile = async () => {
      if (user) {
@@ -141,6 +149,7 @@ type AppRole = 'owner' | 'manager' | 'receptionist' | 'cashier' | 'stylist' | 'i
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          setLoading(true);
           await fetchProfile(session.user.id);
         } else {
           setProfile(null);

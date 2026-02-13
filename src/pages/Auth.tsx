@@ -16,8 +16,21 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { user, tenant, userRoles, loading: authLoading, signIn, signUp } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect when authenticated and profile is loaded
+  useEffect(() => {
+    if (authLoading || !user) return;
+    const isSuperAdmin = userRoles.includes('super_admin' as any);
+    if (isSuperAdmin) {
+      navigate('/admin', { replace: true });
+    } else if (tenant?.onboarding_completed) {
+      navigate('/dashboard', { replace: true });
+    } else if (user) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [user, tenant, userRoles, authLoading, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +42,6 @@ const Auth = () => {
       toast.error(error.message);
     } else {
       toast.success('Welcome back!');
-      navigate('/dashboard');
     }
   };
 
