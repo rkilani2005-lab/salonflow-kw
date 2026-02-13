@@ -129,54 +129,35 @@ type AppRole = 'owner' | 'manager' | 'receptionist' | 'cashier' | 'stylist' | 'i
   };
 
   useEffect(() => {
-    let initialSessionHandled = false;
+    let mounted = true;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === 'INITIAL_SESSION') {
-          // Handle initial session here to avoid race condition with getSession
-          initialSessionHandled = true;
-          setSession(session);
-          setUser(session?.user ?? null);
-          if (session?.user) {
-            await fetchProfile(session.user.id);
-          }
-          setLoading(false);
-          return;
-        }
-
+        if (!mounted) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          setLoading(true);
-          await fetchProfile(session.user.id);
+          // Use setTimeout to avoid Supabase auth deadlock
+          setTimeout(async () => {
+            if (!mounted) return;
+            await fetchProfile(session.user.id);
+            if (mounted) setLoading(false);
+          }, 0);
         } else {
           setProfile(null);
           setTenant(null);
           setBranches([]);
           setCurrentBranch(null);
           setUserRoles([]);
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
-    // Fallback: if INITIAL_SESSION hasn't fired after a timeout, use getSession
-    const timeout = setTimeout(async () => {
-      if (!initialSessionHandled) {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchProfile(session.user.id);
-        }
-        setLoading(false);
-      }
-    }, 3000);
-
     return () => {
-      clearTimeout(timeout);
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
