@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.whatsapp-agent]
 verify_jwt = false
+
+[functions.generate-po-pdf]
+verify_jwt = false
+
+[functions.myfatoorah-payment]
+verify_jwt = false
