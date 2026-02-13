@@ -170,7 +170,41 @@ export const useCreateTransaction = () => {
         }
       }
 
-      // 5. Mark linked booking as completed
+      // 5. Deduct recipe products for service items (auto-deduction)
+      const serviceItems = input.items.filter(i => i.item_type === 'service');
+      for (const item of serviceItems) {
+        const { data: recipes } = await supabase
+          .from('service_recipes')
+          .select('*, product:products(id, name, current_stock)')
+          .eq('service_id', item.item_id);
+
+        if (recipes && recipes.length > 0) {
+          for (const recipe of recipes) {
+            const product = (recipe as any).product;
+            if (!product) continue;
+
+            const deductQty = recipe.quantity_per_service * item.quantity;
+            await supabase
+              .from('products')
+              .update({ current_stock: product.current_stock - deductQty })
+              .eq('id', recipe.product_id);
+
+            await supabase
+              .from('inventory_transactions')
+              .insert({
+                tenant_id: tenant.id,
+                product_id: recipe.product_id,
+                quantity_change: -deductQty,
+                transaction_type: 'service_consumption' as const,
+                reference_id: txn.id,
+                reference_type: 'pos_transaction',
+                notes: `Service recipe deduction - ${product.name}`,
+              });
+          }
+        }
+      }
+
+      // 6. Mark linked booking as completed
       if (input.booking_id) {
         await supabase
           .from('bookings')

@@ -1,7 +1,8 @@
- import { useEffect } from 'react';
- import { useForm } from 'react-hook-form';
- import { zodResolver } from '@hookform/resolvers/zod';
- import * as z from 'zod';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { ServiceRecipeEditor } from './ServiceRecipeEditor';
  import {
    Sheet,
    SheetContent,
@@ -207,10 +208,13 @@
                    </div>
                  </div>
  
-                 <Button onClick={() => setIsEditing(true)} className="w-full">
-                   Edit Service
-                 </Button>
-               </div>
+                  {/* Service Recipe (BOM) */}
+                  <ServiceRecipeEditor serviceId={serviceId} />
+
+                  <Button onClick={() => setIsEditing(true)} className="w-full">
+                    Edit Service
+                  </Button>
+                </div>
              ) : (
                <Form {...form}>
                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-6">
