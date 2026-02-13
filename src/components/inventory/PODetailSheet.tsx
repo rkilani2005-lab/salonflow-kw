@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,8 +22,10 @@ import {
   type PurchaseOrder,
 } from '@/hooks/usePurchaseOrders';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { CheckCircle, XCircle, Send, ArrowUpCircle, Ban } from 'lucide-react';
+import { CheckCircle, XCircle, Send, ArrowUpCircle, Ban, FileDown, Printer, Loader2 } from 'lucide-react';
 
 interface PODetailSheetProps {
   po: PurchaseOrder | null;
@@ -32,12 +35,13 @@ interface PODetailSheetProps {
 export const PODetailSheet = ({ po, onClose }: PODetailSheetProps) => {
   const { data: items, isLoading: itemsLoading } = usePurchaseOrderItems(po?.id || null);
   const updateStatus = useUpdatePOStatus();
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, session } = useAuth();
+  const { toast } = useToast();
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   if (!po) return null;
 
   const canApprove = (hasRole('owner') || hasRole('manager')) && po.status === 'pending_approval';
-  // 4-eyes: approver != requester
   const isRequester = po.requested_by === user?.id;
   const canApproveThis = canApprove && !isRequester;
 
@@ -50,6 +54,35 @@ export const PODetailSheet = ({ po, onClose }: PODetailSheetProps) => {
       { id: po.id, status },
       { onSuccess: () => onClose() }
     );
+  };
+
+  const generatePdf = async (mode: 'download' | 'print') => {
+    setPdfLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-po-pdf', {
+        body: { po_id: po.id },
+      });
+
+      if (error) throw error;
+
+      const html = data.html;
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast({ title: 'Please allow popups to generate PDF', variant: 'destructive' });
+        return;
+      }
+
+      printWindow.document.write(html);
+      printWindow.document.close();
+
+      if (mode === 'print') {
+        printWindow.onload = () => printWindow.print();
+      }
+    } catch (error: any) {
+      toast({ title: 'Failed to generate PDF', description: error.message, variant: 'destructive' });
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   return (
@@ -94,6 +127,30 @@ export const PODetailSheet = ({ po, onClose }: PODetailSheetProps) => {
                 <p className="font-medium">{format(new Date(po.sent_at), 'dd MMM yyyy HH:mm')} ({po.sent_via})</p>
               </div>
             )}
+          </div>
+
+          <Separator />
+
+          {/* PDF Actions */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => generatePdf('print')}
+              disabled={pdfLoading}
+            >
+              {pdfLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Printer className="h-4 w-4 mr-2" />}
+              Print PO
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => generatePdf('download')}
+              disabled={pdfLoading}
+            >
+              {pdfLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
+              View PDF
+            </Button>
           </div>
 
           <Separator />
@@ -155,7 +212,7 @@ export const PODetailSheet = ({ po, onClose }: PODetailSheetProps) => {
 
           <Separator />
 
-          {/* Actions */}
+          {/* Workflow Actions */}
           <div className="flex flex-wrap gap-2">
             {canSubmitForApproval && (
               <Button
