@@ -55,22 +55,23 @@
    tier: 'vip' | 'normal';
  }
  
- export interface Appointment {
-   id: string;
-   clientId: string;
-   clientName: string;
-   staffId: string;
-   serviceId: string;
-   serviceName: string;
-   serviceCategory: ServiceCategory;
-   date: string; // YYYY-MM-DD
-   startTime: string; // "09:00"
-   endTime: string; // "10:00"
-   duration: number; // minutes
-   status: AppointmentStatus;
-   notes?: string;
-   price: number;
- }
+export interface Appointment {
+  id: string;
+  groupId?: string; // links multi-service appointments together
+  clientId: string;
+  clientName: string;
+  staffId: string;
+  serviceId: string;
+  serviceName: string;
+  serviceCategory: ServiceCategory;
+  date: string; // YYYY-MM-DD
+  startTime: string; // "09:00"
+  endTime: string; // "10:00"
+  duration: number; // minutes
+  status: AppointmentStatus;
+  notes?: string;
+  price: number;
+}
  
  export interface CalendarViewState {
    date: Date;

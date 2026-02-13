@@ -2,7 +2,7 @@
  import { CalendarHeader } from '@/components/calendar/CalendarHeader';
  import { StaffRosterSidebar } from '@/components/calendar/StaffRosterSidebar';
  import { CalendarGrid } from '@/components/calendar/CalendarGrid';
-import { BookingFormDialog } from '@/components/calendar/BookingFormDialog';
+import { BookingFormDialog, MultiServiceBooking } from '@/components/calendar/BookingFormDialog';
 import { AppointmentDetailSheet } from '@/components/calendar/AppointmentDetailSheet';
 import { mockStaff, mockServices, mockClients, mockAppointments } from '@/data/mockCalendarData';
 import { Appointment, AppointmentStatus } from '@/types/calendar';
@@ -71,49 +71,94 @@ import { useToast } from '@/hooks/use-toast';
      );
    }, []);
  
-   const handleBookingSubmit = useCallback((booking: {
-     clientId: string;
-     staffId: string;
-     serviceId: string;
-     date: string;
-     time: string;
-     notes: string;
-   }) => {
-     const client = mockClients.find((c) => c.id === booking.clientId);
-     const service = mockServices.find((s) => s.id === booking.serviceId);
-     
-     if (!client || !service) return;
- 
-     const [h, m] = booking.time.split(':').map(Number);
-     const startMinutes = h * 60 + m;
-     const endMinutes = startMinutes + service.duration;
-     const endH = Math.floor(endMinutes / 60);
-     const endM = endMinutes % 60;
-     const endTime = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
- 
-     const newAppointment: Appointment = {
-       id: `apt-${Date.now()}`,
-       clientId: booking.clientId,
-       clientName: client.name,
-       staffId: booking.staffId,
-       serviceId: booking.serviceId,
-       serviceName: service.name,
-       serviceCategory: service.category,
-       date: booking.date,
-       startTime: booking.time,
-       endTime,
-       duration: service.duration,
-       status: 'planned',
-       notes: booking.notes,
-       price: service.price,
-     };
- 
-     setAppointments((prev) => [...prev, newAppointment]);
-     
-     toast({
-       title: 'Booking Created',
-       description: `${client.name}'s appointment for ${service.name} has been scheduled.`,
-     });
+    const handleBookingSubmit = useCallback((booking: {
+      clientId: string;
+      staffId: string;
+      serviceId: string;
+      date: string;
+      time: string;
+      notes: string;
+    }) => {
+      const client = mockClients.find((c) => c.id === booking.clientId);
+      const service = mockServices.find((s) => s.id === booking.serviceId);
+      
+      if (!client || !service) return;
+
+      const [h, m] = booking.time.split(':').map(Number);
+      const startMinutes = h * 60 + m;
+      const endMinutes = startMinutes + service.duration;
+      const endH = Math.floor(endMinutes / 60);
+      const endM = endMinutes % 60;
+      const endTime = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
+
+      const newAppointment: Appointment = {
+        id: `apt-${Date.now()}`,
+        clientId: booking.clientId,
+        clientName: client.name,
+        staffId: booking.staffId,
+        serviceId: booking.serviceId,
+        serviceName: service.name,
+        serviceCategory: service.category,
+        date: booking.date,
+        startTime: booking.time,
+        endTime,
+        duration: service.duration,
+        status: 'planned',
+        notes: booking.notes,
+        price: service.price,
+      };
+
+      setAppointments((prev) => [...prev, newAppointment]);
+      
+      toast({
+        title: 'Booking Created',
+        description: `${client.name}'s appointment for ${service.name} has been scheduled.`,
+      });
+    }, [toast]);
+
+    const handleMultiServiceSubmit = useCallback((booking: MultiServiceBooking) => {
+      const client = mockClients.find((c) => c.id === booking.clientId);
+      if (!client) return;
+
+      const groupId = `group-${Date.now()}`;
+      const newAppointments: Appointment[] = [];
+
+      for (const entry of booking.services) {
+        const service = mockServices.find((s) => s.id === entry.serviceId);
+        if (!service) continue;
+
+        const [h, m] = entry.time.split(':').map(Number);
+        const startMinutes = h * 60 + m;
+        const endMinutes = startMinutes + service.duration;
+        const endH = Math.floor(endMinutes / 60);
+        const endM = endMinutes % 60;
+        const endTime = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
+
+        newAppointments.push({
+          id: `apt-${Date.now()}-${entry.id}`,
+          groupId,
+          clientId: booking.clientId,
+          clientName: client.name,
+          staffId: entry.staffId,
+          serviceId: entry.serviceId,
+          serviceName: service.name,
+          serviceCategory: service.category,
+          date: booking.date,
+          startTime: entry.time,
+          endTime,
+          duration: service.duration,
+          status: 'planned',
+          notes: booking.notes,
+          price: service.price,
+        });
+      }
+
+      setAppointments((prev) => [...prev, ...newAppointments]);
+
+      toast({
+        title: 'Multi-Service Booking Created',
+        description: `${client.name}'s appointment with ${newAppointments.length} services has been scheduled.`,
+      });
     }, [toast]);
 
     const handleAppointmentClick = useCallback((apt: Appointment) => {
@@ -185,28 +230,30 @@ import { useToast } from '@/hooks/use-toast';
           />
        </div>
  
-       <BookingFormDialog
-         open={bookingDialogOpen}
-         onOpenChange={setBookingDialogOpen}
-         staff={mockStaff}
-         services={mockServices}
-         clients={mockClients}
-         preselectedStaffId={preselectedStaffId}
-         preselectedTime={preselectedTime}
-         preselectedDate={todayStr}
-         onSubmit={handleBookingSubmit}
-        />
-
-        <AppointmentDetailSheet
-          open={detailSheetOpen}
-          onOpenChange={setDetailSheetOpen}
-          appointment={selectedAppointment}
+        <BookingFormDialog
+          open={bookingDialogOpen}
+          onOpenChange={setBookingDialogOpen}
           staff={mockStaff}
           services={mockServices}
           clients={mockClients}
-          onUpdate={handleAppointmentUpdate}
-          onStatusChange={handleStatusChange}
+          preselectedStaffId={preselectedStaffId}
+          preselectedTime={preselectedTime}
+          preselectedDate={todayStr}
+          onSubmit={handleBookingSubmit}
+          onSubmitMulti={handleMultiServiceSubmit}
         />
+
+         <AppointmentDetailSheet
+           open={detailSheetOpen}
+           onOpenChange={setDetailSheetOpen}
+           appointment={selectedAppointment}
+           allAppointments={appointments}
+           staff={mockStaff}
+           services={mockServices}
+           clients={mockClients}
+           onUpdate={handleAppointmentUpdate}
+           onStatusChange={handleStatusChange}
+         />
       </div>
    );
  }
