@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Check, Search } from 'lucide-react';
+import { ArrowLeft, Check, Search, ScanBarcode } from 'lucide-react';
 import { useStockTakeEntries, useUpdateEntry, useUpdateSessionStatus, useStockTakeSession } from '@/hooks/useStockTake';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/useDebounce';
+import { BarcodeScanner } from './BarcodeScanner';
 
 interface Props {
   sessionId: string;
@@ -24,6 +25,27 @@ export const BlindCountView = ({ sessionId, onBack }: Props) => {
   const [localCounts, setLocalCounts] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 300);
+  const [scannerOpen, setScannerOpen] = useState(false);
+
+  const handleBarcodeScan = useCallback((barcode: string) => {
+    if (!entries) return;
+    const entry = entries.find(
+      e => e.product?.barcode === barcode || e.product?.sku === barcode
+    );
+    if (!entry) {
+      toast({ title: `No product found for barcode: ${barcode}`, variant: 'destructive' });
+      return;
+    }
+    if (entry.status === 'counted' || entry.status === 'accepted') {
+      toast({ title: `${entry.product?.name} already counted` });
+      return;
+    }
+    // Increment count by 1
+    const current = parseFloat(localCounts[entry.id] || '0') || 0;
+    const newVal = String(current + 1);
+    setLocalCounts(prev => ({ ...prev, [entry.id]: newVal }));
+    toast({ title: `${entry.product?.name}: ${newVal}` });
+  }, [entries, localCounts, toast]);
 
   // Load saved counts from localStorage
   useEffect(() => {
@@ -105,6 +127,9 @@ export const BlindCountView = ({ sessionId, onBack }: Props) => {
           <h2 className="text-lg font-bold">Blind Count</h2>
           <p className="text-sm text-muted-foreground">{session?.session_name}</p>
         </div>
+        <Button variant="outline" size="sm" onClick={() => setScannerOpen(true)}>
+          <ScanBarcode className="h-4 w-4 mr-1" /> Scan
+        </Button>
         <Badge variant="outline" className="text-sm">
           {countedCount}/{totalCount} counted
         </Badge>
@@ -209,6 +234,12 @@ export const BlindCountView = ({ sessionId, onBack }: Props) => {
           Submit All Counts
         </Button>
       </div>
+
+      <BarcodeScanner
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        onScan={handleBarcodeScan}
+      />
     </div>
   );
 };
