@@ -64,53 +64,42 @@ type AppRole = 'owner' | 'manager' | 'receptionist' | 'cashier' | 'stylist' | 'i
   const [userRoles, setUserRoles] = useState<AppRole[]>([]);
    const [loading, setLoading] = useState(true);
  
-   const fetchProfile = async (userId: string) => {
-     const { data: profileData } = await supabase
-       .from('profiles')
-       .select('*')
-       .eq('user_id', userId)
-       .single();
-     
-     setProfile(profileData);
- 
-     if (profileData?.tenant_id) {
-       const { data: tenantData } = await supabase
-         .from('tenants')
-         .select('*')
-         .eq('id', profileData.tenant_id)
-         .single();
-       setTenant(tenantData);
+  const fetchProfile = async (userId: string) => {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    
+    setProfile(profileData);
 
-      // Fetch branches for this tenant
-      const { data: branchesData } = await supabase
-        .from('branches')
-        .select('*')
-        .eq('tenant_id', profileData.tenant_id)
-        .eq('is_active', true);
-      setBranches(branchesData || []);
+    if (profileData?.tenant_id) {
+      // Fetch tenant, branches, and roles in parallel
+      const [tenantResult, branchesResult, rolesResult] = await Promise.all([
+        supabase.from('tenants').select('*').eq('id', profileData.tenant_id).single(),
+        supabase.from('branches').select('*').eq('tenant_id', profileData.tenant_id).eq('is_active', true),
+        supabase.from('user_roles').select('role').eq('user_id', userId).eq('tenant_id', profileData.tenant_id),
+      ]);
 
-      // Set current branch
-      if (branchesData && branchesData.length > 0) {
+      setTenant(tenantResult.data);
+      const branchesData = branchesResult.data || [];
+      setBranches(branchesData);
+
+      if (branchesData.length > 0) {
         const defaultBranch = profileData.branch_id 
           ? branchesData.find(b => b.id === profileData.branch_id) || branchesData[0]
           : branchesData[0];
         setCurrentBranch(defaultBranch);
       }
 
-      // Fetch user roles
-      const { data: rolesData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .eq('tenant_id', profileData.tenant_id);
-      setUserRoles((rolesData || []).map(r => r.role as AppRole));
-     } else {
-       setTenant(null);
+      setUserRoles((rolesResult.data || []).map(r => r.role as AppRole));
+    } else {
+      setTenant(null);
       setBranches([]);
       setCurrentBranch(null);
       setUserRoles([]);
-     }
-   };
+    }
+  };
  
    const refreshProfile = async () => {
      if (user) {
@@ -129,36 +118,57 @@ type AppRole = 'owner' | 'manager' | 'receptionist' | 'cashier' | 'stylist' | 'i
     return userRoles.includes(role) || userRoles.includes('owner');
   };
 
-   useEffect(() => {
-     const { data: { subscription } } = supabase.auth.onAuthStateChange(
+  useEffect(() => {
+    let initialSessionHandled = false;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (event === 'INITIAL_SESSION') {
+          // Handle initial session here to avoid race condition with getSession
+          initialSessionHandled = true;
           setSession(session);
           setUser(session?.user ?? null);
-          
           if (session?.user) {
             await fetchProfile(session.user.id);
-          } else {
-            setProfile(null);
-            setTenant(null);
-           setBranches([]);
-           setCurrentBranch(null);
-           setUserRoles([]);
           }
           setLoading(false);
+          return;
         }
-     );
- 
-      supabase.auth.getSession().then(async ({ data: { session } }) => {
+
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await fetchProfile(session.user.id);
+        } else {
+          setProfile(null);
+          setTenant(null);
+          setBranches([]);
+          setCurrentBranch(null);
+          setUserRoles([]);
+        }
+        setLoading(false);
+      }
+    );
+
+    // Fallback: if INITIAL_SESSION hasn't fired after a timeout, use getSession
+    const timeout = setTimeout(async () => {
+      if (!initialSessionHandled) {
+        const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchProfile(session.user.id);
         }
         setLoading(false);
-      });
- 
-     return () => subscription.unsubscribe();
-   }, []);
+      }
+    }, 3000);
+
+    return () => {
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
+  }, []);
  
    const signUp = async (email: string, password: string, fullName: string) => {
      const { data, error } = await supabase.auth.signUp({
