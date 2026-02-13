@@ -4,25 +4,27 @@
  import { Avatar, AvatarFallback } from '@/components/ui/avatar';
  import { cn } from '@/lib/utils';
  
- interface StaffColumnProps {
-   staff: Staff;
-   appointments: Appointment[];
-   timeSlots: string[];
-   startHour: number;
-   endHour: number;
-   slotHeight: number;
-   onSlotClick: (staffId: string, time: string) => void;
- }
+interface StaffColumnProps {
+  staff: Staff;
+  appointments: Appointment[];
+  timeSlots: string[];
+  startHour: number;
+  endHour: number;
+  slotHeight: number;
+  onSlotClick: (staffId: string, time: string) => void;
+  onAppointmentClick?: (appointment: Appointment) => void;
+}
  
- export function StaffColumn({
-   staff,
-   appointments,
-   timeSlots,
-   startHour,
-   endHour,
-   slotHeight,
-   onSlotClick,
- }: StaffColumnProps) {
+export function StaffColumn({
+  staff,
+  appointments,
+  timeSlots,
+  startHour,
+  endHour,
+  slotHeight,
+  onSlotClick,
+  onAppointmentClick,
+}: StaffColumnProps) {
    const { setNodeRef, isOver } = useDroppable({
      id: `column-${staff.id}`,
      data: { staffId: staff.id },
@@ -118,14 +120,15 @@
          ))}
  
          {/* Appointments */}
-         {appointments.map((apt) => (
-           <AppointmentCard
-             key={apt.id}
-             appointment={apt}
-             columnHeight={slotHeight}
-             startHour={startHour}
-           />
-         ))}
+          {appointments.map((apt) => (
+            <AppointmentCard
+              key={apt.id}
+              appointment={apt}
+              columnHeight={slotHeight}
+              startHour={startHour}
+              onAppointmentClick={onAppointmentClick}
+            />
+          ))}
        </div>
      </div>
    );

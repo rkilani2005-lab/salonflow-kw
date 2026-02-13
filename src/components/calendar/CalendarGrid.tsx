@@ -15,8 +15,9 @@ import { useToast } from '@/hooks/use-toast';
    endHour: number;
   view: 'day' | 'week' | 'month';
   date: Date;
-   onSlotClick: (staffId: string, time: string) => void;
-   onAppointmentMove: (appointmentId: string, newStaffId: string, newTime: string) => void;
+  onSlotClick: (staffId: string, time: string) => void;
+  onAppointmentMove: (appointmentId: string, newStaffId: string, newTime: string) => void;
+  onAppointmentClick?: (appointment: Appointment) => void;
  }
  
  const SLOT_HEIGHT = 60; // pixels per hour
@@ -29,9 +30,10 @@ import { useToast } from '@/hooks/use-toast';
    endHour,
   view,
   date,
-   onSlotClick,
-   onAppointmentMove,
- }: CalendarGridProps) {
+  onSlotClick,
+  onAppointmentMove,
+  onAppointmentClick,
+}: CalendarGridProps) {
   const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null);
     const [now, setNow] = useState(new Date());
     const { toast } = useToast();
@@ -167,18 +169,19 @@ import { useToast } from '@/hooks/use-toast';
          </div>
  
          {/* Staff Columns */}
-         {visibleStaff.map((member) => (
-           <StaffColumn
-             key={member.id}
-             staff={member}
-             appointments={appointments.filter((a) => a.staffId === member.id)}
-             timeSlots={timeSlots}
-             startHour={startHour}
-             endHour={endHour}
-             slotHeight={SLOT_HEIGHT}
-             onSlotClick={onSlotClick}
-           />
-         ))}
+          {visibleStaff.map((member) => (
+            <StaffColumn
+              key={member.id}
+              staff={member}
+              appointments={appointments.filter((a) => a.staffId === member.id)}
+              timeSlots={timeSlots}
+              startHour={startHour}
+              endHour={endHour}
+              slotHeight={SLOT_HEIGHT}
+              onSlotClick={onSlotClick}
+              onAppointmentClick={onAppointmentClick}
+            />
+          ))}
  
           {/* Current Time Indicator */}
           {(() => {

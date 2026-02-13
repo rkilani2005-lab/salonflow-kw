@@ -2,10 +2,11 @@
  import { CalendarHeader } from '@/components/calendar/CalendarHeader';
  import { StaffRosterSidebar } from '@/components/calendar/StaffRosterSidebar';
  import { CalendarGrid } from '@/components/calendar/CalendarGrid';
- import { BookingFormDialog } from '@/components/calendar/BookingFormDialog';
- import { mockStaff, mockServices, mockClients, mockAppointments } from '@/data/mockCalendarData';
- import { Appointment } from '@/types/calendar';
- import { useToast } from '@/hooks/use-toast';
+import { BookingFormDialog } from '@/components/calendar/BookingFormDialog';
+import { AppointmentDetailSheet } from '@/components/calendar/AppointmentDetailSheet';
+import { mockStaff, mockServices, mockClients, mockAppointments } from '@/data/mockCalendarData';
+import { Appointment, AppointmentStatus } from '@/types/calendar';
+import { useToast } from '@/hooks/use-toast';
  
  export default function CalendarPage() {
    const { toast } = useToast();
@@ -16,9 +17,11 @@
    const [appointments, setAppointments] = useState<Appointment[]>(mockAppointments);
  
    // Booking form state
-   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
-   const [preselectedStaffId, setPreselectedStaffId] = useState<string>();
-   const [preselectedTime, setPreselectedTime] = useState<string>();
+    const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
+    const [preselectedStaffId, setPreselectedStaffId] = useState<string>();
+    const [preselectedTime, setPreselectedTime] = useState<string>();
+    const [detailSheetOpen, setDetailSheetOpen] = useState(false);
+    const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
  
    const handleDateChange = (newDate: Date) => setDate(newDate);
    const handleViewChange = (newView: 'day' | 'week' | 'month') => setView(newView);
@@ -111,7 +114,27 @@
        title: 'Booking Created',
        description: `${client.name}'s appointment for ${service.name} has been scheduled.`,
      });
-   }, [toast]);
+    }, [toast]);
+
+    const handleAppointmentClick = useCallback((apt: Appointment) => {
+      setSelectedAppointment(apt);
+      setDetailSheetOpen(true);
+    }, []);
+
+    const handleAppointmentUpdate = useCallback((updated: Appointment) => {
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === updated.id ? updated : a))
+      );
+      toast({ title: 'Appointment Updated', description: `${updated.clientName}'s appointment has been updated.` });
+    }, [toast]);
+
+    const handleStatusChange = useCallback((appointmentId: string, newStatus: AppointmentStatus) => {
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === appointmentId ? { ...a, status: newStatus } : a))
+      );
+      setSelectedAppointment((prev) => prev?.id === appointmentId ? { ...prev, status: newStatus } : prev);
+      toast({ title: 'Status Updated', description: `Appointment status changed to ${newStatus.replace('_', ' ')}.` });
+    }, [toast]);
  
   // Filter appointments based on view
   const getFilteredAppointments = () => {
@@ -148,17 +171,18 @@
            onToggleStaff={handleToggleStaff}
          />
  
-         <CalendarGrid
-           staff={mockStaff}
-          appointments={filteredAppointments}
-           visibleStaffIds={visibleStaffIds}
-           startHour={8}
-           endHour={21}
-          view={view}
-          date={date}
-           onSlotClick={handleSlotClick}
-           onAppointmentMove={handleAppointmentMove}
-         />
+          <CalendarGrid
+            staff={mockStaff}
+           appointments={filteredAppointments}
+            visibleStaffIds={visibleStaffIds}
+            startHour={8}
+            endHour={21}
+           view={view}
+           date={date}
+            onSlotClick={handleSlotClick}
+            onAppointmentMove={handleAppointmentMove}
+            onAppointmentClick={handleAppointmentClick}
+          />
        </div>
  
        <BookingFormDialog
@@ -171,7 +195,18 @@
          preselectedTime={preselectedTime}
          preselectedDate={todayStr}
          onSubmit={handleBookingSubmit}
-       />
-     </div>
+        />
+
+        <AppointmentDetailSheet
+          open={detailSheetOpen}
+          onOpenChange={setDetailSheetOpen}
+          appointment={selectedAppointment}
+          staff={mockStaff}
+          services={mockServices}
+          clients={mockClients}
+          onUpdate={handleAppointmentUpdate}
+          onStatusChange={handleStatusChange}
+        />
+      </div>
    );
  }
