@@ -10,13 +10,14 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, FileText } from 'lucide-react';
  
- interface AppointmentCardProps {
-   appointment: Appointment;
-   columnHeight: number;
-   startHour: number;
- }
+interface AppointmentCardProps {
+  appointment: Appointment;
+  columnHeight: number;
+  startHour: number;
+  onAppointmentClick?: (appointment: Appointment) => void;
+}
  
  const statusLabels: Record<Appointment['status'], string> = {
    planned: 'Planned',
@@ -38,7 +39,7 @@ import { CreditCard } from 'lucide-react';
    no_show: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
  };
  
-export function AppointmentCard({ appointment, columnHeight, startHour }: AppointmentCardProps) {
+export function AppointmentCard({ appointment, columnHeight, startHour, onAppointmentClick }: AppointmentCardProps) {
   const navigate = useNavigate();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
      id: appointment.id,
@@ -84,35 +85,49 @@ export function AppointmentCard({ appointment, columnHeight, startHour }: Appoin
          </div>
        </TooltipTrigger>
        <TooltipContent side="right" className="max-w-xs">
-         <div className="space-y-2">
-           <div>
-             <p className="font-semibold">{appointment.clientName}</p>
-             <p className="text-sm text-muted-foreground">{appointment.serviceName}</p>
+          <div className="space-y-2">
+            <div>
+              <p className="font-semibold">{appointment.clientName}</p>
+              <p className="text-sm text-muted-foreground">{appointment.serviceName}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge className={cn('text-xs', statusColors[appointment.status])}>
+                {statusLabels[appointment.status]}
+              </Badge>
+              <span className="text-sm">{appointment.price.toFixed(3)} KWD</span>
+            </div>
+           <p className="text-sm">
+             {appointment.startTime} - {appointment.endTime} ({appointment.duration} min)
+           </p>
+           <div className="flex gap-2 mt-2">
+             <Button
+               size="sm"
+               variant="outline"
+               className="flex-1"
+               onClick={(e) => {
+                 e.stopPropagation();
+                 onAppointmentClick?.(appointment);
+               }}
+             >
+               <FileText className="mr-1 h-3 w-3" />
+               Details
+             </Button>
+             {(appointment.status === 'completed' || appointment.status === 'in_service') && (
+               <Button
+                 size="sm"
+                 className="flex-1"
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   navigate(`/pos?bookingId=${appointment.id}`);
+                 }}
+               >
+                 <CreditCard className="mr-1 h-3 w-3" />
+                 Checkout
+               </Button>
+             )}
            </div>
-           <div className="flex items-center gap-2">
-             <Badge className={cn('text-xs', statusColors[appointment.status])}>
-               {statusLabels[appointment.status]}
-             </Badge>
-             <span className="text-sm">{appointment.price.toFixed(3)} KWD</span>
-           </div>
-          <p className="text-sm">
-            {appointment.startTime} - {appointment.endTime} ({appointment.duration} min)
-          </p>
-          {(appointment.status === 'completed' || appointment.status === 'in_service') && (
-            <Button
-              size="sm"
-              className="w-full mt-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/pos?bookingId=${appointment.id}`);
-              }}
-            >
-              <CreditCard className="mr-1 h-3 w-3" />
-              Checkout
-            </Button>
-          )}
-        </div>
-      </TooltipContent>
+         </div>
+       </TooltipContent>
      </Tooltip>
    );
  }
