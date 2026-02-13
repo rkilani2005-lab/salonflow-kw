@@ -22,6 +22,7 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import WhatsAppAgent from "./pages/WhatsAppAgent";
 import Inventory from "./pages/Inventory";
+import POS from "./pages/POS";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminTenants from "./pages/admin/AdminTenants";
 import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
@@ -70,7 +71,7 @@ const App = () => (
               <Route path="/clients" element={<Clients />} />
               <Route path="/staff" element={<Staff />} />
               <Route path="/services" element={<Services />} />
-              <Route path="/pos" element={<ComingSoon title="Point of Sale" />} />
+              <Route path="/pos" element={<POS />} />
               <Route path="/inventory" element={<Inventory />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
