@@ -1,504 +1,232 @@
 
 
-# WhatsApp AI Agent with Voice Message Support - Enhanced Plan
+# Intelligent Salon Inventory and Procurement System (Updated)
 
-## Overview
-Build a comprehensive AI-driven WhatsApp integration for ZAINA that operates in two modes: **Customer Booking Assistant** (automatic for customers) and **Business Intelligence Manager** (for owners/staff). **NEW: The system will also understand and respond to voice messages from customers**, transcribing them in real-time and processing them like text messages.
-
----
-
-## Architecture
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    ZAINA WhatsApp AI System with Voice                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐        │
-│  │   WhatsApp   │────▶│   Edge Function  │────▶│   Lovable AI     │        │
-│  │   Webhook    │     │  (whatsapp-agent)│     │ (gemini-3-flash) │        │
-│  └──────┬───────┘     └────────┬─────────┘     └──────────────────┘        │
-│         │                      │                                            │
-│         │ Voice Messages       │                                            │
-│         ▼                      │                                            │
-│  ┌──────────────┐              │                                            │
-│  │  ElevenLabs  │──────────────┘                                            │
-│  │    Scribe    │  (Transcription)                                          │
-│  │  (scribe_v2) │                                                           │
-│  └──────────────┘                                                           │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────┐       │
-│  │                        Supabase Database                         │       │
-│  │  ┌─────────────┬──────────────┬─────────────┬────────────────┐  │       │
-│  │  │  bookings   │   services   │    staff    │ whatsapp_chats │  │       │
-│  │  └─────────────┴──────────────┴─────────────┴────────────────┘  │       │
-│  └─────────────────────────────────────────────────────────────────┘       │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────┐       │
-│  │                      Dashboard UI                                │       │
-│  │  ┌────────────────────┬─────────────────────────────────────┐   │       │
-│  │  │ Settings & Config  │  Live Chat Simulator (Split View)   │   │       │
-│  │  │ - Owner numbers    │  ┌──────────┐    ┌──────────────┐   │   │       │
-│  │  │ - Voice settings   │  │ Customer │    │ Admin Query  │   │   │       │
-│  │  │ - Enable/disable   │  │   Mode   │    │    Mode      │   │   │       │
-│  │  │ - Handoff rules    │  │ + Voice  │    └──────────────┘   │   │       │
-│  │  └────────────────────┴──┴──────────┴───────────────────────┘   │       │
-│  └─────────────────────────────────────────────────────────────────┘       │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+This is the full plan with the requested additions: **PO Approval Workflow**, **PDF Generation and Distribution** (Email + WhatsApp), **Goods Receipt against open POs**, and **Vendor Invoice Payment tracking**.
 
 ---
 
-## Phase 1: Database Schema
+## Phase 1: Database Schema and Product Management UI
 
-### New Tables
+### Database Tables (Single Migration)
 
-**1. `whatsapp_config` - Tenant-specific WhatsApp settings**
-- id: uuid (PK)
-- tenant_id: uuid (FK to tenants)
-- is_enabled: boolean
-- owner_phone_numbers: text[] (verified owner numbers)
-- staff_phone_numbers: text[] (verified staff numbers)
-- welcome_message_en: text
-- welcome_message_ar: text
-- voice_enabled: boolean (NEW - enable voice message processing)
-- max_retry_attempts: integer (default: 2)
-- created_at, updated_at: timestamps
+**1. `product_categories`** -- id, tenant_id, name, name_ar, parent_id, sort_order, created_at
 
-**2. `whatsapp_conversations` - Chat history and state**
-- id: uuid (PK)
-- tenant_id: uuid (FK to tenants)
-- phone_number: text
-- conversation_type: enum ('customer', 'admin')
-- conversation_state: jsonb (booking flow state)
-- needs_human_intervention: boolean
-- intervention_reason: text
-- last_message_at: timestamp
-- created_at: timestamp
+**2. `products`** -- Core product table
+- id, tenant_id, category_id, name, name_ar, description, sku, barcode
+- product_type: enum `('professional', 'retail', 'both')`
+- purchase_unit, purchase_unit_quantity, usage_unit
+- cost_price (WAC), retail_price
+- reorder_point, reorder_quantity, current_stock
+- batch_number, expiry_date, image_url
+- is_active, created_at, updated_at
 
-**3. `whatsapp_messages` - Individual message log**
-- id: uuid (PK)
-- conversation_id: uuid (FK to whatsapp_conversations)
-- direction: enum ('inbound', 'outbound')
-- message_content: text
-- detected_language: enum ('en', 'ar')
-- message_type: enum ('text', 'voice', 'booking_offer', 'report', 'handoff') - **NEW: 'voice' type**
-- original_audio_url: text (NEW - store voice message URL)
-- transcription: text (NEW - store voice transcription)
-- metadata: jsonb (slot options, report data, transcription confidence, etc.)
-- created_at: timestamp
+**3. `suppliers`** -- id, tenant_id, name, name_ar, contact_person, email, phone, whatsapp_number, address, payment_terms (e.g. "Net 30"), notes, is_active, created_at
 
-**4. `expenses` - For owner expense tracking queries**
-- id: uuid (PK)
-- tenant_id: uuid (FK to tenants)
-- category: text (supplies, rent, utilities, etc.)
-- description: text
-- amount: numeric
-- expense_date: date
-- created_at: timestamp
+**4. `product_suppliers`** -- product_id, supplier_id, agreed_cost, lead_time_days, is_preferred
+
+**5. `service_recipes`** -- id, tenant_id, service_id, product_id, quantity_per_service
+
+**6. `purchase_orders`** -- PO header with approval workflow
+- id, tenant_id, supplier_id, po_number (auto-generated)
+- status: enum `('draft', 'pending_approval', 'approved', 'sent', 'partially_received', 'received', 'cancelled')`
+- total_amount, notes, payment_terms
+- requested_by (user_id), approved_by (user_id), approved_at (timestamp)
+- sent_via (enum: 'email', 'whatsapp', 'manual', null), sent_at
+- created_at, updated_at
+
+**7. `purchase_order_items`** -- id, po_id, product_id, quantity_ordered, quantity_received, unit_cost, total_cost
+
+**8. `goods_receipts`** -- Receiving against open POs
+- id, tenant_id, purchase_order_id, grn_number (auto-generated)
+- received_by (user_id), received_at, notes
+
+**9. `goods_receipt_items`** -- id, goods_receipt_id, product_id, po_item_id, quantity_received, unit_cost, batch_number, expiry_date
+
+**10. `vendor_invoices`** -- Invoice payment tracking (NEW)
+- id, tenant_id, supplier_id, purchase_order_id (nullable)
+- invoice_number, invoice_date, due_date
+- total_amount, paid_amount, currency (default 'KWD')
+- status: enum `('pending', 'partially_paid', 'paid', 'overdue', 'disputed')`
+- notes, created_at, updated_at
+
+**11. `vendor_payments`** -- Payment records against invoices (NEW)
+- id, tenant_id, vendor_invoice_id
+- amount, payment_date, payment_method (enum: 'cash', 'bank_transfer', 'cheque', 'knet')
+- reference_number, notes, created_by (user_id), created_at
+
+**12. `inventory_transactions`** -- Audit log for all stock movements
+- id, tenant_id, product_id
+- transaction_type: enum `('purchase_receipt', 'service_consumption', 'retail_sale', 'adjustment', 'wastage', 'return')`
+- quantity_change, reference_id, reference_type, notes, created_by, created_at
+
+### New Enums
+- `product_type`: professional, retail, both
+- `po_status`: draft, pending_approval, approved, sent, partially_received, received, cancelled
+- `inventory_transaction_type`: purchase_receipt, service_consumption, retail_sale, adjustment, wastage, return
+- `vendor_invoice_status`: pending, partially_paid, paid, overdue, disputed
+- `vendor_payment_method`: cash, bank_transfer, cheque, knet
+- `po_sent_via`: email, whatsapp, manual
 
 ### RLS Policies
-- Conversations and messages scoped to tenant_id
-- Config table: owners/managers can read/write
-- Messages: read-only for authenticated users in tenant
+- All tables scoped by `tenant_id = get_user_tenant_id(auth.uid())`
+- INSERT/UPDATE restricted to owner, manager, inventory_clerk roles
+- PO approval restricted to owner and manager roles only
+- Super admin bypass on SELECT
+
+### UI: Inventory Page (`src/pages/Inventory.tsx`)
+
+Replace the "Coming Soon" placeholder with a tabbed layout:
+
+- **Products tab**: Table with Name, SKU, Type badge, Category, Stock Level (color-coded green/yellow/red), Cost, Retail Price. Add/Edit dialogs, filters by type and category.
+- **Suppliers tab**: CRUD table for supplier management with payment terms.
+- **Purchase Orders tab**: PO list with status badges, create/approve/send/receive actions.
+- **Stock Movements tab**: Read-only audit log of all inventory transactions.
+- **Vendor Invoices tab**: Invoice list with payment status, record payments.
+
+### New Files (Phase 1)
+- `src/pages/Inventory.tsx`
+- `src/components/inventory/ProductsTab.tsx`
+- `src/components/inventory/AddProductDialog.tsx`
+- `src/components/inventory/ProductDetailSheet.tsx`
+- `src/components/inventory/SuppliersTab.tsx`
+- `src/components/inventory/AddSupplierDialog.tsx`
+- `src/hooks/useProducts.ts`
+- `src/hooks/useSuppliers.ts`
 
 ---
 
-## Phase 2: Edge Functions
+## Phase 2: PO Approval, PDF, Distribution, Goods Receipt, and Invoice Payment
 
-### 1. `whatsapp-webhook` - Incoming message handler
-**Responsibilities:**
-- Receive WhatsApp webhook payloads
-- Validate webhook signature
-- Detect message type (text vs voice)
-- Route to appropriate handler
+### PO Approval Workflow
 
-### 2. `whatsapp-transcribe` - Voice Message Transcription (NEW)
-**Responsibilities:**
-- Receive voice message audio from WhatsApp
-- Download the audio file using WhatsApp Media API
-- Send to ElevenLabs Scribe API (`scribe_v2`) for transcription
-- Detect language (English/Arabic) automatically
-- Return transcribed text with confidence score
-
-**Implementation:**
-```typescript
-// Fetch audio from WhatsApp
-const audioResponse = await fetch(mediaUrl, {
-  headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` }
-});
-const audioBuffer = await audioResponse.arrayBuffer();
-
-// Transcribe with ElevenLabs Scribe
-const formData = new FormData();
-formData.append('file', new Blob([audioBuffer]), 'voice.ogg');
-formData.append('model_id', 'scribe_v2');
-formData.append('language_code', 'auto'); // Auto-detect EN/AR
-
-const transcription = await fetch(
-  'https://api.elevenlabs.io/v1/speech-to-text',
-  {
-    method: 'POST',
-    headers: { 'xi-api-key': ELEVENLABS_API_KEY },
-    body: formData
-  }
-);
-```
-
-### 3. `whatsapp-agent` - Core AI processing
-**Responsibilities:**
-- Accept both text messages AND transcribed voice text
-- Detect language (English/Arabic) from message
-- Determine user type (customer vs owner/staff)
-- Process customer booking requests:
-  - Parse intent (book, reschedule, cancel)
-  - Query available slots from bookings + staff schedules
-  - Offer 2-3 time options
-  - Confirm and create booking
-- Process admin queries:
-  - Natural language to database query
-  - Revenue summaries (daily, weekly, monthly)
-  - Customer insights (top clients, popular services)
-  - Expense tracking
-- Handle handoff logic (flag after 2 failed attempts)
-
-**Voice-Specific Handling:**
-- Store original audio URL for reference
-- Log transcription alongside message
-- Handle low-confidence transcriptions (ask for clarification)
-
-### 4. `whatsapp-send` - Outbound message sender
-**Responsibilities:**
-- Format messages for WhatsApp API
-- Handle RTL formatting for Arabic
-- Send confirmation messages
-- Trigger daily summary reports
-
----
-
-## Phase 3: Voice Message Flow (NEW)
-
-### Customer Voice Message Processing
+The purchase order lifecycle:
 
 ```text
-1. Customer sends voice message on WhatsApp
-   ↓
-2. WhatsApp webhook receives audio message
-   ↓
-3. Download audio from WhatsApp Media API
-   ↓
-4. Send to ElevenLabs Scribe API
-   - Model: scribe_v2 (batch transcription)
-   - Auto-detect language (EN/AR)
-   - Get word-level timestamps
-   ↓
-5. Store transcription in whatsapp_messages
-   - message_type: 'voice'
-   - original_audio_url: WhatsApp media URL
-   - transcription: "أريد حجز موعد غداً"
-   - detected_language: 'ar'
-   ↓
-6. Process transcribed text through AI agent
-   (Same flow as text messages)
-   ↓
-7. Send text response back to customer
-   ↓
-8. If transcription confidence < 80%:
-   → Ask customer to repeat or type message
-   EN: "I didn't quite catch that. Could you please type your request?"
-   AR: "لم أفهم جيداً. هل يمكنك كتابة طلبك؟"
+Draft --> Submit for Approval --> Approved / Rejected
+                                      |
+                              Send (Email/WhatsApp/Print)
+                                      |
+                              Receive Goods (partial or full)
+                                      |
+                              Match Vendor Invoice
+                                      |
+                              Record Payment
 ```
 
-### Supported Voice Scenarios
+**Approval rules:**
+- Any user with inventory_clerk, manager, or owner role can create a Draft PO.
+- Only **owner** or **manager** can approve. The approver cannot be the same person who created the PO (4-eyes principle) -- enforced in app logic.
+- Approved POs can be sent to vendors. Draft or pending POs cannot.
+- Cancelled POs cannot be edited or re-opened.
 
-**Booking via Voice:**
-- Customer: [Voice] "أبي أحجز موعد قص شعر يوم الثلاثاء" (I want to book a haircut on Tuesday)
-- AI: Transcribes → Detects Arabic → Parses intent → Offers slots in Arabic
+**UI components:**
+- `src/components/inventory/PurchaseOrdersTab.tsx` -- List all POs with status filters (Draft, Pending, Approved, Sent, Received)
+- `src/components/inventory/CreatePODialog.tsx` -- Create/edit PO with line items, auto-populate from low-stock
+- `src/components/inventory/PODetailSheet.tsx` -- View PO details with action buttons (Submit, Approve, Reject, Send, Print)
+- `src/components/inventory/POApprovalDialog.tsx` -- Confirmation dialog for approve/reject with optional notes
 
-**Service Inquiry via Voice:**
-- Customer: [Voice] "What services do you offer?"
-- AI: Transcribes → Detects English → Lists services with prices
+### PDF Generation and Printing
 
-**Cancellation via Voice:**
-- Customer: [Voice] "I need to cancel my appointment tomorrow"
-- AI: Transcribes → Finds booking → Confirms cancellation
+- Use an **edge function** (`generate-po-pdf`) that accepts PO data and returns a PDF using a Deno PDF library.
+- The PDF includes: Company logo, PO number, date, supplier details, line items table (product, qty, unit cost, total), total amount, payment terms, and approval signature line.
+- Arabic support: PDF will include both English and Arabic product names.
+- The frontend calls the edge function and either:
+  - Opens the PDF in a new tab for **printing**
+  - Downloads it as a file
+
+**New edge function:** `supabase/functions/generate-po-pdf/index.ts`
+
+### Sending POs to Vendors
+
+**Via Email:**
+- Edge function `send-po-email` that generates the PDF and sends it as an email attachment to the supplier's email address.
+- Uses Resend or similar email service (will check for available connector).
+- Email body includes a summary of the PO in both English and Arabic.
+
+**Via WhatsApp:**
+- Leverages the existing WhatsApp Business integration (WHATSAPP_BUSINESS_TOKEN already configured).
+- Edge function `send-po-whatsapp` sends a WhatsApp message to the supplier's whatsapp_number with PO summary text and a link to download the PDF.
+- Uses the WhatsApp Business API document message type to attach the PDF.
+
+**UI:**
+- `src/components/inventory/SendPODialog.tsx` -- Choose send method (Email, WhatsApp, or both), preview message, confirm send. Updates `sent_via` and `sent_at` on the PO.
+
+### Goods Receipt Process (Against Open POs)
+
+**Workflow:**
+1. Manager opens an approved/sent PO that has outstanding quantities.
+2. Clicks "Receive Goods" which opens the Goods Receipt dialog.
+3. System pre-fills expected quantities from PO line items minus already received.
+4. Manager enters actual received quantities, batch numbers, and expiry dates per item.
+5. On save:
+   - Creates `goods_receipts` and `goods_receipt_items` records
+   - Updates `purchase_order_items.quantity_received`
+   - Recalculates Weighted Average Cost: `new_avg = ((old_stock * old_cost) + (received_qty * new_cost)) / (old_stock + received_qty)`
+   - Updates `products.current_stock` and `products.cost_price`
+   - Creates `inventory_transactions` entries (type: purchase_receipt)
+   - Updates PO status to `partially_received` or `received` based on quantities
+
+**UI components:**
+- `src/components/inventory/ReceiveGoodsDialog.tsx` -- Line-by-line quantity entry with batch/expiry fields
+- `src/components/inventory/GoodsReceiptHistory.tsx` -- View past receipts for a PO
+
+### Vendor Invoice and Payment Process
+
+**Invoice matching workflow:**
+1. When goods are received, a vendor invoice can be created and linked to the PO.
+2. Invoice total is validated against PO total (with configurable tolerance for price variances).
+3. Invoice status tracks payment progress.
+
+**Payment recording:**
+1. From the Vendor Invoices tab, select an invoice and click "Record Payment".
+2. Enter amount, payment method (Cash, Bank Transfer, Cheque, KNET), reference number.
+3. System updates `paid_amount` on the invoice and recalculates status (partially_paid or paid).
+4. Payment history is visible per invoice.
+
+**Overdue tracking:**
+- Invoices past their `due_date` with status not `paid` are automatically flagged as `overdue`.
+- Dashboard widget shows overdue invoices count and total outstanding amount.
+
+**UI components:**
+- `src/components/inventory/VendorInvoicesTab.tsx` -- List invoices with status badges, filters by status and supplier
+- `src/components/inventory/CreateInvoiceDialog.tsx` -- Create invoice linked to PO, enter invoice number, date, due date, amount
+- `src/components/inventory/RecordPaymentDialog.tsx` -- Record partial or full payment
+- `src/components/inventory/InvoiceDetailSheet.tsx` -- View invoice details, linked PO, payment history
+- `src/hooks/useVendorInvoices.ts`
+- `src/hooks/usePurchaseOrders.ts`
 
 ---
 
-## Phase 4: AI Agent Logic
+## Phase 3: Recipe Management, Financial Intelligence, and Advanced Features
 
-### Customer Mode Flow (Text & Voice)
-```text
-1. Customer sends message (text OR voice)
-   ↓
-2. If voice message:
-   a. Download audio from WhatsApp
-   b. Transcribe with ElevenLabs Scribe
-   c. Log original audio + transcription
-   ↓
-3. Detect language (auto from text/transcription)
-   ↓
-4. Parse intent:
-   - "I want to book" → Booking flow
-   - "What services?" → List services
-   - "Cancel my appointment" → Cancellation flow
-   ↓
-5. Booking Flow:
-   a. Ask for service preference
-   b. Query available slots (bookings + staff schedules)
-   c. Offer 2-3 options: "Option 1: Tue 10am, Option 2: Wed 3pm..."
-   d. Customer selects → Create booking → Send confirmation
-   ↓
-6. If AI cannot understand after 2 attempts:
-   → Flag for human intervention
-   → Notify salon manager
-```
+### Recipe Management
+- `src/components/inventory/RecipeManagement.tsx` -- Link products to services with quantities
+- Database trigger on bookings (status = 'completed') auto-deducts stock per service recipes
+- Recipe tab added to Service Detail Sheet
 
-### Admin Mode Flow
-```text
-1. Owner/staff sends message (text only for security)
-   ↓
-2. Verify phone number against whatsapp_config
-   ↓
-3. Parse query type:
-   - "Revenue today?" → Query bookings, sum prices
-   - "Weekly sales?" → Aggregate by week
-   - "Top customers?" → Group by client, count visits
-   - "Most popular service?" → Group by service_name
-   - "Expenses this month?" → Query expenses table
-   ↓
-4. Format response with:
-   - Summary text (bilingual)
-   - Key metrics highlighted
-   - Comparison to previous period (if applicable)
-```
+### Financial Reports
+- Gross Profit per retail item
+- Cost of Service report (recipe cost aggregation)
+- Dead Stock warning (no transactions in 90 days)
+- Top Seller highlight (highest margin retail items)
+- Accounts Payable aging report (outstanding vendor invoices by age bucket)
 
-### Security Guardrails
-- Financial data ONLY accessible to verified owner/staff phones
-- Customer queries cannot access revenue/expense data
-- Phone number verification against stored config
-- Server-side validation only (never client-side)
-- Voice messages from admin phones still require text verification for sensitive data
+### Advanced Features
+- Barcode scanning via device camera
+- Expiry tracking dashboard widget (products expiring within 30 days)
+- Low Stock Alerts on main dashboard
+- Auto-Draft PO from low-stock items using preferred suppliers
 
 ---
 
-## Phase 5: Dashboard UI
+## Technical Notes
 
-### New Page: `/whatsapp-agent`
-
-**Design: Edgy AI aesthetic (Dark mode primary)**
-- Background: Charcoal (#111827)
-- Accent: Gold (#D4AF37) with Cyber elements
-- Cards: Dark with subtle gold borders
-- Typography: Space Grotesk for headings
-
-### Settings Panel (Left Side)
-```text
-┌─────────────────────────────────────┐
-│  WhatsApp AI Agent                  │
-│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
-│                                     │
-│  [Toggle] Enable WhatsApp Agent     │
-│                                     │
-│  [Toggle] Enable Voice Messages ◀── NEW
-│                                     │
-│  Owner Phone Numbers               │
-│  ┌─────────────────────────────┐   │
-│  │ +965 9876 5432  [x]         │   │
-│  │ [+ Add Number]              │   │
-│  └─────────────────────────────┘   │
-│                                     │
-│  Staff Phone Numbers               │
-│  ┌─────────────────────────────┐   │
-│  │ +965 1234 5678  [x]         │   │
-│  │ [+ Add Number]              │   │
-│  └─────────────────────────────┘   │
-│                                     │
-│  Welcome Messages                  │
-│  ┌─────────────────────────────┐   │
-│  │ English: "Welcome to..."    │   │
-│  │ Arabic: "أهلاً وسهلاً..."     │   │
-│  └─────────────────────────────┘   │
-│                                     │
-│  [Save Settings]                   │
-└─────────────────────────────────────┘
-```
-
-### Live Simulator (Right Side - Split View)
-
-**Customer Mode Tab (with Voice Indicator):**
-```text
-┌─────────────────────────────────────┐
-│  📱 Customer Simulator             │
-│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
-│                                     │
-│  [Customer voice bubble - NEW]     │
-│  ┌─────────────────────────────┐   │
-│  │ 🎤 Voice Message (0:05)     │ ◀│
-│  │ "أريد حجز موعد للشعر"       │   │ ◀── Transcription shown
-│  └─────────────────────────────┘   │
-│                                     │
-│                [AI response]       │
-│  ▶│ ┌─────────────────────────┐   │
-│    │ "أهلاً! لدينا هذه المواعيد   │   │
-│    │ المتاحة:                  │   │
-│    │ 1️⃣ الثلاثاء 10 صباحاً     │   │
-│    │ 2️⃣ الأربعاء 3 مساءً       │   │
-│    └─────────────────────────┘   │
-│                                     │
-│  ┌──────────────────────┬─────┐   │
-│  │ Type or record... 🎤 │ [▶] │   │ ◀── NEW: Voice input option
-│  └──────────────────────┴─────┘   │
-└─────────────────────────────────────┘
-```
-
-**Admin Mode Tab:**
-```text
-┌─────────────────────────────────────┐
-│  👔 Admin Query Simulator          │
-│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
-│                                     │
-│  [Admin bubble]                    │
-│  ┌─────────────────────────────┐   │
-│  │ "What was revenue today?"   │ ◀│
-│  └─────────────────────────────┘   │
-│                                     │
-│                [AI response]       │
-│  ▶│ ┌─────────────────────────┐   │
-│    │ 📊 Today's Revenue       │   │
-│    │ ━━━━━━━━━━━━━━━━━━━━━━━  │   │
-│    │ Total: 485 KWD           │   │
-│    │ Appointments: 12         │   │
-│    │ Avg per booking: 40 KWD  │   │
-│    │                          │   │
-│    │ +12% vs yesterday 📈     │   │
-│    └─────────────────────────┘   │
-│                                     │
-│  ┌─────────────────────────────┐   │
-│  │ Ask ZAINA anything...  [▶] │   │
-│  └─────────────────────────────┘   │
-└─────────────────────────────────────┘
-```
-
-### Conversation Log Panel
-- List of flagged conversations needing human intervention
-- Voice messages show 🎤 icon with transcription
-- Click to view full chat history including audio playback
-- Mark as resolved action
-
----
-
-## Phase 6: Handoff Logic
-
-### Trigger Conditions
-1. AI cannot parse intent after 2 messages (text or voice)
-2. Voice transcription confidence below 60% twice in a row
-3. Customer explicitly requests human help
-4. Complex query outside AI capabilities
-
-### Handoff Flow
-```text
-1. Flag conversation in database:
-   - needs_human_intervention = true
-   - intervention_reason = "AI could not understand voice message"
-
-2. Send message to customer:
-   EN: "I'm connecting you with our team. They'll respond shortly!"
-   AR: "سأوصلك بفريقنا. سيردون عليك قريباً!"
-
-3. Notify salon manager:
-   - Dashboard notification badge
-   - Optional: WhatsApp message to owner phone
-```
-
----
-
-## Technical Details
-
-### Required API Keys/Secrets (NEW)
-- `ELEVENLABS_API_KEY` - For voice transcription (Scribe API)
-- `WHATSAPP_BUSINESS_TOKEN` - For WhatsApp Business API
-- `WHATSAPP_PHONE_NUMBER_ID` - WhatsApp phone number ID
-- `WHATSAPP_VERIFY_TOKEN` - Webhook verification token
-
-### Files to Create
-
-**Edge Functions:**
-- `supabase/functions/whatsapp-webhook/index.ts` - Webhook handler
-- `supabase/functions/whatsapp-transcribe/index.ts` - Voice transcription (NEW)
-- `supabase/functions/whatsapp-agent/index.ts` - Core AI logic
-- `supabase/functions/whatsapp-send/index.ts` - Outbound messages
-
-**Frontend Components:**
-- `src/pages/WhatsAppAgent.tsx` - Main settings page
-- `src/components/whatsapp/WhatsAppSettings.tsx` - Config panel
-- `src/components/whatsapp/ChatSimulator.tsx` - Interactive simulator
-- `src/components/whatsapp/VoiceRecorder.tsx` - Voice input for simulator (NEW)
-- `src/components/whatsapp/VoiceMessageBubble.tsx` - Display voice messages (NEW)
-- `src/components/whatsapp/ConversationLog.tsx` - Message history
-- `src/components/whatsapp/MessageBubble.tsx` - RTL-aware chat bubble
-- `src/hooks/useWhatsAppConfig.ts` - Config CRUD hook
-- `src/hooks/useWhatsAppSimulator.ts` - Simulator state hook
-
-**Styling:**
-- Dark mode theme with gold accents
-- RTL support for Arabic messages
-- Voice waveform visualization for audio messages
-- Responsive split-panel layout
-
-### Database Migration
-- Create 4 new tables with RLS
-- Add `whatsapp_agent` nav item to sidebar
-- Enable realtime for conversations table
-
----
-
-## Implementation Order
-
-1. **Database Schema** - Create tables, RLS, triggers
-2. **Secrets Setup** - Request ElevenLabs API key from user
-3. **Voice Transcription Function** - ElevenLabs Scribe integration
-4. **Core Agent Function** - AI processing with voice support
-5. **WhatsApp Settings UI** - Config management with voice toggle
-6. **Chat Simulator** - Interactive testing with voice input
-7. **Conversation Log** - View flagged conversations with audio
-8. **Navigation Update** - Add sidebar link
-9. **Integration Testing** - End-to-end flows including voice
-
----
-
-## Voice Message Specifications
-
-### Supported Audio Formats
-- OGG/Opus (WhatsApp default)
-- MP3
-- WAV
-- M4A
-
-### Language Support
-- English (eng)
-- Arabic (ara)
-- Auto-detection mode
-
-### Transcription Limits
-- Max audio duration: 5 minutes per message
-- Response time: ~2-3 seconds for short messages
-
-### Error Handling
-- Network timeout: Retry up to 2 times
-- Transcription failure: Ask customer to type instead
-- Low confidence (<60%): Request clarification
-
----
-
-## Security Considerations
-
-- Owner/staff phone verification is server-side only
-- Financial data queries restricted to verified phones
-- RLS policies enforce tenant isolation
-- Webhook signature validation prevents spoofing
-- No customer access to revenue/expense data
-- Voice messages from admin phones require text verification for sensitive operations
-- Audio files are not stored permanently (only transcriptions)
+- All tables tenant-scoped with RLS
+- The `inventory_clerk` role already exists in the `app_role` enum
+- Arabic fields (`name_ar`) on products, categories, suppliers for RTL
+- WAC formula: `new_avg = ((old_stock * old_cost) + (received_qty * new_cost)) / (old_stock + received_qty)`
+- PDF generation in edge function avoids client-side library bloat
+- WhatsApp integration reuses existing WHATSAPP_BUSINESS_TOKEN secret
+- Phase 1 is the immediate deliverable; Phases 2 and 3 build incrementally
 
