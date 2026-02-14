@@ -230,7 +230,7 @@ export function AppointmentDetailSheet({
         )}
       </div>
 
-      <ScrollArea className={cn("flex-1", isMobile && "max-h-[60vh]")}>
+      <ScrollArea className={cn("flex-1 overflow-auto", isMobile ? "max-h-[55vh]" : "max-h-[calc(100vh-220px)]")}>
           <Tabs defaultValue="details" className="px-6 py-4">
             <TabsList className="w-full grid grid-cols-3">
               <TabsTrigger value="details" className="gap-1.5">
