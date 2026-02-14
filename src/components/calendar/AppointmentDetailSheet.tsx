@@ -6,6 +6,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +44,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const statusLabels: Record<AppointmentStatus, string> = {
   planned: 'Planned',
@@ -101,6 +108,7 @@ export function AppointmentDetailSheet({
   onStatusChange,
 }: AppointmentDetailSheetProps) {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [editedAppointment, setEditedAppointment] = useState<Appointment | null>(null);
   const [retailItems, setRetailItems] = useState<RetailItem[]>([]);
   const [notes, setNotes] = useState('');
@@ -199,31 +207,30 @@ export function AppointmentDetailSheet({
     }
   }
 
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col">
-        <SheetHeader className="px-6 pt-6 pb-4 border-b">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="text-lg">Appointment Details</SheetTitle>
-            <Badge className={cn('text-xs', statusColors[apt.status])}>
-              {statusLabels[apt.status]}
-            </Badge>
+  const contentBody = (
+    <>
+      <div className={cn("px-6 pt-6 pb-4 border-b", isMobile && "px-4 pt-4 pb-3")}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Appointment Details</h3>
+          <Badge className={cn('text-xs', statusColors[apt.status])}>
+            {statusLabels[apt.status]}
+          </Badge>
+        </div>
+        {isLocked && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2 mt-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+            <span>
+              {isCheckedOut
+                ? 'This appointment has been checked out. No changes allowed.'
+                : isCancelled
+                ? 'This appointment has been cancelled.'
+                : 'This appointment was marked as no-show.'}
+            </span>
           </div>
-          {isLocked && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2 mt-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-              <span>
-                {isCheckedOut
-                  ? 'This appointment has been checked out. No changes allowed.'
-                  : isCancelled
-                  ? 'This appointment has been cancelled.'
-                  : 'This appointment was marked as no-show.'}
-              </span>
-            </div>
-          )}
-        </SheetHeader>
+        )}
+      </div>
 
-        <ScrollArea className="flex-1">
+      <ScrollArea className={cn("flex-1", isMobile && "max-h-[60vh]")}>
           <Tabs defaultValue="details" className="px-6 py-4">
             <TabsList className="w-full grid grid-cols-3">
               <TabsTrigger value="details" className="gap-1.5">
@@ -629,7 +636,7 @@ export function AppointmentDetailSheet({
         </ScrollArea>
 
         {/* Footer Actions */}
-        <div className="border-t px-6 py-4 flex items-center gap-2">
+        <div className={cn("border-t px-6 py-4 flex items-center gap-2", isMobile && "px-4 py-3")}>
           {isCheckedOut ? (
             <Button
               className="flex-1 gap-1.5"
@@ -663,6 +670,29 @@ export function AppointmentDetailSheet({
             </>
           )}
         </div>
+      </>
+    );
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerContent className="flex flex-col max-h-[90vh]">
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>Appointment Details</DrawerTitle>
+          </DrawerHeader>
+          {contentBody}
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col">
+        <SheetHeader className="sr-only">
+          <SheetTitle>Appointment Details</SheetTitle>
+        </SheetHeader>
+        {contentBody}
       </SheetContent>
     </Sheet>
   );
