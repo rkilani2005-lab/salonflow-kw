@@ -164,7 +164,7 @@ export function BookingFormDialog({
 
   const formContent = (
     <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-      <ScrollArea className={cn("flex-1", isMobile ? "max-h-[60vh] px-4" : "px-6")}>
+      <ScrollArea className={cn("flex-1 overflow-auto", isMobile ? "max-h-[55vh] px-4" : "max-h-[calc(90vh-160px)] px-6")}>
         <div className="space-y-4 pb-4">
           {/* Client */}
           <div className="space-y-2">
