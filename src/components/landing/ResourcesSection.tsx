@@ -1,73 +1,63 @@
-import { Download, FileText } from 'lucide-react';
+import { Download, FileText, TrendingUp, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-const resources = [
+const RESOURCES = [
   {
-    titleKey: 'resources.guide1.title',
-    descKey: 'resources.guide1.desc',
     icon: FileText,
-    color: 'from-primary to-primary/60',
+    color: 'bg-primary/10 text-primary',
+    en: { title: 'The AI Salon Playbook', desc: 'How to use AI to 10× your bookings and keep clients coming back. The complete guide for Kuwait salons.' },
+    ar: { title: 'دليل الصالون الذكي', desc: 'كيف تستخدمين AI لمضاعفة حجوزاتك 10 مرات والاحتفاظ بعميلاتك. الدليل الكامل لصالونات الكويت.' },
   },
   {
-    titleKey: 'resources.guide2.title',
-    descKey: 'resources.guide2.desc',
-    icon: FileText,
-    color: 'from-accent to-accent/60',
+    icon: TrendingUp,
+    color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    en: { title: 'Pricing Psychology for Salons', desc: 'How to charge premium prices in the Kuwait market without losing clients. Real strategies from top GCC salons.' },
+    ar: { title: 'سيكولوجية التسعير للصالونات', desc: 'كيف ترفعين أسعارك في السوق الكويتي بدون خسارة العميلات. استراتيجيات حقيقية من أفضل صالونات الخليج.' },
   },
   {
-    titleKey: 'resources.guide3.title',
-    descKey: 'resources.guide3.desc',
-    icon: FileText,
-    color: 'from-primary to-accent',
+    icon: Users,
+    color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+    en: { title: 'Client Retention Masterclass', desc: 'The exact WhatsApp message templates and follow-up sequences that bring clients back every 3–4 weeks.' },
+    ar: { title: 'دورة الاحتفاظ بالعميلات', desc: 'قوالب رسائل واتساب وتسلسلات المتابعة التي تُعيد العميلات كل 3-4 أسابيع.' },
   },
 ];
 
 const ResourcesSection = () => {
-  const { t, isRTL } = useLanguage();
-  
+  const { language, isRTL } = useLanguage();
+  const ar = language === 'ar';
+
   return (
-    <section id="resources" className="py-24 bg-muted/30 relative">
-      <div className="absolute inset-0 grid-overlay opacity-20" />
-      
-      <div className="container mx-auto px-4 relative z-10">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <h2 className="font-display text-4xl md:text-5xl font-bold mb-4">
-            <span className="text-gradient">{t('resources.title')}</span>
+    <section id="resources" className="py-24 bg-muted/30" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="container mx-auto px-6">
+        <div className="text-center mb-14">
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-3">
+            {ar ? 'الموارد' : 'Free Resources'}
+          </p>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4" style={{ fontFamily: 'Syne, sans-serif' }}>
+            <span className="text-gradient">{ar ? 'طوّري مستواك' : 'Level up your game'}</span>
           </h2>
-          <p className="text-xl text-muted-foreground">
-            {t('resources.subtitle')}
+          <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+            {ar ? 'أدلة مجانية للسيطرة على سوقك' : 'Free guides to dominate your market'}
           </p>
         </div>
-        
-        {/* Resource Cards */}
+
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {resources.map((resource) => {
-            const Icon = resource.icon;
-            
+          {RESOURCES.map(r => {
+            const Icon = r.icon;
+            const content = ar ? r.ar : r.en;
             return (
-              <div 
-                key={resource.titleKey}
-                className="group bg-card border border-border rounded-xl p-6 hover:border-primary/30 transition-all hover:shadow-lg"
-              >
-                {/* Icon */}
-                <div className={`w-14 h-14 rounded-lg bg-gradient-to-br ${resource.color} flex items-center justify-center mb-6`}>
-                  <Icon className="w-7 h-7 text-primary-foreground" />
+              <div key={content.title} className="bg-card border border-border/60 rounded-2xl p-6 flex flex-col gap-4 feature-card">
+                <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${r.color}`}>
+                  <Icon className="h-6 w-6" />
                 </div>
-                
-                {/* Content */}
-                <h3 className="font-display text-xl font-bold mb-2 text-foreground">
-                  {t(resource.titleKey)}
-                </h3>
-                <p className="text-muted-foreground mb-6 leading-relaxed">
-                  {t(resource.descKey)}
-                </p>
-                
-                {/* Download button */}
-                <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground font-medium group-hover:translate-x-1 transition-transform">
-                  <Download className={`w-4 h-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
-                  {t('resources.download')}
+                <div className="flex-1">
+                  <h3 className="font-bold text-base mb-2" style={{ fontFamily: 'Syne, sans-serif' }}>{content.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{content.desc}</p>
+                </div>
+                <Button variant="outline" size="sm" className="gap-2 w-fit border-primary/30 text-primary hover:bg-primary/5">
+                  <Download className="h-3.5 w-3.5" />
+                  {ar ? 'تحميل مجاني' : 'Download Free'}
                 </Button>
               </div>
             );
