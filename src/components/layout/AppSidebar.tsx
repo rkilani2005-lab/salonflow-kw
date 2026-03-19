@@ -10,6 +10,7 @@ import {
 import {
   Calendar, Users, Scissors, Package, CreditCard, BarChart3,
   Settings, LogOut, Sparkles, Crown, UserCog, Bot, LayoutDashboard,
+  Brain, CalendarClock, HeartHandshake, PackageSearch,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +38,12 @@ const businessNavItems: NavItem[] = [
   { title: 'Inventory',    titleAr: 'المخزون',       url: '/inventory',     icon: Package,     roles: ['owner','manager','inventory_clerk'] },
   { title: 'Reports',      titleAr: 'التقارير',      url: '/reports',       icon: BarChart3,   roles: ['owner','manager','accountant'] },
   { title: 'WhatsApp AI',  titleAr: 'واتساب AI',     url: '/whatsapp-agent', icon: Bot,        roles: ['owner','manager'] },
+];
+
+const aiNavItems: NavItem[] = [
+  { title: 'Smart Schedule', titleAr: 'الجدولة الذكية',    url: '/ai/scheduling', icon: CalendarClock,    roles: ['owner','manager'] },
+  { title: 'Client Intel',   titleAr: 'ذكاء العميلات',    url: '/ai/clients',    icon: HeartHandshake,   roles: ['owner','manager'] },
+  { title: 'AI Inventory',   titleAr: 'مخزون ذكي',        url: '/ai/inventory',  icon: PackageSearch,    roles: ['owner','manager','inventory_clerk'] },
 ];
 
 const AppSidebar = () => {
@@ -160,6 +167,41 @@ const AppSidebar = () => {
                     tooltip={item.title}
                     isActive={isActive(item.url)}
                   >
+                    <button
+                      onClick={() => navigate(item.url)}
+                      className={cn(
+                        'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
+                        isActive(item.url)
+                          ? 'bg-primary/15 text-primary font-medium'
+                          : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                      )}
+                    >
+                      <item.icon className={cn('h-4 w-4 flex-shrink-0', isActive(item.url) && 'text-primary')} />
+                      {!collapsed && <span>{label(item)}</span>}
+                      {isActive(item.url) && !collapsed && (
+                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
+                      )}
+                    </button>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* AI Features */}
+        <SidebarGroup className="mt-2">
+          {!collapsed && (
+            <SidebarGroupLabel className="text-[10px] font-semibold tracking-widest uppercase text-sidebar-foreground/40 px-2 mb-1">
+              <span className="mr-1">✦</span>
+              {language === 'ar' ? 'الذكاء الاصطناعي' : 'AI Features'}
+            </SidebarGroupLabel>
+          )}
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-0.5">
+              {aiNavItems.filter(canAccess).map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild tooltip={item.title} isActive={isActive(item.url)}>
                     <button
                       onClick={() => navigate(item.url)}
                       className={cn(

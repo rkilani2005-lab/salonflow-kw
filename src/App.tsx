@@ -28,6 +28,9 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminTenants from "./pages/admin/AdminTenants";
 import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AIScheduling from "./pages/AIScheduling";
+import AIClientIntelligence from "./pages/AIClientIntelligence";
+import AIInventory from "./pages/AIInventory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -97,6 +100,9 @@ const App = () => (
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/subscription" element={<Subscription />} />
+              <Route path="/ai/scheduling" element={<AIScheduling />} />
+              <Route path="/ai/clients" element={<AIClientIntelligence />} />
+              <Route path="/ai/inventory" element={<AIInventory />} />
               </Route>
 
               {/* Super Admin routes */}
