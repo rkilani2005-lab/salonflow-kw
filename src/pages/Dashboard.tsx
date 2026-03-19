@@ -2,6 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LowStockAlerts } from '@/components/dashboard/LowStockAlerts';
+import { SetupChecklist } from '@/components/dashboard/SetupChecklist';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -160,6 +161,9 @@ export default function Dashboard() {
           </Button>
         </div>
       </div>
+
+      {/* ── Setup Checklist (shown until all 4 requirements met) ── */}
+      <SetupChecklist />
 
       {/* ── KPI Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

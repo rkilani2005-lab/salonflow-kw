@@ -18,22 +18,33 @@ const ProtectedRoute = ({ children, allowSuperAdmin = false }: ProtectedRoutePro
     );
   }
 
-  // Not logged in → tenant auth page
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
   const isSuperAdmin = userRoles.includes('super_admin' as any);
 
-  // Super admins do not belong in the tenant dashboard.
-  // Route them to the admin panel unless the route explicitly allows super admin
-  // (e.g. /whatsapp-agent which is shared).
   if (isSuperAdmin && !allowSuperAdmin) {
     return <Navigate to="/zaina-admin" replace />;
   }
 
-  // Regular tenant user who hasn't finished onboarding
-  if (!isSuperAdmin && !tenant?.onboarding_completed && location.pathname !== '/onboarding') {
+  // Onboarding gate: only redirect if the user has NO tenant at all,
+  // or if onboarding_completed is explicitly false (not null/undefined).
+  // This prevents a race condition where the profile loads but tenant
+  // hasn't been set yet from causing repeated onboarding redirects.
+  const needsOnboarding =
+    !isSuperAdmin &&
+    !tenant?.id &&                          // no tenant at all
+    location.pathname !== '/onboarding';
+
+  // Also handle the case where tenant exists but onboarding not completed
+  const onboardingIncomplete =
+    !isSuperAdmin &&
+    tenant?.id &&
+    tenant?.onboarding_completed === false && // strictly false, not null/undefined
+    location.pathname !== '/onboarding';
+
+  if (needsOnboarding || onboardingIncomplete) {
     return <Navigate to="/onboarding" replace />;
   }
 

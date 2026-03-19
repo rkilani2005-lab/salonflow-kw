@@ -11,9 +11,9 @@ import { cn } from '@/lib/utils';
 import confetti from 'canvas-confetti';
 
 const STEPS = [
-  { id: 1, title: 'Salon Details',  titleAr: 'تفاصيل الصالون', icon: Building2, desc: 'Tell us about your business', descAr: 'أخبرينا عن عملك' },
-  { id: 2, title: 'First Branch',   titleAr: 'الفرع الأول',    icon: MapPin,     desc: 'Set up your main location', descAr: 'أعدّي موقعك الرئيسي' },
-  { id: 3, title: 'First Staff',    titleAr: 'أول موظفة',       icon: User,       desc: 'Add your first team member', descAr: 'أضيفي أول عضو في الفريق' },
+  { id: 1, title: 'Salon Details', titleAr: 'تفاصيل الصالون', icon: Building2, desc: 'Tell us about your business',   descAr: 'أخبرينا عن عملك' },
+  { id: 2, title: 'First Branch',  titleAr: 'الفرع الأول',    icon: MapPin,    desc: 'Set up your main location',    descAr: 'أعدّي موقعك الرئيسي' },
+  { id: 3, title: 'First Staff',   titleAr: 'أول موظفة',      icon: User,      desc: 'Add your first team member',   descAr: 'أضيفي أول عضو في الفريق' },
 ];
 
 const Onboarding = () => {
@@ -22,9 +22,9 @@ const Onboarding = () => {
   const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
 
-  const [salon, setSalon] = useState({ name: '', defaultTaxRate: '0', currency: 'KWD' });
+  const [salon,  setSalon]  = useState({ name: '', defaultTaxRate: '0', currency: 'KWD' });
   const [branch, setBranch] = useState({ name: 'Main Branch', address: '', phone: '', openingTime: '09:00', closingTime: '21:00' });
-  const [staff, setStaff] = useState({ name: '', phone: '', email: '' });
+  const [staff,  setStaff]  = useState({ name: '', phone: '', email: '' });
 
   const canProceed = () => {
     if (step === 1) return salon.name.trim().length >= 2;
@@ -37,30 +37,76 @@ const Onboarding = () => {
     if (!user) return;
     setLoading(true);
     try {
+      // 1. Create tenant with onboarding_completed = true and 14-day trial
+      const trialEnd = new Date(Date.now() + 14 * 86_400_000).toISOString();
       const { data: tenantData, error: tenantError } = await supabase
         .from('tenants')
-        .insert({ name: salon.name.trim(), default_tax_rate: parseFloat(salon.defaultTaxRate) || 0, currency: salon.currency, onboarding_completed: true, is_trial: true, trial_ends_at: new Date(Date.now() + 14 * 86400000).toISOString() })
-        .select().single();
+        .insert({
+          name: salon.name.trim(),
+          default_tax_rate: parseFloat(salon.defaultTaxRate) || 0,
+          currency: salon.currency,
+          onboarding_completed: true,   // ← explicitly true
+          is_trial: true,
+          trial_ends_at: trialEnd,
+        })
+        .select()
+        .single();
       if (tenantError) throw tenantError;
 
+      // 2. Create first branch
       const { data: branchData, error: branchError } = await supabase
         .from('branches')
-        .insert({ tenant_id: tenantData.id, name: branch.name.trim(), address: branch.address, phone: branch.phone, opening_time: branch.openingTime + ':00', closing_time: branch.closingTime + ':00', is_active: true })
-        .select().single();
+        .insert({
+          tenant_id: tenantData.id,
+          name: branch.name.trim(),
+          address: branch.address || null,
+          phone: branch.phone || null,
+          opening_time: branch.openingTime + ':00',
+          closing_time: branch.closingTime + ':00',
+          is_active: true,
+        })
+        .select()
+        .single();
       if (branchError) throw branchError;
 
-      await supabase.from('profiles').update({ tenant_id: tenantData.id, branch_id: branchData.id }).eq('user_id', user.id);
-      await supabase.from('user_roles').insert({ user_id: user.id, tenant_id: tenantData.id, role: 'owner' });
+      // 3. Link profile to tenant + branch
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ tenant_id: tenantData.id, branch_id: branchData.id })
+        .eq('user_id', user.id);
+      if (profileError) throw profileError;
 
+      // 4. Assign owner role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({ user_id: user.id, tenant_id: tenantData.id, role: 'owner' });
+      if (roleError) throw roleError;
+
+      // 5. Create first staff member
       if (staff.name.trim()) {
-        await supabase.from('staff').insert({ tenant_id: tenantData.id, name: staff.name.trim(), phone: staff.phone, email: staff.email, working_hours_start: branch.openingTime + ':00', working_hours_end: branch.closingTime + ':00', is_active: true });
+        await supabase.from('staff').insert({
+          tenant_id: tenantData.id,
+          name: staff.name.trim(),
+          phone: staff.phone || null,
+          email: staff.email || null,
+          working_hours_start: branch.openingTime + ':00',
+          working_hours_end:   branch.closingTime + ':00',
+          is_active: true,
+        });
       }
 
-      confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 }, colors: ['#C0395E', '#D4956A', '#ffffff'] });
+      // 6. Refresh context so tenant & onboarding_completed are current
+      //    Wait for it to settle before navigating — this is the key fix
+      //    for the "onboarding loop" bug.
       await refreshProfile();
-      toast.success('Welcome to ZAINA! 🎉');
+
+      confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 }, colors: ['#C0395E', '#D4956A', '#ffffff'] });
+      toast.success('Welcome to ZAINA! Your 14-day trial has started 🎉');
+
+      // Navigate AFTER profile is refreshed — avoids the loop
       navigate('/dashboard', { replace: true });
     } catch (err: any) {
+      console.error('Onboarding error:', err);
       toast.error(err?.message || 'Setup failed. Please try again.');
     } finally {
       setLoading(false);
@@ -71,7 +117,6 @@ const Onboarding = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Top bar */}
       <header className="h-14 border-b border-border/60 flex items-center px-6">
         <div className="flex items-center gap-2.5">
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
@@ -85,12 +130,11 @@ const Onboarding = () => {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="w-full max-w-lg">
 
-          {/* Progress bar */}
+          {/* Progress */}
           <div className="mb-8">
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
               <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${progress + 50}%` }} />
             </div>
-            {/* Step dots */}
             <div className="flex justify-between mt-3">
               {STEPS.map(s => {
                 const Icon = s.icon;
@@ -117,7 +161,6 @@ const Onboarding = () => {
 
           {/* Card */}
           <div className="bg-card border border-border/60 rounded-2xl overflow-hidden shadow-sm">
-            {/* Step header */}
             <div className="px-6 pt-6 pb-5 border-b border-border/50">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -130,9 +173,7 @@ const Onboarding = () => {
               </div>
             </div>
 
-            {/* Step content */}
             <div className="p-6 space-y-4">
-              {/* Step 1: Salon Details */}
               {step === 1 && (
                 <>
                   <div className="space-y-1.5">
@@ -162,7 +203,6 @@ const Onboarding = () => {
                 </>
               )}
 
-              {/* Step 2: Branch */}
               {step === 2 && (
                 <>
                   <div className="space-y-1.5">
@@ -195,7 +235,6 @@ const Onboarding = () => {
                 </>
               )}
 
-              {/* Step 3: Staff */}
               {step === 3 && (
                 <>
                   <div className="p-3 rounded-xl bg-primary/6 border border-primary/20 text-sm text-primary mb-2">
@@ -220,7 +259,6 @@ const Onboarding = () => {
               )}
             </div>
 
-            {/* Navigation */}
             <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-muted/20">
               <Button variant="ghost" size="sm" onClick={() => setStep(s => s - 1)} disabled={step === 1} className="gap-1.5">
                 <ArrowLeft className="h-3.5 w-3.5" />Back
