@@ -7,21 +7,17 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { AlertTriangle, Bell, Settings, LogOut, User, Languages } from 'lucide-react';
+import { AlertTriangle, Bell, Settings, LogOut, Languages } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 
 const DashboardLayout = () => {
   const { tenant, profile, userRoles, signOut } = useAuth();
   const { language, setLanguage } = useLanguage();
   const navigate = useNavigate();
-  const [hasNotifications] = useState(true); // will wire to real data in Phase 2
+  const [hasNotifications] = useState(false);
 
   const trialDaysLeft = tenant?.trial_ends_at
     ? differenceInDays(new Date(tenant.trial_ends_at), new Date())
@@ -39,20 +35,20 @@ const DashboardLayout = () => {
 
   return (
     <SidebarProvider defaultOpen>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
-        <SidebarInset className="flex-1 flex flex-col">
-          {/* ── Header ── */}
-          <header className="h-14 border-b flex items-center px-4 gap-3 bg-background sticky top-0 z-10">
-            <SidebarTrigger />
+        <SidebarInset className="flex-1 flex flex-col min-w-0">
+
+          {/* ── Top Header ── */}
+          <header className="h-14 border-b border-border/60 flex items-center px-4 gap-3 bg-background/95 backdrop-blur-sm sticky top-0 z-20">
+            <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
 
             <div className="flex-1" />
 
-            {/* Trial warning */}
             {showTrialWarning && (
-              <Badge variant="destructive" className="gap-1 hidden sm:flex">
+              <Badge variant="destructive" className="gap-1 text-xs hidden sm:flex">
                 <AlertTriangle className="h-3 w-3" />
-                Trial ends in {trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''}
+                Trial ends in {trialDaysLeft}d
               </Badge>
             )}
 
@@ -60,61 +56,65 @@ const DashboardLayout = () => {
             <Button
               variant="ghost"
               size="sm"
-              className="gap-1.5 text-xs font-medium"
               onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
-              title="Toggle language"
+              className="h-8 px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground gap-1.5"
             >
-              <Languages className="h-4 w-4" />
-              {language === 'en' ? 'AR' : 'EN'}
+              <Languages className="h-3.5 w-3.5" />
+              {language === 'en' ? 'عربي' : 'EN'}
             </Button>
 
             {/* Notifications */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
+                <Button variant="ghost" size="icon" className="h-8 w-8 relative text-muted-foreground hover:text-foreground">
                   <Bell className="h-4 w-4" />
                   {hasNotifications && (
-                    <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500" />
+                    <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
                   )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-72">
-                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                <DropdownMenuLabel className="font-semibold">
+                  {language === 'ar' ? 'الإشعارات' : 'Notifications'}
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                  No new notifications
+                <div className="px-3 py-6 text-sm text-muted-foreground text-center">
+                  {language === 'ar' ? 'لا توجد إشعارات جديدة' : 'No new notifications'}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* User avatar + menu */}
+            {/* User menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-2 px-2">
-                  <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="text-xs font-semibold text-primary">{initials}</span>
+                <Button variant="ghost" size="sm" className="h-8 gap-2 px-2 text-muted-foreground hover:text-foreground">
+                  <div className="h-6 w-6 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <span className="text-[10px] font-bold text-primary">{initials}</span>
                   </div>
-                  <span className="hidden sm:inline text-sm max-w-[120px] truncate">
+                  <span className="hidden sm:inline text-xs font-medium max-w-[100px] truncate">
                     {profile?.full_name || 'User'}
                   </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuLabel>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-medium">{profile?.full_name || 'User'}</span>
-                    <span className="text-xs text-muted-foreground font-normal capitalize">
-                      {userRoles[0] || 'User'} — {tenant?.name}
-                    </span>
-                  </div>
+                  <p className="font-semibold text-sm">{profile?.full_name || 'User'}</p>
+                  <p className="text-xs text-muted-foreground font-normal capitalize mt-0.5">
+                    {userRoles[0] || 'User'} · {tenant?.name}
+                  </p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate('/settings')}>
-                  <Settings className="h-4 w-4 mr-2" />Settings
+                <DropdownMenuItem onClick={() => navigate('/settings')} className="gap-2 text-sm">
+                  <Settings className="h-3.5 w-3.5" />
+                  {language === 'ar' ? 'الإعدادات' : 'Settings'}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-600">
-                  <LogOut className="h-4 w-4 mr-2" />Sign out
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  className="gap-2 text-sm text-destructive focus:text-destructive focus:bg-destructive/10"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  {language === 'ar' ? 'تسجيل الخروج' : 'Sign out'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -122,7 +122,9 @@ const DashboardLayout = () => {
 
           {/* Main Content */}
           <main className="flex-1 overflow-auto">
-            <Outlet />
+            <div className="page-enter">
+              <Outlet />
+            </div>
           </main>
         </SidebarInset>
       </div>
