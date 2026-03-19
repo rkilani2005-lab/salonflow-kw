@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -28,6 +28,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminTenants from "./pages/admin/AdminTenants";
 import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminLogin from "./pages/admin/AdminLogin";
 import AIScheduling from "./pages/AIScheduling";
 import AIClientIntelligence from "./pages/AIClientIntelligence";
 import AIInventory from "./pages/AIInventory";
@@ -105,7 +106,11 @@ const App = () => (
               <Route path="/ai/inventory" element={<AIInventory />} />
               </Route>
 
-              {/* Super Admin routes */}
+              {/* Super Admin routes — all under /zaina-admin/ */}
+              {/* Public admin login — no auth guard needed */}
+              <Route path="/zaina-admin/login" element={<AdminLogin />} />
+
+              {/* Protected admin routes */}
               <Route
                 element={
                   <SuperAdminRoute>
@@ -113,13 +118,17 @@ const App = () => (
                   </SuperAdminRoute>
                 }
               >
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/tenants" element={<AdminTenants />} />
-                <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
-                <Route path="/admin/analytics" element={<AdminAnalytics />} />
-                <Route path="/admin/users" element={<ComingSoon title="User Management" />} />
-                <Route path="/admin/settings" element={<ComingSoon title="Admin Settings" />} />
+                <Route path="/zaina-admin" element={<AdminDashboard />} />
+                <Route path="/zaina-admin/tenants" element={<AdminTenants />} />
+                <Route path="/zaina-admin/subscriptions" element={<AdminSubscriptions />} />
+                <Route path="/zaina-admin/analytics" element={<AdminAnalytics />} />
+                <Route path="/zaina-admin/users" element={<ComingSoon title="User Management" />} />
+                <Route path="/zaina-admin/settings" element={<ComingSoon title="Admin Settings" />} />
               </Route>
+
+              {/* Legacy /admin/* redirects → /zaina-admin/* for backwards compatibility */}
+              <Route path="/admin" element={<Navigate to="/zaina-admin" replace />} />
+              <Route path="/admin/*" element={<Navigate to="/zaina-admin" replace />} />
 
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />

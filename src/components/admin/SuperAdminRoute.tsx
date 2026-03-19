@@ -11,21 +11,21 @@ const SuperAdminRoute = ({ children }: SuperAdminRouteProps) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500" />
       </div>
     );
   }
 
+  // Not logged in → dedicated admin login page
   if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+    return <Navigate to="/zaina-admin/login" state={{ from: location }} replace />;
   }
 
-  // Check for super_admin role
+  // Logged in but not a super_admin → back to admin login (not tenant auth)
   const isSuperAdmin = userRoles.includes('super_admin' as any);
-  
   if (!isSuperAdmin) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/zaina-admin/login" replace />;
   }
 
   return <>{children}</>;

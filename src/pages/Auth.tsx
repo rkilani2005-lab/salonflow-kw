@@ -23,7 +23,8 @@ const Auth = () => {
 
   useEffect(() => {
     if (authLoading || !user) return;
-    if (userRoles.includes('super_admin' as any)) { navigate('/admin', { replace: true }); return; }
+    // Super admins who land on the tenant auth page get sent to their own portal
+    if (userRoles.includes('super_admin' as any)) { navigate('/zaina-admin', { replace: true }); return; }
     if (tenant?.onboarding_completed) { navigate('/dashboard', { replace: true }); return; }
     navigate('/onboarding', { replace: true });
   }, [user, tenant, userRoles, authLoading, navigate]);
@@ -145,6 +146,14 @@ const Auth = () => {
             ))}
           </div>
         )}
+
+        {/* Admin portal link — subtle, not prominent */}
+        <p className="mt-8 text-center text-xs text-muted-foreground/50">
+          ZAINA administrator?{' '}
+          <a href="/zaina-admin/login" className="hover:text-muted-foreground transition-colors underline underline-offset-2">
+            Admin portal
+          </a>
+        </p>
       </div>
 
       {/* ── Right: Visual panel (desktop only) ── */}

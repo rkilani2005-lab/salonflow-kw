@@ -12,32 +12,29 @@ const ProtectedRoute = ({ children, allowSuperAdmin = false }: ProtectedRoutePro
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
 
-  // Not logged in -> redirect to auth
+  // Not logged in → tenant auth page
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // Super admins bypass onboarding and go to admin panel (unless allowSuperAdmin is true)
   const isSuperAdmin = userRoles.includes('super_admin' as any);
+
+  // Super admins do not belong in the tenant dashboard.
+  // Route them to the admin panel unless the route explicitly allows super admin
+  // (e.g. /whatsapp-agent which is shared).
   if (isSuperAdmin && !allowSuperAdmin) {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to="/zaina-admin" replace />;
   }
 
-  // Logged in but no tenant (hasn't completed onboarding) - skip for super admins
+  // Regular tenant user who hasn't finished onboarding
   if (!isSuperAdmin && !tenant?.onboarding_completed && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
-  }
-
-  // If on a protected route and authenticated with tenant, allow access
-  // Redirect to dashboard if somehow landing on root
-  if (location.pathname === '/') {
-    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
