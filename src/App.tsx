@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import SuperAdminRoute from "@/components/admin/SuperAdminRoute";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -31,77 +32,7 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/book" element={<Booking />} />
-            <Route path="/booking/success" element={<Booking />} />
-            <Route path="/booking/failed" element={<Booking />} />
-            
-            {/* Protected onboarding route (no layout) */}
-            <Route path="/onboarding" element={
-              <ProtectedRoute>
-                <Onboarding />
-              </ProtectedRoute>
-            } />
-            
-            {/* WhatsApp Agent - standalone page with its own layout */}
-            <Route path="/whatsapp-agent" element={
-              <ProtectedRoute allowSuperAdmin={true}>
-                <WhatsAppAgent />
-              </ProtectedRoute>
-            } />
-            
-            {/* Protected routes with dashboard layout */}
-            <Route element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            }>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/calendar" element={<Calendar />} />
-              <Route path="/clients" element={<Clients />} />
-              <Route path="/staff" element={<Staff />} />
-              <Route path="/services" element={<Services />} />
-              <Route path="/pos" element={<POS />} />
-              <Route path="/inventory" element={<Inventory />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/subscription" element={<Subscription />} />
-            </Route>
-            
-            {/* Super Admin routes */}
-            <Route element={
-              <SuperAdminRoute>
-                <AdminLayout />
-              </SuperAdminRoute>
-            }>
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/tenants" element={<AdminTenants />} />
-              <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
-              <Route path="/admin/analytics" element={<AdminAnalytics />} />
-              <Route path="/admin/users" element={<ComingSoon title="User Management" />} />
-              <Route path="/admin/settings" element={<ComingSoon title="Admin Settings" />} />
-            </Route>
-            
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
-
-// Placeholder component for unimplemented pages
+// Bug 6 fix: ComingSoon must be defined BEFORE App so it is in scope when routes render
 const ComingSoon = ({ title }: { title: string }) => (
   <div className="flex items-center justify-center h-full min-h-[400px]">
     <div className="text-center">
@@ -109,6 +40,89 @@ const ComingSoon = ({ title }: { title: string }) => (
       <p className="text-muted-foreground">This feature is coming soon!</p>
     </div>
   </div>
+);
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      {/* Bug 4 fix: LanguageProvider correctly wraps the whole app */}
+      <LanguageProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<Landing />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/book" element={<Booking />} />
+              <Route path="/booking/success" element={<Booking />} />
+              <Route path="/booking/failed" element={<Booking />} />
+
+              {/* Protected onboarding route (no layout) */}
+              <Route
+                path="/onboarding"
+                element={
+                  <ProtectedRoute>
+                    <Onboarding />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* WhatsApp Agent - standalone page with its own layout */}
+              <Route
+                path="/whatsapp-agent"
+                element={
+                  <ProtectedRoute allowSuperAdmin={true}>
+                    <WhatsAppAgent />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Protected routes with dashboard layout */}
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/calendar" element={<Calendar />} />
+                <Route path="/clients" element={<Clients />} />
+                <Route path="/staff" element={<Staff />} />
+                <Route path="/services" element={<Services />} />
+                <Route path="/pos" element={<POS />} />
+                <Route path="/inventory" element={<Inventory />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/subscription" element={<Subscription />} />
+              </Route>
+
+              {/* Super Admin routes */}
+              <Route
+                element={
+                  <SuperAdminRoute>
+                    <AdminLayout />
+                  </SuperAdminRoute>
+                }
+              >
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/tenants" element={<AdminTenants />} />
+                <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
+                <Route path="/admin/analytics" element={<AdminAnalytics />} />
+                <Route path="/admin/users" element={<ComingSoon title="User Management" />} />
+                <Route path="/admin/settings" element={<ComingSoon title="Admin Settings" />} />
+              </Route>
+
+              {/* Catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </LanguageProvider>
+    </AuthProvider>
+  </QueryClientProvider>
 );
 
 export default App;

@@ -11,7 +11,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 const Inventory = () => {
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Inventory</h1>
         <p className="text-muted-foreground">Manage products, suppliers, and procurement</p>

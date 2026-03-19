@@ -20,6 +20,14 @@ export default function POS() {
   const { data: staffList } = useStaff();
   const createTransaction = useCreateTransaction();
 
+  // Fetch the authenticated user's email for correct staff lookup (Bug 5 fix)
+  const [authEmail, setAuthEmail] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setAuthEmail(data.user?.email || null);
+    });
+  }, []);
+
   // Client state
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isGuest, setIsGuest] = useState(false);
@@ -38,10 +46,16 @@ export default function POS() {
   const [completedTxnId, setCompletedTxnId] = useState<string | null>(null);
   const [completedPayments, setCompletedPayments] = useState<PaymentEntry[]>([]);
 
-  // Staff for this session
+  // Bug 5 fix: match staff by the authenticated user's email (not full_name)
+  // Falls back to first active staff member if the logged-in user is not a staff record
   const currentStaff = useMemo(() => {
-    return staffList?.find(s => s.email === profile?.full_name) || staffList?.[0] || null;
-  }, [staffList, profile]);
+    if (!staffList) return null;
+    if (authEmail) {
+      const matched = staffList.find(s => s.email && s.email.toLowerCase() === authEmail.toLowerCase());
+      if (matched) return matched;
+    }
+    return staffList.find(s => s.is_active) || staffList[0] || null;
+  }, [staffList, authEmail]);
 
   // Calculated values
   const subtotal = items.reduce((sum, item) => sum + item.total_price, 0);
