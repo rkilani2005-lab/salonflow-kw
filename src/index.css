@@ -226,3 +226,32 @@
 [dir="rtl"] .mr-auto { margin-right: 0; margin-left: auto; }
 [dir="rtl"] .pl-4 { padding-left: 0; padding-right: 1rem; }
 [dir="rtl"] .pr-4 { padding-right: 0; padding-left: 1rem; }
+
+/* ── Landing page utilities ── */
+.text-gradient {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.grid-overlay {
+  background-image:
+    linear-gradient(to right, hsl(var(--border)/0.4) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--border)/0.4) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.hero-glow {
+  background: radial-gradient(ellipse at center, hsl(var(--primary)/0.15) 0%, transparent 70%);
+}
+
+/* Landing card hover */
+.feature-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.feature-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 32px hsl(var(--primary)/0.12);
+  border-color: hsl(var(--primary)/0.3);
+}

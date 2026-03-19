@@ -1,327 +1,215 @@
- import { useAuth } from '@/contexts/AuthContext';
- import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
- import { Button } from '@/components/ui/button';
- import { Badge } from '@/components/ui/badge';
- import { Check, X, Sparkles, Crown, Zap, Calendar, Users, Scissors, CreditCard, Package, BarChart3, Bot, Lock } from 'lucide-react';
- import { differenceInDays, format } from 'date-fns';
- import { cn } from '@/lib/utils';
- 
- type PlanFeature = {
-   name: string;
-   icon: React.ComponentType<{ className?: string }>;
-   starter: boolean;
-   professional: boolean;
-   ai: boolean;
- };
- 
- const features: PlanFeature[] = [
-   { name: 'Calendar & Bookings', icon: Calendar, starter: true, professional: true, ai: true },
-   { name: 'Client Management', icon: Users, starter: true, professional: true, ai: true },
-   { name: 'Staff Management', icon: Users, starter: true, professional: true, ai: true },
-   { name: 'Service Catalog', icon: Scissors, starter: true, professional: true, ai: true },
-   { name: 'Point of Sale', icon: CreditCard, starter: true, professional: true, ai: true },
-   { name: 'Basic Reports', icon: BarChart3, starter: true, professional: true, ai: true },
-   { name: 'Multiple Branches', icon: Package, starter: false, professional: true, ai: true },
-   { name: 'Advanced Analytics', icon: BarChart3, starter: false, professional: true, ai: true },
-   { name: 'Custom Forms', icon: Scissors, starter: false, professional: true, ai: true },
-   { name: 'Inventory Management', icon: Package, starter: false, professional: true, ai: true },
-   { name: 'Commission Engine', icon: CreditCard, starter: false, professional: true, ai: true },
-   { name: 'AI Appointment Suggestions', icon: Bot, starter: false, professional: false, ai: true },
-   { name: 'AI Client Insights', icon: Bot, starter: false, professional: false, ai: true },
-   { name: 'AI Revenue Forecasting', icon: Bot, starter: false, professional: false, ai: true },
-   { name: 'Smart Scheduling', icon: Bot, starter: false, professional: false, ai: true },
- ];
- 
- const plans = [
-   {
-     id: 'starter',
-     name: 'Starter',
-     price: 29,
-     description: 'Perfect for small salons getting started',
-     icon: Sparkles,
-     popular: false,
-   },
-   {
-     id: 'professional',
-     name: 'Professional',
-     price: 45,
-     description: 'For growing salons with multiple branches',
-     icon: Crown,
-     popular: true,
-   },
-   {
-     id: 'ai',
-     name: 'AI Premium',
-     price: 59,
-     description: 'Unlock the power of AI for your salon',
-     icon: Zap,
-     popular: false,
-   },
- ];
- 
- const Subscription = () => {
-   const { tenant } = useAuth();
-   
-   const currentPlan = tenant?.subscription_plan || 'starter';
-   const isTrialActive = tenant?.is_trial && tenant?.trial_ends_at && new Date(tenant.trial_ends_at) > new Date();
-   const trialDaysLeft = tenant?.trial_ends_at 
-     ? Math.max(0, differenceInDays(new Date(tenant.trial_ends_at), new Date()))
-     : 0;
-   const trialEndsAt = tenant?.trial_ends_at ? new Date(tenant.trial_ends_at) : null;
- 
-   const getPlanLevel = (plan: string) => {
-     const levels: Record<string, number> = { starter: 1, professional: 2, ai: 3 };
-     return levels[plan] || 0;
-   };
- 
-   const canUpgrade = (planId: string) => {
-     return getPlanLevel(planId) > getPlanLevel(currentPlan);
-   };
- 
-   const isCurrentPlan = (planId: string) => {
-     return planId === currentPlan && !isTrialActive;
-   };
- 
-   const handleUpgrade = (planId: string) => {
-     // TODO: Implement Stripe checkout
-     console.log('Upgrade to:', planId);
-   };
- 
-   return (
-     <div className="container max-w-6xl py-8 space-y-8">
-       {/* Header */}
-       <div className="text-center space-y-2">
-         <h1 className="text-3xl font-bold">Subscription & Billing</h1>
-         <p className="text-muted-foreground">
-           Choose the perfect plan for your salon
-         </p>
-       </div>
- 
-       {/* Trial Banner */}
-       {isTrialActive && (
-         <Card className="border-primary bg-primary/5">
-           <CardContent className="flex items-center justify-between py-4">
-             <div className="flex items-center gap-3">
-               <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                 <Sparkles className="h-5 w-5 text-primary" />
-               </div>
-               <div>
-                 <p className="font-semibold">You're on a 14-day Professional Trial</p>
-                 <p className="text-sm text-muted-foreground">
-                   {trialDaysLeft} days remaining • Ends {trialEndsAt && format(trialEndsAt, 'MMM d, yyyy')}
-                 </p>
-               </div>
-             </div>
-             <Button onClick={() => handleUpgrade('professional')}>
-               Upgrade Now
-             </Button>
-           </CardContent>
-         </Card>
-       )}
- 
-       {/* Current Plan Status */}
-       {!isTrialActive && (
-         <Card>
-           <CardContent className="flex items-center justify-between py-4">
-             <div className="flex items-center gap-3">
-               <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                 {currentPlan === 'ai' ? (
-                   <Zap className="h-5 w-5" />
-                 ) : currentPlan === 'professional' ? (
-                   <Crown className="h-5 w-5" />
-                 ) : (
-                   <Sparkles className="h-5 w-5" />
-                 )}
-               </div>
-               <div>
-                 <p className="font-semibold">
-                   Current Plan: {plans.find(p => p.id === currentPlan)?.name || 'Starter'}
-                 </p>
-                 <p className="text-sm text-muted-foreground">
-                   {currentPlan === 'ai' ? 'All features unlocked' : 'Upgrade to unlock more features'}
-                 </p>
-               </div>
-             </div>
-             {currentPlan !== 'ai' && (
-               <Button variant="outline" onClick={() => handleUpgrade('ai')}>
-                 View Upgrade Options
-               </Button>
-             )}
-           </CardContent>
-         </Card>
-       )}
- 
-       {/* Pricing Cards */}
-       <div className="grid md:grid-cols-3 gap-6">
-         {plans.map((plan) => {
-           const isCurrent = isCurrentPlan(plan.id);
-           const canUpgradeToPlan = canUpgrade(plan.id);
-           const Icon = plan.icon;
-           
-           return (
-             <Card 
-               key={plan.id} 
-               className={cn(
-                 "relative",
-                 plan.popular && "border-primary shadow-lg",
-                  isCurrent && "border-primary/50 bg-primary/5"
-                )}
-             >
-               {plan.popular && (
-                 <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
-                   Most Popular
-                 </Badge>
-               )}
-               {isCurrent && (
-                <Badge variant="secondary" className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
-                   Current Plan
-                 </Badge>
-               )}
-               
-               <CardHeader className="text-center pb-2">
-                 <div className="mx-auto h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-2">
-                   <Icon className="h-6 w-6" />
-                 </div>
-                 <CardTitle>{plan.name}</CardTitle>
-                 <CardDescription>{plan.description}</CardDescription>
-               </CardHeader>
-               
-               <CardContent className="text-center">
-                 <div className="mb-4">
-                   <span className="text-4xl font-bold">{plan.price}</span>
-                   <span className="text-muted-foreground"> KWD/mo</span>
-                 </div>
-                 
-                 <ul className="space-y-2 text-sm text-left">
-                   {features.slice(0, 6).map((feature) => {
-                     const hasFeature = feature[plan.id as keyof typeof feature] as boolean;
-                     return (
-                       <li key={feature.name} className="flex items-center gap-2">
-                         {hasFeature ? (
-                            <Check className="h-4 w-4 text-primary shrink-0" />
-                        ) : (
-                           <X className="h-4 w-4 text-muted-foreground shrink-0" />
-                         )}
-                         <span className={cn(!hasFeature && "text-muted-foreground")}>
-                           {feature.name}
-                         </span>
-                       </li>
-                     );
-                   })}
-                   {plan.id !== 'starter' && (
-                     <li className="text-primary font-medium pt-1">
-                       + {plan.id === 'ai' ? '9' : '5'} more features
-                     </li>
-                   )}
-                 </ul>
-               </CardContent>
-               
-               <CardFooter>
-                 {isCurrent ? (
-                   <Button variant="outline" className="w-full" disabled>
-                     Current Plan
-                   </Button>
-                 ) : canUpgradeToPlan ? (
-                   <Button 
-                     className="w-full" 
-                     variant={plan.popular ? "default" : "outline"}
-                     onClick={() => handleUpgrade(plan.id)}
-                   >
-                     Upgrade to {plan.name}
-                   </Button>
-                 ) : (
-                   <Button variant="ghost" className="w-full" disabled>
-                     Included in your plan
-                   </Button>
-                 )}
-               </CardFooter>
-             </Card>
-           );
-         })}
-       </div>
- 
-       {/* Feature Comparison */}
-       <Card>
-         <CardHeader>
-           <CardTitle>Feature Comparison</CardTitle>
-           <CardDescription>See what's included in each plan</CardDescription>
-         </CardHeader>
-         <CardContent>
-           <div className="overflow-x-auto">
-             <table className="w-full">
-               <thead>
-                 <tr className="border-b">
-                   <th className="text-left py-3 px-4 font-medium">Feature</th>
-                   <th className="text-center py-3 px-4 font-medium">Starter</th>
-                   <th className="text-center py-3 px-4 font-medium">Professional</th>
-                   <th className="text-center py-3 px-4 font-medium">AI Premium</th>
-                 </tr>
-               </thead>
-               <tbody>
-                 {features.map((feature, index) => {
-                   const Icon = feature.icon;
-                   const isLocked = (plan: 'starter' | 'professional' | 'ai') => {
-                     if (isTrialActive) return !feature.professional && !feature.ai;
-                     return !feature[plan] && getPlanLevel(plan) <= getPlanLevel(currentPlan);
-                   };
-                   
-                   return (
-                     <tr key={feature.name} className={cn(index % 2 === 0 && "bg-muted/30")}>
-                       <td className="py-3 px-4">
-                         <div className="flex items-center gap-2">
-                           <Icon className="h-4 w-4 text-muted-foreground" />
-                           <span>{feature.name}</span>
-                         </div>
-                       </td>
-                       <td className="text-center py-3 px-4">
-                         {feature.starter ? (
-                            <Check className="h-5 w-5 text-primary mx-auto" />
-                         ) : (
-                           <Lock className="h-4 w-4 text-muted-foreground mx-auto" />
-                         )}
-                       </td>
-                       <td className="text-center py-3 px-4">
-                         {feature.professional ? (
-                            <Check className="h-5 w-5 text-primary mx-auto" />
-                         ) : (
-                           <Lock className="h-4 w-4 text-muted-foreground mx-auto" />
-                         )}
-                       </td>
-                       <td className="text-center py-3 px-4">
-                         {feature.ai ? (
-                            <Check className="h-5 w-5 text-primary mx-auto" />
-                         ) : (
-                           <Lock className="h-4 w-4 text-muted-foreground mx-auto" />
-                         )}
-                       </td>
-                     </tr>
-                   );
-                 })}
-               </tbody>
-             </table>
-           </div>
-         </CardContent>
-       </Card>
- 
-       {/* CTA Section */}
-       {currentPlan !== 'ai' && (
-         <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
-           <CardContent className="flex flex-col md:flex-row items-center justify-between gap-4 py-6">
-             <div className="text-center md:text-left">
-               <h3 className="text-xl font-bold mb-1">Ready to unlock all features?</h3>
-               <p className="text-muted-foreground">
-                 Upgrade to AI Premium and supercharge your salon with AI-powered insights
-               </p>
-             </div>
-             <Button size="lg" onClick={() => handleUpgrade('ai')}>
-               <Zap className="mr-2 h-4 w-4" />
-               Upgrade to AI Premium
-             </Button>
-           </CardContent>
-         </Card>
-       )}
-     </div>
-   );
- };
- 
- export default Subscription;
+import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Check, X, Sparkles, Crown, Zap, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { differenceInDays, format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+
+const PLANS = [
+  {
+    id: 'starter', icon: Sparkles, price: 15,
+    name: { en: 'Starter', ar: 'المبتدئ' },
+    desc: { en: 'For solo stylists & small salons', ar: 'للمستقلين والصالونات الصغيرة' },
+    color: 'border-border',
+    features: {
+      en: ['1 branch','Up to 3 staff','Bookings & calendar','Client management','Basic POS','WhatsApp reminders'],
+      ar: ['فرع واحد','حتى 3 موظفات','حجوزات وتقويم','إدارة العميلات','نقطة بيع أساسية','تذكيرات واتساب'],
+    },
+    notIncluded: { en: ['Multiple branches','Inventory','Advanced reports','AI features'], ar: ['فروع متعددة','مخزون','تقارير متقدمة','ميزات AI'] },
+  },
+  {
+    id: 'professional', icon: Crown, price: 35, popular: true,
+    name: { en: 'Professional', ar: 'المحترف' },
+    desc: { en: 'For growing salons with teams', ar: 'للصالونات النامية مع فرق عمل' },
+    color: 'border-primary',
+    features: {
+      en: ['Up to 3 branches','Unlimited staff','Full POS & inventory','Staff commissions','Advanced analytics','Online booking page','Priority support'],
+      ar: ['حتى 3 فروع','موظفات غير محدودات','نقطة بيع ومخزون كامل','عمولات الموظفات','تحليلات متقدمة','صفحة حجز أونلاين','دعم ذو أولوية'],
+    },
+    notIncluded: { en: ['AI features'], ar: ['ميزات AI'] },
+  },
+  {
+    id: 'ai', icon: Zap, price: 75,
+    name: { en: 'AI Premium', ar: 'AI الأقصى' },
+    desc: { en: 'Full AI power for ambitious salons', ar: 'قوة AI الكاملة للصالونات الطموحة' },
+    color: 'border-accent/60',
+    features: {
+      en: ['Unlimited branches','Everything in Professional','WhatsApp AI Agent','Smart Scheduling AI','Client Intelligence AI','AI Inventory Assistant','Revenue Forecasting','24/7 dedicated support'],
+      ar: ['فروع غير محدودة','كل ما في المحترف','وكيل واتساب AI','جدولة ذكية AI','ذكاء العميلات AI','مساعد مخزون AI','توقع الإيرادات','دعم 24/7 مخصص'],
+    },
+    notIncluded: { en: [], ar: [] },
+  },
+];
+
+const Subscription = () => {
+  const { tenant } = useAuth();
+  const { language } = useLanguage();
+  const { toast } = useToast();
+  const ar = language === 'ar';
+  const currency = tenant?.currency || 'KWD';
+
+  const currentPlan = tenant?.subscription_plan || 'starter';
+  const isTrialActive = tenant?.is_trial && tenant?.trial_ends_at && new Date(tenant.trial_ends_at) > new Date();
+  const trialDaysLeft = tenant?.trial_ends_at ? Math.max(0, differenceInDays(new Date(tenant.trial_ends_at), new Date())) : 0;
+  const trialEndsAt = tenant?.trial_ends_at ? new Date(tenant.trial_ends_at) : null;
+
+  const planLevel = (id: string) => ({ starter: 1, professional: 2, ai: 3 }[id] || 0);
+  const canUpgrade = (id: string) => planLevel(id) > planLevel(currentPlan);
+
+  const handleUpgrade = (planId: string) => {
+    toast({ title: `Upgrading to ${planId}`, description: 'Payment integration coming soon. Contact support@zaina.ai to upgrade manually.' });
+  };
+
+  return (
+    <div className="p-6 space-y-6 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-1">{ar ? 'الاشتراك' : 'Subscription'}</p>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
+            {ar ? 'خطتك الحالية' : 'Your Plan'}
+          </h1>
+        </div>
+      </div>
+
+      {/* Trial / Current plan banner */}
+      {isTrialActive ? (
+        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800">
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-amber-800 dark:text-amber-200 text-sm">
+                {ar ? `تجربتك المجانية تنتهي خلال ${trialDaysLeft} يوم` : `Your free trial ends in ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''}`}
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                {ar
+                  ? `اختاري خطة للاستمرار في استخدام ZAINA بعد ${trialEndsAt ? format(trialEndsAt, 'MMM d, yyyy') : ''}`
+                  : `Choose a plan to continue after ${trialEndsAt ? format(trialEndsAt, 'MMMM d, yyyy') : ''}`}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800">
+          <CardContent className="p-4 flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-emerald-800 dark:text-emerald-200 text-sm">
+                {ar ? `أنت على خطة ${currentPlan}` : `You're on the ${currentPlan} plan`}
+              </p>
+              <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
+                {ar ? 'اشتراكك نشط. شكراً لاستخدامك ZAINA!' : 'Your subscription is active. Thank you for using ZAINA!'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Plan cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {PLANS.map(plan => {
+          const Icon = plan.icon;
+          const isCurrent = currentPlan === plan.id;
+          const upgradable = canUpgrade(plan.id);
+          const features = ar ? plan.features.ar : plan.features.en;
+          const notIncluded = ar ? plan.notIncluded.ar : plan.notIncluded.en;
+
+          return (
+            <div key={plan.id} className={cn(
+              'relative rounded-2xl border-2 p-5 flex flex-col transition-all duration-200 bg-card',
+              isCurrent ? 'border-primary shadow-md shadow-primary/10' :
+              plan.popular && upgradable ? `${plan.color} hover:border-primary/60` :
+              `${plan.color} hover:border-primary/30`
+            )}>
+              {plan.popular && upgradable && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <Badge className="px-3 py-1 text-[11px] font-bold bg-primary text-primary-foreground">
+                    {ar ? 'الأكثر شعبية' : 'Most Popular'}
+                  </Badge>
+                </div>
+              )}
+              {isCurrent && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <Badge className="px-3 py-1 text-[11px] font-bold bg-emerald-500 text-white">
+                    {ar ? 'خطتك الحالية' : 'Current Plan'}
+                  </Badge>
+                </div>
+              )}
+
+              <div className="mb-4">
+                <div className={cn('h-9 w-9 rounded-xl flex items-center justify-center mb-3',
+                  isCurrent ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                )}>
+                  <Icon className="h-4.5 w-4.5" />
+                </div>
+                <h3 className="font-bold text-base" style={{ fontFamily: 'Syne, sans-serif' }}>
+                  {ar ? plan.name.ar : plan.name.en}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">{ar ? plan.desc.ar : plan.desc.en}</p>
+              </div>
+
+              <div className="mb-4">
+                <span className="text-3xl font-bold stat-number">{plan.price}</span>
+                <span className="text-muted-foreground text-sm ml-1">{currency}/mo</span>
+              </div>
+
+              <div className="space-y-1.5 flex-1 mb-5">
+                {features.map(f => (
+                  <div key={f} className="flex items-start gap-2 text-xs">
+                    <Check className="h-3.5 w-3.5 text-emerald-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-muted-foreground">{f}</span>
+                  </div>
+                ))}
+                {notIncluded.map(f => (
+                  <div key={f} className="flex items-start gap-2 text-xs opacity-40">
+                    <X className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <span className="text-muted-foreground line-through">{f}</span>
+                  </div>
+                ))}
+              </div>
+
+              {isCurrent ? (
+                <Button variant="outline" disabled className="w-full text-xs h-9">
+                  {ar ? '✓ خطتك الحالية' : '✓ Current Plan'}
+                </Button>
+              ) : upgradable ? (
+                <Button onClick={() => handleUpgrade(plan.id)} className="w-full text-xs h-9 gap-1.5">
+                  {ar ? `ترقية إلى ${plan.name.ar}` : `Upgrade to ${plan.name.en}`}
+                  <Zap className="h-3 w-3" />
+                </Button>
+              ) : (
+                <Button variant="outline" disabled className="w-full text-xs h-9 opacity-40">
+                  {ar ? 'خطة سابقة' : 'Lower plan'}
+                </Button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* FAQ */}
+      <Card className="border">
+        <CardContent className="p-5 space-y-3">
+          <h3 className="font-bold text-sm" style={{ fontFamily: 'Syne, sans-serif' }}>
+            {ar ? 'أسئلة شائعة' : 'Frequently Asked Questions'}
+          </h3>
+          {[
+            { q: { en: 'Can I cancel anytime?', ar: 'هل يمكنني الإلغاء في أي وقت؟' }, a: { en: 'Yes. Cancel anytime, no questions asked. You keep access until the end of your billing period.', ar: 'نعم. ألغي في أي وقت بدون أسئلة. تحتفظين بالوصول حتى نهاية فترة الفوترة.' } },
+            { q: { en: 'How does the 14-day trial work?', ar: 'كيف تعمل التجربة المجانية 14 يوم؟' }, a: { en: 'Full access to all features for 14 days. No credit card required. Upgrade to a paid plan before trial ends to continue.', ar: 'وصول كامل لجميع الميزات لمدة 14 يوماً. لا تحتاجين بطاقة ائتمان. قومي بالترقية قبل انتهاء التجربة للاستمرار.' } },
+            { q: { en: 'What payment methods are accepted?', ar: 'ما طرق الدفع المقبولة؟' }, a: { en: 'KNET, Visa, Mastercard. All payments in KWD for Kuwait accounts.', ar: 'كي نت، فيزا، ماستركارد. جميع المدفوعات بالدينار الكويتي للحسابات الكويتية.' } },
+          ].map(item => (
+            <div key={item.q.en} className="py-2 border-t border-border/50 first:border-0 first:pt-0">
+              <p className="text-xs font-semibold mb-1">{ar ? item.q.ar : item.q.en}</p>
+              <p className="text-xs text-muted-foreground">{ar ? item.a.ar : item.a.en}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default Subscription;
