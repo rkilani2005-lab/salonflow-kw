@@ -313,18 +313,23 @@ function useInventoryReport(tid?: string) {
     queryKey: ['inv-report', tid],
     queryFn: async () => {
       const { data: products } = await supabase.from('products')
-        .select('id,name,current_stock,reorder_point,cost_price,selling_price,unit');
+        .select('id,name,current_stock,reorder_point,cost_price,usage_unit');
       const { data: movements } = await supabase.from('inventory_transactions')
         .select('product_id,quantity_change,transaction_type')
         .gte('created_at', subDays(new Date(),30).toISOString());
       const usageMap: Record<string,number> = {};
       (movements||[]).forEach(m => {
-        if (m.transaction_type === 'usage') {
+        if (m.transaction_type === 'service_consumption') {
           usageMap[m.product_id] = (usageMap[m.product_id]||0) + Math.abs(m.quantity_change);
         }
       });
       const rows = (products||[]).map(p => ({
-        ...p,
+        id: p.id,
+        name: p.name,
+        current_stock: p.current_stock,
+        reorder_point: p.reorder_point,
+        cost_price: p.cost_price,
+        unit: p.usage_unit,
         monthlyUsage: usageMap[p.id]||0,
         stockValue: (p.current_stock||0) * Number(p.cost_price||0),
         isLow: (p.current_stock||0) <= (p.reorder_point||0),

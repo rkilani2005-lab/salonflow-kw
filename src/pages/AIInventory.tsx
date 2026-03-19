@@ -17,19 +17,25 @@ function useInventoryContext(tenantId?: string) {
     queryKey: ['ai-inv-ctx', tenantId],
     queryFn: async () => {
       const [products, movements, suppliers, bookings] = await Promise.all([
-        supabase.from('products').select('id,name,current_stock,reorder_point,cost_price,selling_price,unit,category').order('current_stock'),
+        supabase.from('products').select('id,name,current_stock,reorder_point,cost_price,retail_price,usage_unit,category_id').order('current_stock'),
         supabase.from('inventory_transactions').select('product_id,quantity_change,transaction_type,created_at').gte('created_at', subDays(new Date(),30).toISOString()),
-        supabase.from('suppliers').select('id,name,contact_name,phone,email'),
+        supabase.from('suppliers').select('id,name,contact_person,phone,email'),
         supabase.from('bookings').select('service_category').in('status',['planned','confirmed']).gte('booking_date', format(new Date(),'yyyy-MM-dd')).lte('booking_date', format(subDays(new Date(),-7),'yyyy-MM-dd')),
       ]);
 
       const usage: Record<string,number> = {};
       (movements.data||[]).forEach(m => {
-        if (m.transaction_type === 'usage') usage[m.product_id] = (usage[m.product_id]||0) + Math.abs(m.quantity_change);
+        if (m.transaction_type === 'service_consumption') usage[m.product_id] = (usage[m.product_id]||0) + Math.abs(m.quantity_change);
       });
 
       const enriched = (products.data||[]).map(p => ({
-        ...p, monthlyUsage: usage[p.id]||0,
+        id: p.id,
+        name: p.name,
+        current_stock: p.current_stock,
+        reorder_point: p.reorder_point,
+        cost_price: p.cost_price,
+        unit: p.usage_unit,
+        monthlyUsage: usage[p.id]||0,
         daysLeft: (usage[p.id]||0) > 0 ? Math.round(((p.current_stock||0) / (usage[p.id]/30)) ) : 999,
         isLow: (p.current_stock||0) <= (p.reorder_point||0),
         stockValue: (p.current_stock||0) * Number(p.cost_price||0),
