@@ -40,6 +40,7 @@ import ExpenseManager from "./pages/finance/ExpenseManager";
 import GeneralLedger from "./pages/finance/GeneralLedger";
 import CheckRegister from "./pages/finance/CheckRegister";
 import LoanManager from "./pages/finance/LoanManager";
+import ChartOfAccounts from "./pages/finance/ChartOfAccounts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -118,6 +119,7 @@ const App = () => (
               <Route path="/finance/ledger" element={<GeneralLedger />} />
               <Route path="/finance/checks" element={<CheckRegister />} />
               <Route path="/finance/loans" element={<LoanManager />} />
+              <Route path="/finance/accounts" element={<ChartOfAccounts />} />
               </Route>
 
               {/* Super Admin routes — all under /zaina-admin/ */}
