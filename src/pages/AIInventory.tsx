@@ -4,6 +4,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { askClaude } from '@/lib/claude';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useQuery } from '@tanstack/react-query';
@@ -70,18 +71,10 @@ Upcoming demand by category: ${JSON.stringify(ctx?.upcomingDemand || {})}
 
 When generating a PO, list items clearly with quantities and estimated costs.`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      system,
-      messages: [...hist.slice(-6).map(m => ({role: m.role, content: m.content})), {role:'user', content:q}],
-    }),
+  return askClaude({
+    system,
+    messages: [...hist.slice(-6).map(m => ({role: m.role, content: m.content})), {role:'user', content:q}],
   });
-  const data = await response.json();
-  return data.content?.[0]?.text || 'Sorry, could not process that.';
 }
 
 export default function AIInventory() {
@@ -116,8 +109,8 @@ export default function AIInventory() {
     try {
       const reply = await askClaudeInventory(text, ctx, [...messages, um], currency);
       setMessages(prev => [...prev, { role:'assistant', content:reply, ts:new Date() }]);
-    } catch {
-      setMessages(prev => [...prev, { role:'assistant', content: ar ? 'حدث خطأ. حاولي مرة أخرى.' : 'An error occurred. Please try again.', ts:new Date() }]);
+    } catch (err: any) {
+      setMessages(prev => [...prev, { role:'assistant', content: err?.message || (ar ? 'حدث خطأ. حاولي مرة أخرى.' : 'An error occurred. Please try again.'), ts:new Date() }]);
     } finally {
       setThinking(false);
     }

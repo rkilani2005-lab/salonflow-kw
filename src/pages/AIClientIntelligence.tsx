@@ -65,6 +65,8 @@ function useClientIntelData(tenantId?: string) {
 
 interface AIMsg { role: 'user' | 'assistant'; content: string; ts: Date; }
 
+import { askClaude } from '@/lib/claude';
+
 async function askClaudeClients(q: string, context: any, history: AIMsg[], currency: string): Promise<string> {
   const system = `You are ZAINA AI, a client intelligence expert for a Kuwait ladies salon.
 You analyze client behavior, predict churn, and suggest personalized re-engagement messages.
@@ -80,21 +82,13 @@ Top spenders (90d): ${JSON.stringify(context?.topSpenders?.slice(0,5) || [])}
 
 When asked to write a WhatsApp message, write it naturally in the appropriate language with emojis.`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      system,
-      messages: [
-        ...history.slice(-6).map(m => ({ role: m.role, content: m.content })),
-        { role: 'user', content: q },
-      ],
-    }),
+  return askClaude({
+    system,
+    messages: [
+      ...history.slice(-6).map(m => ({ role: m.role, content: m.content })),
+      { role: 'user', content: q },
+    ],
   });
-  const data = await response.json();
-  return data.content?.[0]?.text || 'Sorry, could not process that.';
 }
 
 export default function AIClientIntelligence() {
@@ -129,8 +123,9 @@ export default function AIClientIntelligence() {
     try {
       const reply = await askClaudeClients(text, intel, [...messages, um], currency);
       setMessages(prev => [...prev, { role: 'assistant', content: reply, ts: new Date() }]);
-    } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: ar ? 'حدث خطأ. حاولي مرة أخرى.' : 'An error occurred. Please try again.', ts: new Date() }]);
+    } catch (err: any) {
+      const msg = err?.message || (ar ? 'حدث خطأ. حاولي مرة أخرى.' : 'An error occurred. Please try again.');
+      setMessages(prev => [...prev, { role: 'assistant', content: msg, ts: new Date() }]);
     } finally {
       setThinking(false);
     }

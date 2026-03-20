@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { askClaude } from '@/lib/claude';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
@@ -64,22 +65,14 @@ Active staff: ${JSON.stringify(context?.staff || [])}
 Services: ${JSON.stringify(context?.services?.slice(0,20) || [])}
 Today: ${format(new Date(), 'EEEE, MMMM d, yyyy')}`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages: [
-        ...history.slice(-6).map(m => ({ role: m.role, content: m.content })),
-        { role: 'user', content: question },
-      ],
-    }),
+  const response = await askClaude({
+    system: systemPrompt,
+    messages: [
+      ...history.slice(-6).map(m => ({ role: m.role, content: m.content })),
+      { role: 'user', content: question },
+    ],
   });
-
-  const data = await response.json();
-  return data.content?.[0]?.text || 'Sorry, I could not process that.';
+  return response;
 }
 
 function StaffGapCard({ bookings, staff }: { bookings: any[]; staff: any[] }) {
@@ -205,10 +198,10 @@ export default function AIScheduling() {
     try {
       const reply = await askClaudeScheduling(text, ctx, [...messages, userMsg], currency);
       setMessages(prev => [...prev, { role: 'assistant', content: reply, ts: new Date() }]);
-    } catch {
+    } catch (err: any) {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: ar ? 'عذراً، حدث خطأ. حاولي مرة أخرى.' : 'Sorry, something went wrong. Please try again.',
+        content: err?.message || (ar ? 'عذراً، حدث خطأ. حاولي مرة أخرى.' : 'Sorry, something went wrong. Please try again.'),
         ts: new Date(),
       }]);
     } finally {
