@@ -69,6 +69,9 @@ export default function POS() {
   const taxAmount = Math.round((subtotal - discountAmount) * taxRate * 1000) / 1000;
   const grandTotal = Math.round((subtotal - discountAmount + taxAmount + tipAmount) * 1000) / 1000;
 
+  // Whether this booking has already been paid — blocks all checkout UI
+  const [bookingAlreadyPaid, setBookingAlreadyPaid] = useState(false);
+
   // Load booking if bookingId provided
   useEffect(() => {
     if (bookingId) {
@@ -83,41 +86,63 @@ export default function POS() {
       .eq('id', id)
       .single();
 
-    if (booking) {
-      // Set client
+    if (!booking) return;
+
+    // ── GUARD 1: booking status is already completed ──────────
+    if (booking.status === 'completed') {
+      setBookingAlreadyPaid(true);
+      // Still show client name so reception knows whose ticket this is
       if (booking.client_id) {
         const { data: client } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('id', booking.client_id)
-          .single();
+          .from('clients').select('*').eq('id', booking.client_id).single();
         if (client) setSelectedClient(client as Client);
-      } else {
-        setIsGuest(true);
       }
-
-      // Add service to cart
-      const serviceItem: CartItem = {
-        item_type: 'service',
-        item_id: booking.service_id || '',
-        item_name: booking.service_name,
-        quantity: 1,
-        unit_price: Number(booking.price),
-        total_price: Number(booking.price),
-      };
-
-      // Try to get Arabic name
-      if (booking.service_id) {
-        const { data: service } = await supabase
-          .from('services')
-          .select('name_ar')
-          .eq('id', booking.service_id)
-          .single();
-        if (service?.name_ar) serviceItem.item_name_ar = service.name_ar;
-      }
-
-      setItems([serviceItem]);
+      return; // do NOT load cart — payment already taken
     }
+
+    // ── GUARD 2: a completed transaction already exists for this booking ──
+    const { data: existingTxn } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('booking_id', id)
+      .eq('status', 'completed')
+      .maybeSingle();
+
+    if (existingTxn) {
+      setBookingAlreadyPaid(true);
+      if (booking.client_id) {
+        const { data: client } = await supabase
+          .from('clients').select('*').eq('id', booking.client_id).single();
+        if (client) setSelectedClient(client as Client);
+      }
+      return; // payment already recorded — do NOT load cart
+    }
+
+    // ── Safe to load — booking not yet paid ──────────────────
+    if (booking.client_id) {
+      const { data: client } = await supabase
+        .from('clients').select('*').eq('id', booking.client_id).single();
+      if (client) setSelectedClient(client as Client);
+    } else {
+      setIsGuest(true);
+    }
+
+    const serviceItem: CartItem = {
+      item_type: 'service',
+      item_id: booking.service_id || '',
+      item_name: booking.service_name,
+      quantity: 1,
+      unit_price: Number(booking.price),
+      total_price: Number(booking.price),
+    };
+
+    if (booking.service_id) {
+      const { data: service } = await supabase
+        .from('services').select('name_ar').eq('id', booking.service_id).single();
+      if (service?.name_ar) serviceItem.item_name_ar = service.name_ar;
+    }
+
+    setItems([serviceItem]);
   };
 
   const handleDiscountChange = (type: string | null, value: number, reason: string) => {
@@ -131,6 +156,8 @@ export default function POS() {
   };
 
   const handlePaymentConfirm = async (payments: PaymentEntry[]) => {
+    // GUARD 3: prevent double-submission if already paid
+    if (bookingAlreadyPaid || createTransaction.isPending) return;
     try {
       const txn = await createTransaction.mutateAsync({
         client_id: selectedClient?.id || null,
@@ -209,19 +236,36 @@ export default function POS() {
 
       {/* Right panel: Cart */}
       <Card className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* ── Already-paid guard banner ── */}
+        {bookingAlreadyPaid && (
+          <div className="flex items-center gap-3 px-5 py-4 bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-200 dark:border-emerald-800">
+            <div className="h-9 w-9 rounded-full bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center flex-shrink-0">
+              <CalendarCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">
+                Already paid
+              </p>
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
+                This appointment has already been checked out. No further payment can be taken.
+              </p>
+            </div>
+          </div>
+        )}
         <POSCart
-          items={items}
-          onItemsChange={setItems}
+          items={bookingAlreadyPaid ? [] : items}
+          onItemsChange={bookingAlreadyPaid ? () => {} : setItems}
           tipAmount={tipAmount}
-          onTipChange={setTipAmount}
+          onTipChange={bookingAlreadyPaid ? () => {} : setTipAmount}
           discountType={discountType}
           discountValue={discountValue}
           discountAmount={discountAmount}
           discountReason={discountReason}
           discountApprovedBy={discountApprovedBy}
-          onDiscountChange={handleDiscountChange}
-          onDiscountApproved={setDiscountApprovedBy}
-          onCheckout={handleCheckout}
+          onDiscountChange={bookingAlreadyPaid ? () => {} : handleDiscountChange}
+          onDiscountApproved={bookingAlreadyPaid ? () => {} : setDiscountApprovedBy}
+          onCheckout={bookingAlreadyPaid ? () => {} : handleCheckout}
+          checkoutDisabled={bookingAlreadyPaid}
         />
       </Card>
 

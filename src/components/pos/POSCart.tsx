@@ -26,6 +26,7 @@ interface POSCartProps {
   onDiscountChange: (type: string | null, value: number, reason: string) => void;
   onDiscountApproved: (approverUserId: string) => void;
   onCheckout: () => void;
+  checkoutDisabled?: boolean;
 }
 
 export function POSCart({
@@ -41,6 +42,7 @@ export function POSCart({
   onDiscountChange,
   onDiscountApproved,
   onCheckout,
+  checkoutDisabled = false,
 }: POSCartProps) {
   const [showDiscountApproval, setShowDiscountApproval] = useState(false);
   const [pendingDiscount, setPendingDiscount] = useState<{ type: string; value: number; reason: string } | null>(null);
@@ -244,9 +246,9 @@ export function POSCart({
         <Button
           className="w-full h-14 text-lg font-semibold"
           onClick={onCheckout}
-          disabled={items.length === 0 || grandTotal <= 0}
+          disabled={checkoutDisabled || items.length === 0 || grandTotal <= 0}
         >
-          Proceed to Payment
+          {checkoutDisabled ? 'Already Paid' : 'Proceed to Payment'}
         </Button>
       </div>
 
