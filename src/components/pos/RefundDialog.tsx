@@ -42,6 +42,7 @@ interface Transaction {
   status: string;
   client_id: string | null;
   booking_id: string | null;
+  notes?: string | null;
   created_at: string;
   transaction_payments: OriginalPayment[];
   transaction_items: TransactionItem[];

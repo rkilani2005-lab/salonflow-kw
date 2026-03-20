@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as _supabase } from '@/integrations/supabase/client';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabase = _supabase as any;
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -106,7 +108,7 @@ export default function AdminAccounts() {
       code: acc.code,
       name: acc.name,
       name_ar: acc.name_ar || '',
-      account_type: acc.account_type,
+      account_type: acc.account_type as any,
       account_subtype: acc.account_subtype,
       description: acc.description || '',
       opening_balance: String(acc.opening_balance),

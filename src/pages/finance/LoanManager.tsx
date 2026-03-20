@@ -54,13 +54,12 @@ export default function LoanManager() {
     const pp = parseFloat(repayForm.principal_payment)||0;
     const ip = parseFloat(repayForm.interest_payment)||0;
     await recordRepayment.mutateAsync({
-      loan_id: showRepay.id, tenant_id: tenant!.id,
+      loan_id: showRepay.id,
       payment_date: repayForm.payment_date,
       principal_payment: pp, interest_payment: ip, total_payment: pp+ip,
       check_number: repayForm.check_number||null,
       reference_number: repayForm.reference_number||null,
       current_balance: Number(showRepay.outstanding_balance),
-      journal_entry_id: null,
     });
     setShowRepay(null);
     setRepayForm({ payment_date:format(new Date(),'yyyy-MM-dd'), principal_payment:'', interest_payment:'0', check_number:'', reference_number:'' });
