@@ -10,6 +10,9 @@ const ProtectedRoute = ({ children, allowSuperAdmin = false }: ProtectedRoutePro
   const { user, tenant, userRoles, loading } = useAuth();
   const location = useLocation();
 
+  // While AuthContext is fetching profile/tenant, show a spinner.
+  // AuthContext sets loading=true synchronously when a session is detected
+  // so this spinner always shows before any redirect decision is made.
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -18,30 +21,38 @@ const ProtectedRoute = ({ children, allowSuperAdmin = false }: ProtectedRoutePro
     );
   }
 
+  // No session → tenant login page
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
   const isSuperAdmin = userRoles.includes('super_admin' as any);
 
+  // Super admins belong in the admin portal, not the tenant dashboard
   if (isSuperAdmin && !allowSuperAdmin) {
     return <Navigate to="/zaina-admin" replace />;
   }
 
-  // Onboarding gate: only redirect if the user has NO tenant at all,
-  // or if onboarding_completed is explicitly false (not null/undefined).
-  // This prevents a race condition where the profile loads but tenant
-  // hasn't been set yet from causing repeated onboarding redirects.
+  // Onboarding gate for regular tenant users.
+  //
+  // Two distinct cases:
+  //   A) needsOnboarding  — profile exists but has no tenant_id at all
+  //                         (brand new user who hasn't run the wizard yet)
+  //   B) onboardingIncomplete — tenant exists but onboarding_completed is
+  //                             STRICTLY false (not null, not undefined)
+  //
+  // IMPORTANT: null/undefined for onboarding_completed must NOT trigger
+  // a redirect — this avoids a race where the tenant row is fetched but
+  // the column hasn't been written yet (returns null briefly).
   const needsOnboarding =
     !isSuperAdmin &&
-    !tenant?.id &&                          // no tenant at all
+    !tenant?.id &&
     location.pathname !== '/onboarding';
 
-  // Also handle the case where tenant exists but onboarding not completed
   const onboardingIncomplete =
     !isSuperAdmin &&
-    tenant?.id &&
-    tenant?.onboarding_completed === false && // strictly false, not null/undefined
+    !!tenant?.id &&
+    tenant.onboarding_completed === false &&   // strictly false only
     location.pathname !== '/onboarding';
 
   if (needsOnboarding || onboardingIncomplete) {
