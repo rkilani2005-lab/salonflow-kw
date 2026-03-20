@@ -80,8 +80,222 @@ const AppSidebar = () => {
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
-      {/* ── Logo / Brand ── */}
-      <SidebarHeader className="px-4 py-5">
+      {/* ── Brand mark ── */}
+      <SidebarHeader className="px-3 pt-5 pb-4">
+        <div className="flex items-center gap-3">
+          {/* Logo mark — letterform Z in brand color */}
+          <div className={cn(
+            'flex-shrink-0 flex items-center justify-center font-black text-white',
+            'bg-primary h-8 w-8 rounded-sm',  // sharp corners = editorial, not bubbly
+            'text-[13px] tracking-tight'
+          )} style={{ fontFamily: 'Syne, sans-serif' }}>
+            Z
+          </div>
+          {!collapsed && (
+            <div className="flex flex-col min-w-0">
+              <span
+                className="font-bold text-[13px] text-sidebar-foreground tracking-tight"
+                style={{ fontFamily: 'Syne, sans-serif' }}
+              >
+                {tenant?.name || 'ZAINA'}
+              </span>
+              {tenant?.is_trial && trialDaysLeft > 0 ? (
+                <span className="text-[10px] text-primary/80 font-medium flex items-center gap-0.5">
+                  <Sparkles className="h-2.5 w-2.5" />
+                  {trialDaysLeft}d trial left
+                </span>
+              ) : (
+                <span className="text-[10px] text-sidebar-foreground/35 capitalize">
+                  {userRoles[0] || 'workspace'}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </SidebarHeader>
+
+      {/* Branch switcher */}
+      {!collapsed && (
+        <div className="px-3 pb-3">
+          <BranchSwitcher />
+        </div>
+      )}
+
+      {/* Thin separator */}
+      <div className="mx-3 h-px bg-sidebar-border mb-3" />
+
+      <SidebarContent className="px-2 gap-0">
+
+        {/* ── Salon section ── */}
+        {!collapsed && (
+          <div className="section-label px-2 mb-1.5" style={{ color: 'hsl(var(--sidebar-foreground) / 0.35)' }}>
+            <div style={{ background: 'hsl(var(--sidebar-primary))', width: 18, height: 2, borderRadius: 99, flexShrink: 0 }} />
+            {language === 'ar' ? 'الصالون' : 'Salon'}
+          </div>
+        )}
+        <SidebarGroup className="p-0">
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-px">
+              {mainNavItems.filter(canAccess).map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild tooltip={item.title} isActive={isActive(item.url)}>
+                    <button
+                      onClick={() => navigate(item.url)}
+                      className={cn(
+                        'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-all duration-100 relative',
+                        isActive(item.url)
+                          ? 'nav-active'
+                          : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                      )}
+                    >
+                      <item.icon className="h-[15px] w-[15px] flex-shrink-0" />
+                      {!collapsed && <span>{label(item)}</span>}
+                    </button>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <div className="mx-2 h-px bg-sidebar-border my-3" />
+
+        {/* ── Operations section ── */}
+        {!collapsed && (
+          <div className="section-label px-2 mb-1.5" style={{ color: 'hsl(var(--sidebar-foreground) / 0.35)' }}>
+            <div style={{ background: 'hsl(var(--sidebar-primary))', width: 18, height: 2, borderRadius: 99, flexShrink: 0 }} />
+            {language === 'ar' ? 'التشغيل' : 'Operations'}
+          </div>
+        )}
+        <SidebarGroup className="p-0">
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-px">
+              {businessNavItems.filter(canAccess).map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild tooltip={item.title} isActive={isActive(item.url)}>
+                    <button
+                      onClick={() => navigate(item.url)}
+                      className={cn(
+                        'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-all duration-100 relative',
+                        isActive(item.url)
+                          ? 'nav-active'
+                          : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                      )}
+                    >
+                      <item.icon className="h-[15px] w-[15px] flex-shrink-0" />
+                      {!collapsed && <span>{label(item)}</span>}
+                    </button>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <div className="mx-2 h-px bg-sidebar-border my-3" />
+
+        {/* ── AI section — subtle gold accent ── */}
+        {!collapsed && (
+          <div className="section-label px-2 mb-1.5" style={{ color: 'hsl(var(--sidebar-foreground) / 0.35)' }}>
+            <div style={{ background: 'hsl(var(--accent))', width: 18, height: 2, borderRadius: 99, flexShrink: 0 }} />
+            {language === 'ar' ? 'الذكاء الاصطناعي' : 'Intelligence'}
+          </div>
+        )}
+        <SidebarGroup className="p-0">
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-px">
+              {aiNavItems.filter(canAccess).map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild tooltip={item.title} isActive={isActive(item.url)}>
+                    <button
+                      onClick={() => navigate(item.url)}
+                      className={cn(
+                        'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-all duration-100 relative',
+                        isActive(item.url)
+                          ? 'nav-active'
+                          : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                      )}
+                    >
+                      <item.icon className="h-[15px] w-[15px] flex-shrink-0" />
+                      {!collapsed && <span>{label(item)}</span>}
+                    </button>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Settings + Subscription at bottom of content area */}
+        <div className="mx-2 h-px bg-sidebar-border my-3" />
+        <SidebarGroup className="p-0">
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-px">
+              {[
+                { url: '/settings', icon: Settings, en: 'Settings', ar: 'الإعدادات' },
+                ...(hasRole('owner') ? [{ url: '/subscription', icon: Crown, en: 'Subscription', ar: 'الاشتراك' }] : []),
+              ].map(item => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild tooltip={item.en} isActive={isActive(item.url)}>
+                    <button
+                      onClick={() => navigate(item.url)}
+                      className={cn(
+                        'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-all duration-100 relative',
+                        isActive(item.url)
+                          ? 'nav-active'
+                          : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                      )}
+                    >
+                      <item.icon className="h-[15px] w-[15px] flex-shrink-0" />
+                      {!collapsed && <span>{language === 'ar' ? item.ar : item.en}</span>}
+                    </button>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+      </SidebarContent>
+
+      {/* ── User footer — editorial strip ── */}
+      <SidebarFooter className="p-0">
+        <div className="mx-3 h-px bg-sidebar-border mb-0" />
+        <div className={cn(
+          'flex items-center gap-2.5 px-3 py-3.5',
+          collapsed && 'justify-center'
+        )}>
+          {/* Avatar — sharp square, not circle */}
+          <div className="h-7 w-7 rounded-sm bg-primary flex items-center justify-center flex-shrink-0">
+            <span className="text-[11px] font-bold text-primary-foreground">{initials}</span>
+          </div>
+          {!collapsed && (
+            <>
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-semibold text-sidebar-foreground leading-tight truncate">
+                  {profile?.full_name || 'User'}
+                </p>
+                <p className="text-[10px] text-sidebar-foreground/40 capitalize">
+                  {userRoles[0] || 'user'}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSignOut}
+                className="h-6 w-6 text-sidebar-foreground/40 hover:text-red-400 hover:bg-red-500/10 flex-shrink-0"
+              >
+                <LogOut className="h-3 w-3" />
+              </Button>
+            </>
+          )}
+        </div>
+      </SidebarFooter>
+    </Sidebar>
+  );
+};
+
+export default AppSidebar;
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 shadow-sm">
             <Scissors className="h-4 w-4 text-primary-foreground" />
