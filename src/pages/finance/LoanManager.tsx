@@ -54,7 +54,7 @@ export default function LoanManager() {
     const pp = parseFloat(repayForm.principal_payment)||0;
     const ip = parseFloat(repayForm.interest_payment)||0;
     await recordRepayment.mutateAsync({
-      loan_id: showRepay.id, tenant_id: tenant!.id,
+      loan_id: showRepay.id,
       payment_date: repayForm.payment_date,
       principal_payment: pp, interest_payment: ip, total_payment: pp+ip,
       check_number: repayForm.check_number||null,

@@ -357,19 +357,6 @@ export default function Dashboard() {
   );
 }
 
-export default function Dashboard() {
-  const { tenant, currentBranch } = useAuth();
-  const { language } = useLanguage();
-  const navigate = useNavigate();
-  const today = new Date();
-  const currency = tenant?.currency || 'KWD';
-  const ar = language === 'ar';
-
-  const { data: stats, isLoading: statsLoading } = useDashboardStats(tenant?.id);
-  const { data: appointments, isLoading: aptsLoading } = useTodayAppointments(tenant?.id);
-
-  const fmt = (n: number) => n.toFixed(3);
-
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
 
