@@ -29,9 +29,17 @@ import AdminTenants from "./pages/admin/AdminTenants";
 import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminLogin from "./pages/admin/AdminLogin";
+import AdminFinance from "./pages/admin/AdminFinance";
+import AdminAccounts from "./pages/admin/AdminAccounts";
 import AIScheduling from "./pages/AIScheduling";
 import AIClientIntelligence from "./pages/AIClientIntelligence";
 import AIInventory from "./pages/AIInventory";
+import FinanceHub from "./pages/finance/FinanceHub";
+import ProfitLoss from "./pages/finance/ProfitLoss";
+import ExpenseManager from "./pages/finance/ExpenseManager";
+import GeneralLedger from "./pages/finance/GeneralLedger";
+import CheckRegister from "./pages/finance/CheckRegister";
+import LoanManager from "./pages/finance/LoanManager";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -104,6 +112,12 @@ const App = () => (
               <Route path="/ai/scheduling" element={<AIScheduling />} />
               <Route path="/ai/clients" element={<AIClientIntelligence />} />
               <Route path="/ai/inventory" element={<AIInventory />} />
+              <Route path="/finance" element={<FinanceHub />} />
+              <Route path="/finance/pnl" element={<ProfitLoss />} />
+              <Route path="/finance/expenses" element={<ExpenseManager />} />
+              <Route path="/finance/ledger" element={<GeneralLedger />} />
+              <Route path="/finance/checks" element={<CheckRegister />} />
+              <Route path="/finance/loans" element={<LoanManager />} />
               </Route>
 
               {/* Super Admin routes — all under /zaina-admin/ */}
@@ -124,6 +138,8 @@ const App = () => (
                 <Route path="/zaina-admin/analytics" element={<AdminAnalytics />} />
                 <Route path="/zaina-admin/users" element={<ComingSoon title="User Management" />} />
                 <Route path="/zaina-admin/settings" element={<ComingSoon title="Admin Settings" />} />
+                <Route path="/zaina-admin/finance" element={<AdminFinance />} />
+                <Route path="/zaina-admin/accounts" element={<AdminAccounts />} />
               </Route>
 
               {/* Legacy /admin/* redirects → /zaina-admin/* for backwards compatibility */}

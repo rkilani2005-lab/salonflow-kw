@@ -10,7 +10,7 @@ import {
 import {
   Calendar, Users, Scissors, Package, CreditCard, BarChart3,
   Settings, LogOut, Sparkles, Crown, UserCog, Bot, LayoutDashboard,
-  Brain, CalendarClock, HeartHandshake, PackageSearch,
+  Brain, CalendarClock, HeartHandshake, PackageSearch, Landmark,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +36,7 @@ const mainNavItems: NavItem[] = [
 const businessNavItems: NavItem[] = [
   { title: 'POS',          titleAr: 'نقطة البيع',    url: '/pos',           icon: CreditCard,  roles: ['owner','manager','receptionist','cashier'] },
   { title: 'Inventory',    titleAr: 'المخزون',       url: '/inventory',     icon: Package,     roles: ['owner','manager','inventory_clerk'] },
+  { title: 'Finance',      titleAr: 'المحاسبة',      url: '/finance',       icon: Landmark,    roles: ['owner','manager','accountant'] },
   { title: 'Reports',      titleAr: 'التقارير',      url: '/reports',       icon: BarChart3,   roles: ['owner','manager','accountant'] },
   { title: 'WhatsApp AI',  titleAr: 'واتساب AI',     url: '/whatsapp-agent', icon: Bot,        roles: ['owner','manager'] },
 ];
