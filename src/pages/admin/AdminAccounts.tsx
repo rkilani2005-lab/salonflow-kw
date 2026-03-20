@@ -108,7 +108,7 @@ export default function AdminAccounts() {
       code: acc.code,
       name: acc.name,
       name_ar: acc.name_ar || '',
-      account_type: acc.account_type as Account['account_type'],
+      account_type: acc.account_type as any,
       account_subtype: acc.account_subtype,
       description: acc.description || '',
       opening_balance: String(acc.opening_balance),

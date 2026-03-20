@@ -60,7 +60,6 @@ export default function LoanManager() {
       check_number: repayForm.check_number||null,
       reference_number: repayForm.reference_number||null,
       current_balance: Number(showRepay.outstanding_balance),
-      journal_entry_id: null,
     });
     setShowRepay(null);
     setRepayForm({ payment_date:format(new Date(),'yyyy-MM-dd'), principal_payment:'', interest_payment:'0', check_number:'', reference_number:'' });

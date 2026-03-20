@@ -59,7 +59,7 @@ function useCreateBooking() {
     }) => {
       const { data, error } = await supabase
         .from('bookings')
-        .insert([{ ...booking }])
+        .insert([{ ...booking, status: (booking.status || 'planned') as any }])
         .select()
         .single();
       if (error) throw error;
