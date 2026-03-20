@@ -80,35 +80,36 @@ const AppSidebar = () => {
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
-      {/* ── Brand mark ── */}
-      <SidebarHeader className="px-3 pt-5 pb-4">
-        <div className="flex items-center gap-3">
-          {/* Logo mark — letterform Z in brand color */}
-          <div className={cn(
-            'flex-shrink-0 flex items-center justify-center font-black text-white',
-            'bg-primary h-8 w-8 rounded-sm',  // sharp corners = editorial, not bubbly
-            'text-[13px] tracking-tight'
-          )} style={{ fontFamily: 'Syne, sans-serif' }}>
-            Z
+      {/* ── Brand ── */}
+      <SidebarHeader className="px-3 pt-4 pb-3">
+        <div className="flex items-center gap-2.5">
+          {/* Logomark: Z with a fine rule underneath — editorial not bubbly */}
+          <div className="flex-shrink-0 relative">
+            <div
+              className="h-7 w-7 bg-primary flex items-center justify-center"
+              style={{ borderRadius: '3px' }}
+            >
+              <span
+                className="text-primary-foreground font-black leading-none select-none"
+                style={{ fontFamily: 'Syne, sans-serif', fontSize: '15px', letterSpacing: '-0.05em' }}
+              >
+                Z
+              </span>
+            </div>
           </div>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span
-                className="font-bold text-[13px] text-sidebar-foreground tracking-tight"
-                style={{ fontFamily: 'Syne, sans-serif' }}
+                className="font-bold text-[13px] text-sidebar-foreground leading-tight"
+                style={{ fontFamily: 'Syne, sans-serif', letterSpacing: '-0.02em' }}
               >
                 {tenant?.name || 'ZAINA'}
               </span>
-              {tenant?.is_trial && trialDaysLeft > 0 ? (
-                <span className="text-[10px] text-primary/80 font-medium flex items-center gap-0.5">
-                  <Sparkles className="h-2.5 w-2.5" />
-                  {trialDaysLeft}d trial left
-                </span>
-              ) : (
-                <span className="text-[10px] text-sidebar-foreground/35 capitalize">
-                  {userRoles[0] || 'workspace'}
-                </span>
-              )}
+              <span className="text-[10px] text-sidebar-foreground/30 leading-tight mt-px">
+                {tenant?.is_trial && trialDaysLeft > 0
+                  ? `trial · ${trialDaysLeft}d`
+                  : userRoles[0] || 'workspace'}
+              </span>
             </div>
           )}
         </div>

@@ -92,26 +92,33 @@ function useTodayAppointments(tenantId?: string) {
 interface KPICardProps {
   title: string; value: string | number; sub: string;
   icon: React.ComponentType<{className?:string}>; color: string;
-  loading: boolean;
+  loading: boolean; onClick?: () => void;
 }
-function KPICard({ title, value, sub, icon: Icon, color, loading }: KPICardProps) {
+function KPICard({ title, value, sub, loading, onClick }: KPICardProps) {
   return (
-    <div className={cn('kpi-card bg-card border rounded-lg p-5 space-y-3', color)}>
+    <div
+      onClick={onClick}
+      className={cn(
+        'kpi-card bg-card border rounded-md p-5',
+        onClick && 'card-interactive'
+      )}
+    >
       {loading ? (
-        <>
-          <Skeleton className="h-3 w-20 mb-4" />
-          <Skeleton className="h-8 w-28" />
+        <div className="space-y-3">
+          <Skeleton className="h-2.5 w-20" />
+          <Skeleton className="h-9 w-28" />
           <Skeleton className="h-2.5 w-16" />
-        </>
+        </div>
       ) : (
-        <>
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70">{title}</p>
-            <Icon className="h-3.5 w-3.5 text-muted-foreground/40" />
-          </div>
-          <p className="stat-number text-[28px] font-bold leading-none text-foreground">{value}</p>
-          <p className="text-[11px] text-muted-foreground">{sub}</p>
-        </>
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/60 select-none">
+            {title}
+          </p>
+          <p className="stat-number text-[2rem] leading-none tracking-tight text-foreground">
+            {value}
+          </p>
+          <p className="text-[11px] text-muted-foreground leading-tight">{sub}</p>
+        </div>
       )}
     </div>
   );
@@ -136,11 +143,10 @@ export default function Dashboard() {
       {/* ── Header — less chrome, more content ── */}
       <div className="flex items-end justify-between">
         <div>
-          {/* Date as context label with line accent */}
-          <div className="section-label mb-2">
+          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/50 mb-1 select-none">
             {format(today, 'EEEE, MMMM d')}
-          </div>
-          <h1 className="text-2xl font-bold leading-none" style={{ fontFamily: 'Syne, sans-serif' }}>
+          </p>
+          <h1 className="text-3xl leading-none font-black" style={{ fontFamily: 'Syne, sans-serif', letterSpacing: '-0.04em' }}>
             {currentBranch?.name || (ar ? 'لوحة التحكم' : 'Dashboard')}
           </h1>
         </div>
@@ -161,7 +167,7 @@ export default function Dashboard() {
       {/* ── Setup Checklist ── */}
       <SetupChecklist />
 
-      {/* ── KPI row — horizontal strip, not grid soup ── */}
+      {/* ── KPI row ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KPICard
           title={ar ? 'مواعيد اليوم' : "Today"}
