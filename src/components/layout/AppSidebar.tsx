@@ -297,7 +297,6 @@ const AppSidebar = () => {
 };
 
 export default AppSidebar;
-        <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 shadow-sm">
             <Scissors className="h-4 w-4 text-primary-foreground" />
           </div>
