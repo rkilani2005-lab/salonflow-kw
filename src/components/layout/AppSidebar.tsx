@@ -11,6 +11,7 @@ import {
   Calendar, Users, Scissors, Package, CreditCard, BarChart3,
   Settings, LogOut, Sparkles, Crown, UserCog, Bot, LayoutDashboard,
   Brain, CalendarClock, HeartHandshake, PackageSearch, Landmark, Calculator,
+  UsersRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -233,9 +234,10 @@ const AppSidebar = () => {
           <SidebarGroupContent>
             <SidebarMenu className="gap-px">
               {[
-                { url: '/settings', icon: Settings, en: 'Settings', ar: 'الإعدادات' },
+                { url: '/team',         icon: UsersRound, en: 'Team',         ar: 'الفريق',      roles: ['owner','manager'] },
+                { url: '/settings',     icon: Settings,   en: 'Settings',     ar: 'الإعدادات' },
                 ...(hasRole('owner') ? [{ url: '/subscription', icon: Crown, en: 'Subscription', ar: 'الاشتراك' }] : []),
-              ].map(item => (
+              ].filter(item => !item.roles || item.roles.some(r => hasRole(r as any))).map(item => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild tooltip={item.en} isActive={isActive(item.url)}>
                     <button

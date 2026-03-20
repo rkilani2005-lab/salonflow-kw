@@ -42,6 +42,7 @@ import CheckRegister from "./pages/finance/CheckRegister";
 import LoanManager from "./pages/finance/LoanManager";
 import ChartOfAccounts from "./pages/finance/ChartOfAccounts";
 import DaySession from "./pages/DaySession";
+import TeamUsers from "./pages/TeamUsers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -111,6 +112,7 @@ const App = () => (
                 <Route path="/inventory" element={<Inventory />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/team"     element={<TeamUsers />} />
                 <Route path="/subscription" element={<Subscription />} />
               <Route path="/ai/scheduling" element={<AIScheduling />} />
               <Route path="/ai/clients" element={<AIClientIntelligence />} />
