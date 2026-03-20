@@ -38,7 +38,7 @@ export default function WhatsAppAgent() {
             <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-500">
               <Zap className="h-3 w-3 text-[#C0395E]" />
               {ar ? 'مدعوم بـ' : 'Powered by'}
-              <span className="font-bold text-zinc-300">Claude AI</span>
+              <span className="font-bold text-zinc-300">Lovable AI</span>
             </div>
           </div>
         </div>
