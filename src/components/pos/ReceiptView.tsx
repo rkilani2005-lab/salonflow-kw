@@ -85,155 +85,156 @@ export function ReceiptView({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Receipt</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Receipt</DialogTitle>
+          </DialogHeader>
 
-        <div ref={receiptRef} className="font-mono text-xs space-y-2 p-4 bg-white text-black rounded">
-          {/* Header */}
-          <div className="text-center">
-            <p className="text-base font-bold">{tenant?.name || 'Salon'}</p>
-            <p className="text-[10px] text-gray-500">TAX INVOICE / فاتورة ضريبية</p>
-          </div>
+          <div ref={receiptRef} className="font-mono text-xs space-y-2 p-4 bg-white text-black rounded">
+            {/* Header */}
+            <div className="text-center">
+              <p className="text-base font-bold">{tenant?.name || 'Salon'}</p>
+              <p className="text-[10px] text-gray-500">TAX INVOICE / فاتورة ضريبية</p>
+            </div>
 
-          <div className="border-t border-dashed border-gray-400 my-2" />
+            <div className="border-t border-dashed border-gray-400 my-2" />
 
-          {/* Meta info */}
-          <div className="space-y-0.5 text-[11px]">
-            <div className="flex justify-between">
-              <span>Txn #:</span>
-              <span>{transactionId.slice(0, 8).toUpperCase()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Date:</span>
-              <span>{new Date(createdAt).toLocaleDateString('en-GB')}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Time:</span>
-              <span>{new Date(createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-            {clientName && (
+            {/* Meta info */}
+            <div className="space-y-0.5 text-[11px]">
               <div className="flex justify-between">
-                <span>Client:</span>
-                <span>{clientName}</span>
+                <span>Txn #:</span>
+                <span>{transactionId.slice(0, 8).toUpperCase()}</span>
               </div>
-            )}
-            {staffName && (
               <div className="flex justify-between">
-                <span>Staff:</span>
-                <span>{staffName}</span>
+                <span>Date:</span>
+                <span>{new Date(createdAt).toLocaleDateString('en-GB')}</span>
               </div>
-            )}
-          </div>
-
-          <div className="border-t border-dashed border-gray-400 my-2" />
-
-          {/* Items */}
-          <div className="space-y-1">
-            {items.map((item, i) => (
-              <div key={i}>
+              <div className="flex justify-between">
+                <span>Time:</span>
+                <span>{new Date(createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+              {clientName && (
                 <div className="flex justify-between">
-                  <span className="flex-1 truncate">{item.item_name}</span>
-                  <span className="ml-2">{item.total_price.toFixed(3)}</span>
+                  <span>Client:</span>
+                  <span>{clientName}</span>
                 </div>
-                {item.item_name_ar && (
-                  <p className="text-[10px] text-gray-500" dir="rtl">{item.item_name_ar}</p>
-                )}
-                {item.quantity > 1 && (
-                  <p className="text-[10px] text-gray-500 pl-2">
-                    {item.quantity} × {item.unit_price.toFixed(3)}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-dashed border-gray-400 my-2" />
-
-          {/* Totals */}
-          <div className="space-y-0.5 text-[11px]">
-            <div className="flex justify-between">
-              <span>Subtotal / المجموع</span>
-              <span>{subtotal.toFixed(3)}</span>
+              )}
+              {staffName && (
+                <div className="flex justify-between">
+                  <span>Staff:</span>
+                  <span>{staffName}</span>
+                </div>
+              )}
             </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-green-700">
-                <span>Discount / خصم</span>
-                <span>-{discountAmount.toFixed(3)}</span>
-              </div>
-            )}
-            {taxAmount > 0 && (
-              <div className="flex justify-between">
-                <span>Tax / الضريبة</span>
-                <span>{taxAmount.toFixed(3)}</span>
-              </div>
-            )}
-            {tipAmount > 0 && (
-              <div className="flex justify-between">
-                <span>Tip / إكرامية</span>
-                <span>{tipAmount.toFixed(3)}</span>
-              </div>
-            )}
-            <div className="border-t border-dashed border-gray-400 my-1" />
-            <div className="flex justify-between font-bold text-sm">
-              <span>TOTAL / الإجمالي</span>
-              <span>{grandTotal.toFixed(3)} KWD</span>
+
+            <div className="border-t border-dashed border-gray-400 my-2" />
+
+            {/* Items */}
+            <div className="space-y-1">
+              {items.map((item, i) => (
+                <div key={i}>
+                  <div className="flex justify-between">
+                    <span className="flex-1 truncate">{item.item_name}</span>
+                    <span className="ml-2">{item.total_price.toFixed(3)}</span>
+                  </div>
+                  {item.item_name_ar && (
+                    <p className="text-[10px] text-gray-500" dir="rtl">{item.item_name_ar}</p>
+                  )}
+                  {item.quantity > 1 && (
+                    <p className="text-[10px] text-gray-500 pl-2">
+                      {item.quantity} × {item.unit_price.toFixed(3)}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
-          </div>
 
-          <div className="border-t border-dashed border-gray-400 my-2" />
+            <div className="border-t border-dashed border-gray-400 my-2" />
 
-          {/* Payment breakdown */}
-          <div className="space-y-0.5 text-[11px]">
-            <p className="font-bold">Payment / الدفع</p>
-            {payments.map((p, i) => (
-              <div key={i} className="flex justify-between">
-                <span>{PAYMENT_LABELS[p.payment_method] || p.payment_method}</span>
-                <span>{p.amount.toFixed(3)}</span>
+            {/* Totals */}
+            <div className="space-y-0.5 text-[11px]">
+              <div className="flex justify-between">
+                <span>Subtotal / المجموع</span>
+                <span>{subtotal.toFixed(3)}</span>
               </div>
-            ))}
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-green-700">
+                  <span>Discount / خصم</span>
+                  <span>-{discountAmount.toFixed(3)}</span>
+                </div>
+              )}
+              {taxAmount > 0 && (
+                <div className="flex justify-between">
+                  <span>Tax / الضريبة</span>
+                  <span>{taxAmount.toFixed(3)}</span>
+                </div>
+              )}
+              {tipAmount > 0 && (
+                <div className="flex justify-between">
+                  <span>Tip / إكرامية</span>
+                  <span>{tipAmount.toFixed(3)}</span>
+                </div>
+              )}
+              <div className="border-t border-dashed border-gray-400 my-1" />
+              <div className="flex justify-between font-bold text-sm">
+                <span>TOTAL / الإجمالي</span>
+                <span>{grandTotal.toFixed(3)} KWD</span>
+              </div>
+            </div>
+
+            <div className="border-t border-dashed border-gray-400 my-2" />
+
+            {/* Payment breakdown */}
+            <div className="space-y-0.5 text-[11px]">
+              <p className="font-bold">Payment / الدفع</p>
+              {payments.map((p, i) => (
+                <div key={i} className="flex justify-between">
+                  <span>{PAYMENT_LABELS[p.payment_method] || p.payment_method}</span>
+                  <span>{p.amount.toFixed(3)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-dashed border-gray-400 my-2" />
+
+            <p className="text-center text-[10px] text-gray-500">
+              Thank you for your visit!<br />
+              !شكراً لزيارتكم
+            </p>
           </div>
 
-          <div className="border-t border-dashed border-gray-400 my-2" />
+          <div className="flex gap-2 mt-2">
+            <Button onClick={handlePrint} className="flex-1 h-12">
+              <Printer className="mr-2 h-4 w-4" />
+              Print Receipt
+            </Button>
+            <Button variant="outline" onClick={handlePrint} className="flex-1 h-12">
+              <Download className="mr-2 h-4 w-4" />
+              Download PDF
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setRefundOpen(true)}
+              className="h-12 px-4 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/40"
+              title="Process refund"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-          <p className="text-center text-[10px] text-gray-500">
-            Thank you for your visit!<br />
-            !شكراً لزيارتكم
-          </p>
-        </div>
-
-        <div className="flex gap-2 mt-2">
-          <Button onClick={handlePrint} className="flex-1 h-12">
-            <Printer className="mr-2 h-4 w-4" />
-            Print Receipt
-          </Button>
-          <Button variant="outline" onClick={handlePrint} className="flex-1 h-12">
-            <Download className="mr-2 h-4 w-4" />
-            Download PDF
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setRefundOpen(true)}
-            className="h-12 px-4 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/40"
-            title="Process refund"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-
-    {/* Refund dialog */}
-    <RefundDialog
-      open={refundOpen}
-      onOpenChange={setRefundOpen}
-      transaction={fullTransaction as any}
-      onRefundComplete={() => {
-        setRefundOpen(false);
-        onOpenChange(false);
-      }}
-    />
+      <RefundDialog
+        open={refundOpen}
+        onOpenChange={setRefundOpen}
+        transaction={fullTransaction as any}
+        onRefundComplete={() => {
+          setRefundOpen(false);
+          onOpenChange(false);
+        }}
+      />
+    </>
   );
 }

@@ -356,29 +356,6 @@ export default function Dashboard() {
     </div>
   );
 }
-      <CardContent className="p-5">
-        {loading ? (
-          <>
-            <Skeleton className="h-4 w-28 mb-3" />
-            <Skeleton className="h-9 w-32 mb-2" />
-            <Skeleton className="h-3 w-20" />
-          </>
-        ) : (
-          <>
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Icon className="h-4 w-4 text-primary" />
-              </div>
-            </div>
-            <p className="stat-number text-3xl font-bold tracking-tight text-foreground">{value}</p>
-            <p className="text-xs text-muted-foreground mt-1.5">{sub}</p>
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function Dashboard() {
   const { tenant, currentBranch } = useAuth();
