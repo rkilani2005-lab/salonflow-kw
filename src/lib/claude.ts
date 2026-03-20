@@ -1,16 +1,14 @@
 /**
- * Anthropic Messages API wrapper.
- *
- * TO ACTIVATE AI FEATURES:
- * In Lovable → Project Settings → Environment Variables → Add:
- *   Name:  VITE_ANTHROPIC_API_KEY
- *   Value: sk-ant-api03-PQ7MCUuT6E5yBk_jfhWbH...  (your key)
+ * Anthropic Claude wrapper — calls securely via backend edge function.
+ * The ANTHROPIC_API_KEY is stored as a server-side secret (never exposed to the browser).
  */
 
 export interface ClaudeMessage {
   role: 'user' | 'assistant';
   content: string;
 }
+
+const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/claude-chat`;
 
 export async function askClaude({
   system,
@@ -21,37 +19,21 @@ export async function askClaude({
   messages: ClaudeMessage[];
   maxTokens?: number;
 }): Promise<string> {
-  const key = import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined;
-
-  if (!key) {
-    throw new Error(
-      'AI not configured. Add VITE_ANTHROPIC_API_KEY in Lovable → Project Settings → Environment Variables.'
-    );
-  }
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch(EDGE_FUNCTION_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
+      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: maxTokens,
-      system,
-      messages,
-    }),
+    body: JSON.stringify({ system, messages, maxTokens }),
   });
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(`AI error: ${(err as any)?.error?.message || `HTTP ${response.status}`}`);
+  const data = await response.json();
+
+  if (!response.ok || data?.error) {
+    throw new Error(data?.error || `AI error: HTTP ${response.status}`);
   }
 
-  const data = await response.json();
-  const text = data?.content?.[0]?.text;
-  if (!text) throw new Error('Empty response from AI');
-  return text;
+  if (!data?.text) throw new Error('Empty response from AI');
+  return data.text;
 }
