@@ -4,6 +4,9 @@ import { StaffRosterSidebar } from '@/components/calendar/StaffRosterSidebar';
 import { CalendarGrid } from '@/components/calendar/CalendarGrid';
 import { BookingFormDialog, MultiServiceBooking } from '@/components/calendar/BookingFormDialog';
 import { AppointmentDetailSheet } from '@/components/calendar/AppointmentDetailSheet';
+import { ReceptionCommandBar } from '@/components/calendar/ReceptionCommandBar';
+import { WalkInDialog } from '@/components/calendar/WalkInDialog';
+import { TodayScheduleList } from '@/components/calendar/TodayScheduleList';
 import { Appointment, AppointmentStatus, Staff, Service, Client, SERVICE_CATEGORY_COLORS } from '@/types/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { useStaff } from '@/hooks/useStaff';
@@ -12,26 +15,33 @@ import { useServicesManagement } from '@/hooks/useServices';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { format } from 'date-fns';
+import { format, isToday } from 'date-fns';
 import type { Enums } from '@/integrations/supabase/types';
 
-function useBookings(date: Date, view: 'day' | 'week' | 'month') {
+// ── Data hooks ─────────────────────────────────────────────────
+
+function useBookings(date: Date) {
   const { tenant } = useAuth();
   return useQuery({
-    queryKey: ['bookings-calendar', tenant?.id, format(date, 'yyyy-MM'), view],
+    queryKey: ['bookings-calendar', tenant?.id, format(date, 'yyyy-MM')],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
+        .eq('tenant_id', tenant!.id)
+        .gte('booking_date', format(date, 'yyyy-MM-01'))
+        .lte('booking_date', format(date, 'yyyy-MM-31'))
         .order('start_time');
       if (error) throw error;
       return data || [];
     },
     enabled: !!tenant?.id,
+    refetchInterval: 60_000, // auto-refresh every minute for no-show detection
   });
 }
 
 function useCreateBooking() {
+  const { tenant } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   return useMutation({
@@ -49,37 +59,19 @@ function useCreateBooking() {
       duration: number;
       price: number;
       notes?: string;
+      status?: string;
+      tenant_id?: string;
     }) => {
-      const { data, error } = await supabase.from('bookings').insert(booking).select().single();
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert({ ...booking, tenant_id: tenant!.id })
+        .select()
+        .single();
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookings-calendar'] });
-      toast({ title: 'Booking Created' });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bookings-calendar'] }),
     onError: (err) => toast({ title: 'Failed to create booking', description: err.message, variant: 'destructive' }),
-  });
-}
-
-function useUpdateBooking() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-  return useMutation({
-    mutationFn: async ({ id, ...data }: Partial<ReturnType<typeof mapBookingToAppointment>> & { id: string }) => {
-      const { error } = await supabase.from('bookings').update({
-        staff_id: data.staffId,
-        start_time: data.startTime,
-        end_time: data.endTime,
-        notes: data.notes,
-        status: data.status as Enums<'booking_status'>,
-      }).eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookings-calendar'] });
-    },
-    onError: (err) => toast({ title: 'Failed to update booking', description: err.message, variant: 'destructive' }),
   });
 }
 
@@ -94,78 +86,87 @@ function mapBookingToAppointment(b: any): Appointment {
     serviceCategory: b.service_category,
     date: b.booking_date,
     startTime: b.start_time?.slice(0, 5) || '09:00',
-    endTime: b.end_time?.slice(0, 5) || '10:00',
+    endTime:   b.end_time?.slice(0, 5)   || '10:00',
     duration: b.duration,
     status: b.status,
     notes: b.notes,
     price: Number(b.price),
+    groupId: b.group_id,
   };
 }
 
+// ── Main component ──────────────────────────────────────────────
+
 export default function CalendarPage() {
   const { toast } = useToast();
-  const [date, setDate] = useState(new Date());
-  const [view, setView] = useState<'day' | 'week' | 'month'>('day');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
-  const [preselectedStaffId, setPreselectedStaffId] = useState<string>();
-  const [preselectedTime, setPreselectedTime] = useState<string>();
-  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
-
-  // DB data
-  const { data: dbStaff = [] } = useStaff();
-  const { data: dbClients = [] } = useClients();
-  const { data: dbServices = [] } = useServicesManagement();
-  const { data: dbBookings = [] } = useBookings(date, view);
-  const createBooking = useCreateBooking();
-  const updateBooking = useUpdateBooking();
   const queryClient = useQueryClient();
+  const { tenant } = useAuth();
 
-  // Map DB staff → calendar Staff type
+  const [date,             setDate]             = useState(new Date());
+  const [view,             setView]             = useState<'day' | 'week' | 'month'>('day');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [listMode,         setListMode]         = useState(false);
+  const [statusFilter,     setStatusFilter]     = useState<AppointmentStatus | 'all'>('all');
+
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
+  const [walkInOpen,        setWalkInOpen]        = useState(false);
+  const [detailSheetOpen,   setDetailSheetOpen]   = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [preselectedStaffId,  setPreselectedStaffId]  = useState<string>();
+  const [preselectedTime,     setPreselectedTime]     = useState<string>();
+
+  // Data
+  const { data: dbStaff    = [] } = useStaff();
+  const { data: dbClients  = [] } = useClients();
+  const { data: dbServices = [] } = useServicesManagement();
+  const { data: dbBookings = [] } = useBookings(date);
+  const createBooking = useCreateBooking();
+
+  // Mapped data
   const staff: Staff[] = useMemo(() =>
     dbStaff.filter(s => s.is_active).map(s => ({
-      id: s.id,
-      name: s.name,
-      nameAr: s.name_ar || undefined,
+      id: s.id, name: s.name, nameAr: s.name_ar || undefined,
       avatar: s.avatar_url || undefined,
       color: s.color || 'hsl(220, 9%, 46%)',
       workingHours: {
         start: s.working_hours_start?.slice(0, 5) || '09:00',
-        end: s.working_hours_end?.slice(0, 5) || '18:00',
+        end:   s.working_hours_end?.slice(0, 5)   || '21:00',
       },
       breaks: s.break_start && s.break_end
         ? [{ start: s.break_start.slice(0, 5), end: s.break_end.slice(0, 5) }]
         : undefined,
-      skills: [],
-      status: 'available' as const,
+      skills: [], status: 'available' as const,
     })), [dbStaff]);
 
-  // Map DB services → calendar Service type
   const services: Service[] = useMemo(() =>
     dbServices.filter(s => s.is_active).map(s => ({
-      id: s.id,
-      name: s.name,
-      nameAr: s.name_ar || undefined,
-      category: s.category as any,
-      duration: s.duration,
-      price: Number(s.price),
+      id: s.id, name: s.name, nameAr: s.name_ar || undefined,
+      category: s.category as any, duration: s.duration, price: Number(s.price),
       color: s.color || SERVICE_CATEGORY_COLORS[s.category as keyof typeof SERVICE_CATEGORY_COLORS] || 'hsl(220,9%,46%)',
     })), [dbServices]);
 
-  // Map DB clients → calendar Client type
   const clients: Client[] = useMemo(() =>
     dbClients.map(c => ({
-      id: c.id,
-      name: c.name,
-      mobile: c.phone,
-      email: c.email || undefined,
+      id: c.id, name: c.name, mobile: c.phone, email: c.email || undefined,
       tier: (c.tier === 'vip' || c.tier === 'vvip') ? 'vip' as const : 'normal' as const,
     })), [dbClients]);
 
-  // Map DB bookings → Appointment type
   const appointments: Appointment[] = useMemo(() =>
     dbBookings.map(mapBookingToAppointment), [dbBookings]);
+
+  // Today's appointments for the command bar and list
+  const todayStr = format(date, 'yyyy-MM-dd');
+  const todayAppointments = useMemo(() =>
+    appointments.filter(a => a.date === todayStr), [appointments, todayStr]);
+
+  // Filtered appointments for display
+  const displayAppointments = useMemo(() => {
+    const dayAppts = view === 'day'
+      ? appointments.filter(a => a.date === todayStr)
+      : appointments;
+    if (statusFilter === 'all') return dayAppts;
+    return dayAppts.filter(a => a.status === statusFilter);
+  }, [appointments, view, todayStr, statusFilter]);
 
   const [visibleStaffIds, setVisibleStaffIds] = useState<string[]>([]);
   const effectiveVisibleStaffIds = visibleStaffIds.length > 0
@@ -175,9 +176,7 @@ export default function CalendarPage() {
   const handleToggleStaff = (staffId: string) => {
     setVisibleStaffIds(prev => {
       const base = prev.length > 0 ? prev : staff.map(s => s.id);
-      return base.includes(staffId)
-        ? base.filter(id => id !== staffId)
-        : [...base, staffId];
+      return base.includes(staffId) ? base.filter(id => id !== staffId) : [...base, staffId];
     });
   };
 
@@ -188,9 +187,7 @@ export default function CalendarPage() {
   }, []);
 
   const handleAppointmentMove = useCallback(async (
-    appointmentId: string,
-    newStaffId: string,
-    newTime: string
+    appointmentId: string, newStaffId: string, newTime: string
   ) => {
     const apt = appointments.find(a => a.id === appointmentId);
     if (!apt) return;
@@ -201,71 +198,77 @@ export default function CalendarPage() {
     queryClient.invalidateQueries({ queryKey: ['bookings-calendar'] });
   }, [appointments, queryClient]);
 
+  const handleStatusChange = useCallback(async (appointmentId: string, newStatus: AppointmentStatus) => {
+    await supabase.from('bookings').update({ status: newStatus as Enums<'booking_status'> }).eq('id', appointmentId);
+    queryClient.invalidateQueries({ queryKey: ['bookings-calendar'] });
+    setSelectedAppointment(prev => prev?.id === appointmentId ? { ...prev, status: newStatus } : prev);
+    const labels: Record<string, string> = {
+      confirmed: '✓ Confirmed', checked_in: '👋 Client arrived', in_service: '✂️ In service',
+      completed: '✅ Completed', no_show: '⚠️ Marked as no-show', cancelled: '✗ Cancelled',
+    };
+    toast({ title: labels[newStatus] || 'Status updated' });
+  }, [queryClient, toast]);
+
   const handleBookingSubmit = useCallback(async (booking: {
-    clientId: string;
-    staffId: string;
-    serviceId: string;
-    date: string;
-    time: string;
-    notes: string;
+    clientId: string; staffId: string; serviceId: string; date: string; time: string; notes: string;
   }) => {
-    const client = clients.find(c => c.id === booking.clientId);
+    const client  = clients.find(c => c.id === booking.clientId);
     const service = services.find(s => s.id === booking.serviceId);
     if (!client || !service) return;
-
     const [h, m] = booking.time.split(':').map(Number);
     const endMins = h * 60 + m + service.duration;
     const endTime = `${Math.floor(endMins / 60).toString().padStart(2, '0')}:${(endMins % 60).toString().padStart(2, '0')}`;
-
     await createBooking.mutateAsync({
-      client_id: booking.clientId,
-      client_name: client.name,
-      client_phone: client.mobile,
-      staff_id: booking.staffId,
-      service_id: booking.serviceId,
-      service_name: service.name,
+      client_id: booking.clientId, client_name: client.name, client_phone: client.mobile,
+      staff_id: booking.staffId, service_id: booking.serviceId, service_name: service.name,
       service_category: service.category as Enums<'service_category'>,
-      booking_date: booking.date,
-      start_time: booking.time,
-      end_time: endTime,
-      duration: service.duration,
-      price: service.price,
-      notes: booking.notes,
+      booking_date: booking.date, start_time: booking.time, end_time: endTime,
+      duration: service.duration, price: service.price, notes: booking.notes, status: 'confirmed',
     });
-
-    toast({ title: 'Booking Created', description: `${client.name}'s appointment for ${service.name} has been scheduled.` });
+    toast({ title: '📅 Appointment booked', description: `${client.name} · ${service.name}` });
   }, [clients, services, createBooking, toast]);
 
   const handleMultiServiceSubmit = useCallback(async (booking: MultiServiceBooking) => {
     const client = clients.find(c => c.id === booking.clientId);
     if (!client) return;
-
     for (const entry of booking.services) {
       const service = services.find(s => s.id === entry.serviceId);
       if (!service) continue;
       const [h, m] = entry.time.split(':').map(Number);
       const endMins = h * 60 + m + service.duration;
       const endTime = `${Math.floor(endMins / 60).toString().padStart(2, '0')}:${(endMins % 60).toString().padStart(2, '0')}`;
-
       await createBooking.mutateAsync({
-        client_id: booking.clientId,
-        client_name: client.name,
-        client_phone: client.mobile,
-        staff_id: entry.staffId,
-        service_id: entry.serviceId,
-        service_name: service.name,
+        client_id: booking.clientId, client_name: client.name, client_phone: client.mobile,
+        staff_id: entry.staffId, service_id: entry.serviceId, service_name: service.name,
         service_category: service.category as Enums<'service_category'>,
-        booking_date: booking.date,
-        start_time: entry.time,
-        end_time: endTime,
-        duration: service.duration,
-        price: service.price,
-        notes: booking.notes,
+        booking_date: booking.date, start_time: entry.time, end_time: endTime,
+        duration: service.duration, price: service.price, notes: booking.notes, status: 'confirmed',
       });
     }
-
-    toast({ title: 'Multi-Service Booking Created', description: `${client.name}'s appointments have been scheduled.` });
+    toast({ title: '📅 Multi-service booking created', description: `${client.name} · ${booking.services.length} services` });
   }, [clients, services, createBooking, toast]);
+
+  // Walk-in: create as checked_in immediately
+  const handleWalkInSubmit = useCallback(async (walkin: {
+    clientName: string; clientPhone: string; staffId: string; serviceId: string; startTime: string; notes: string; isWalkIn: true;
+  }) => {
+    const service = services.find(s => s.id === walkin.serviceId);
+    if (!service) return;
+    const [h, m] = walkin.startTime.split(':').map(Number);
+    const endMins = h * 60 + m + service.duration;
+    const endTime = `${Math.floor(endMins / 60).toString().padStart(2, '0')}:${(endMins % 60).toString().padStart(2, '0')}`;
+    await createBooking.mutateAsync({
+      client_name: walkin.clientName, client_phone: walkin.clientPhone,
+      staff_id: walkin.staffId, service_id: walkin.serviceId, service_name: service.name,
+      service_category: service.category as Enums<'service_category'>,
+      booking_date: format(date, 'yyyy-MM-dd'),
+      start_time: walkin.startTime, end_time: endTime,
+      duration: service.duration, price: service.price,
+      notes: walkin.notes || 'Walk-in',
+      status: 'checked_in',  // walk-ins start as checked_in immediately
+    });
+    toast({ title: '🚶‍♀️ Walk-in checked in', description: `${walkin.clientName} · ${service.name}` });
+  }, [services, date, createBooking, toast]);
 
   const handleAppointmentClick = useCallback((apt: Appointment) => {
     setSelectedAppointment(apt);
@@ -274,44 +277,39 @@ export default function CalendarPage() {
 
   const handleAppointmentUpdate = useCallback(async (updated: Appointment) => {
     await supabase.from('bookings').update({
-      staff_id: updated.staffId || null,
-      start_time: updated.startTime,
-      end_time: updated.endTime,
-      notes: updated.notes,
+      staff_id: updated.staffId || null, start_time: updated.startTime,
+      end_time: updated.endTime, notes: updated.notes,
     }).eq('id', updated.id);
     queryClient.invalidateQueries({ queryKey: ['bookings-calendar'] });
-    toast({ title: 'Appointment Updated' });
+    toast({ title: 'Appointment updated' });
   }, [queryClient, toast]);
-
-  const handleStatusChange = useCallback(async (appointmentId: string, newStatus: AppointmentStatus) => {
-    await supabase.from('bookings').update({ status: newStatus as Enums<'booking_status'> }).eq('id', appointmentId);
-    queryClient.invalidateQueries({ queryKey: ['bookings-calendar'] });
-    setSelectedAppointment(prev => prev?.id === appointmentId ? { ...prev, status: newStatus } : prev);
-    toast({ title: 'Status Updated', description: `Appointment status changed to ${newStatus.replace('_', ' ')}.` });
-  }, [queryClient, toast]);
-
-  const filteredAppointments = useMemo(() => {
-    if (view === 'day') {
-      const dayStr = format(date, 'yyyy-MM-dd');
-      return appointments.filter(a => a.date === dayStr);
-    }
-    return appointments;
-  }, [appointments, view, date]);
-
-  const todayStr = format(date, 'yyyy-MM-dd');
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* Top header */}
       <CalendarHeader
         date={date}
         view={view}
         sidebarCollapsed={sidebarCollapsed}
+        listMode={listMode}
         onDateChange={setDate}
         onViewChange={setView}
         onToggleSidebar={() => setSidebarCollapsed(p => !p)}
+        onToggleListMode={() => setListMode(p => !p)}
       />
 
+      {/* Reception command bar — always visible */}
+      <ReceptionCommandBar
+        appointments={todayAppointments}
+        activeFilter={statusFilter}
+        onFilterChange={setStatusFilter}
+        onWalkIn={() => setWalkInOpen(true)}
+        date={date}
+      />
+
+      {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">
+        {/* Staff sidebar */}
         <StaffRosterSidebar
           staff={staff}
           visibleStaffIds={effectiveVisibleStaffIds}
@@ -321,20 +319,35 @@ export default function CalendarPage() {
           onToggleStaff={handleToggleStaff}
         />
 
-        <CalendarGrid
-          staff={staff}
-          appointments={filteredAppointments}
-          visibleStaffIds={effectiveVisibleStaffIds}
-          startHour={8}
-          endHour={21}
-          view={view}
-          date={date}
-          onSlotClick={handleSlotClick}
-          onAppointmentMove={handleAppointmentMove}
-          onAppointmentClick={handleAppointmentClick}
-        />
+        {/* Grid or list mode */}
+        {listMode ? (
+          <div className="flex-1 overflow-hidden">
+            <TodayScheduleList
+              appointments={statusFilter === 'all' ? todayAppointments : todayAppointments.filter(a => a.status === statusFilter)}
+              staff={staff}
+              services={services}
+              onStatusChange={handleStatusChange}
+              onAppointmentClick={handleAppointmentClick}
+              date={date}
+            />
+          </div>
+        ) : (
+          <CalendarGrid
+            staff={staff}
+            appointments={displayAppointments}
+            visibleStaffIds={effectiveVisibleStaffIds}
+            startHour={8}
+            endHour={21}
+            view={view}
+            date={date}
+            onSlotClick={handleSlotClick}
+            onAppointmentMove={handleAppointmentMove}
+            onAppointmentClick={handleAppointmentClick}
+          />
+        )}
       </div>
 
+      {/* Dialogs */}
       <BookingFormDialog
         open={bookingDialogOpen}
         onOpenChange={setBookingDialogOpen}
@@ -346,6 +359,14 @@ export default function CalendarPage() {
         preselectedDate={todayStr}
         onSubmit={handleBookingSubmit}
         onSubmitMulti={handleMultiServiceSubmit}
+      />
+
+      <WalkInDialog
+        open={walkInOpen}
+        onOpenChange={setWalkInOpen}
+        staff={staff}
+        services={services}
+        onSubmit={handleWalkInSubmit}
       />
 
       <AppointmentDetailSheet
