@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,40 +10,69 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  Building2, Clock, Bell, Globe, Palette, Save, Upload, User, Mail, Phone, MapPin,
+  Building2, Clock, Bell, Globe, Save, Upload, User, Phone,
+  MapPin, CheckCircle2, Loader2, ImageIcon, X,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const DAYS = [
+  { key: 'sun', en: 'Sunday',    ar: 'الأحد' },
+  { key: 'mon', en: 'Monday',    ar: 'الاثنين' },
+  { key: 'tue', en: 'Tuesday',   ar: 'الثلاثاء' },
+  { key: 'wed', en: 'Wednesday', ar: 'الأربعاء' },
+  { key: 'thu', en: 'Thursday',  ar: 'الخميس' },
+  { key: 'fri', en: 'Friday',    ar: 'الجمعة' },
+  { key: 'sat', en: 'Saturday',  ar: 'السبت' },
+];
+
+// Default: Sun–Thu open, Fri closed, Sat open (Kuwait working week)
+const DEFAULT_WORKING_DAYS: Record<string, boolean> = {
+  sun: true, mon: true, tue: true, wed: true, thu: true, fri: false, sat: true,
+};
 
 export default function Settings() {
   const { tenant, profile, currentBranch, refreshProfile } = useAuth();
+  const { language } = useLanguage();
   const { toast } = useToast();
-  const [saving, setSaving] = useState(false);
+  const ar = language === 'ar';
 
-  // Business fields
+  const [saving, setSaving]       = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Business fields ─────────────────────────────────────────
   const [businessName, setBusinessName] = useState('');
-  const [ownerName, setOwnerName] = useState('');
-  const [ownerPhone, setOwnerPhone] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [currency, setCurrency] = useState('KWD');
-  const [taxRate, setTaxRate] = useState('0');
+  const [logoUrl,      setLogoUrl]      = useState<string | null>(null);
+  const [ownerName,    setOwnerName]    = useState('');
+  const [ownerPhone,   setOwnerPhone]   = useState('');
+  const [phone,        setPhone]        = useState('');
+  const [address,      setAddress]      = useState('');
+  const [currency,     setCurrency]     = useState('KWD');
+  const [taxRate,      setTaxRate]      = useState('0');
 
-  // Working hours
-  const [openTime, setOpenTime] = useState('09:00');
-  const [closeTime, setCloseTime] = useState('21:00');
+  // ── Working hours ────────────────────────────────────────────
+  const [openTime,     setOpenTime]     = useState('09:00');
+  const [closeTime,    setCloseTime]    = useState('21:00');
+  const [workingDays,  setWorkingDays]  = useState<Record<string, boolean>>(DEFAULT_WORKING_DAYS);
 
-  // Notification preferences (stored in localStorage for now)
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [smsNotifications, setSmsNotifications] = useState(true);
+  // ── Notification prefs (persisted in tenants.metadata or localStorage) ──
+  const [emailNotif,   setEmailNotif]   = useState(true);
+  const [smsNotif,     setSmsNotif]     = useState(true);
   const [bookingReminders, setBookingReminders] = useState(true);
-  const [marketingEmails, setMarketingEmails] = useState(false);
+  const [marketingEmails,  setMarketingEmails]  = useState(false);
 
-  // Sync state from context when loaded
+  // ── Saved indicator per tab ─────────────────────────────────
+  const [savedTab, setSavedTab] = useState<string | null>(null);
+
+  // ── Load from context ────────────────────────────────────────
   useEffect(() => {
     if (tenant) {
       setBusinessName(tenant.name || '');
+      setLogoUrl(tenant.logo_url || null);
       setCurrency(tenant.currency || 'KWD');
       setTaxRate(String(tenant.default_tax_rate ?? 0));
     }
@@ -56,185 +86,439 @@ export default function Settings() {
       setOpenTime(currentBranch.opening_time?.slice(0, 5) || '09:00');
       setCloseTime(currentBranch.closing_time?.slice(0, 5) || '21:00');
     }
+    // Load notification prefs from localStorage
+    try {
+      const stored = localStorage.getItem(`notif_prefs_${tenant?.id}`);
+      if (stored) {
+        const prefs = JSON.parse(stored);
+        setEmailNotif(prefs.emailNotif   ?? true);
+        setSmsNotif(prefs.smsNotif       ?? true);
+        setBookingReminders(prefs.bookingReminders ?? true);
+        setMarketingEmails(prefs.marketingEmails   ?? false);
+      }
+    } catch { /* ignore */ }
+    // Load working days from localStorage (branch-specific)
+    try {
+      const storedDays = localStorage.getItem(`working_days_${currentBranch?.id}`);
+      if (storedDays) setWorkingDays(JSON.parse(storedDays));
+    } catch { /* ignore */ }
   }, [tenant, profile, currentBranch]);
 
-  const handleSave = async () => {
+  // ── Logo upload ──────────────────────────────────────────────
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !tenant?.id) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: ar ? 'الملف كبير جداً' : 'File too large', description: ar ? 'الحد الأقصى 2MB' : 'Maximum size is 2MB', variant: 'destructive' });
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const ext  = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `${tenant.id}/logo.${ext}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('salon-logos')
+        .upload(path, file, { upsert: true, contentType: file.type });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('salon-logos')
+        .getPublicUrl(path);
+
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`; // cache-bust
+
+      // Save URL to tenants table
+      const { error: dbError } = await supabase
+        .from('tenants')
+        .update({ logo_url: urlData.publicUrl })
+        .eq('id', tenant.id);
+
+      if (dbError) throw dbError;
+
+      setLogoUrl(publicUrl);
+      await refreshProfile();
+      toast({ title: ar ? 'تم رفع الشعار' : 'Logo uploaded successfully' });
+    } catch (err: any) {
+      console.error('Logo upload error:', err);
+      toast({
+        title: ar ? 'فشل رفع الشعار' : 'Logo upload failed',
+        description: err?.message || 'Please try again',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!tenant?.id) return;
+    const { error } = await supabase
+      .from('tenants')
+      .update({ logo_url: null })
+      .eq('id', tenant.id);
+    if (!error) {
+      setLogoUrl(null);
+      await refreshProfile();
+      toast({ title: ar ? 'تم حذف الشعار' : 'Logo removed' });
+    }
+  };
+
+  // ── Save business + branch settings ─────────────────────────
+  const handleSaveBusiness = async () => {
     if (!tenant?.id || !profile?.user_id) return;
     setSaving(true);
     try {
-      // 1. Update tenant record
-      const { error: tenantError } = await supabase
+      // 1. Update tenant
+      const { error: tenantErr } = await supabase
         .from('tenants')
         .update({
-          name: businessName.trim(),
+          name:             businessName.trim(),
           currency,
           default_tax_rate: parseFloat(taxRate) || 0,
-          updated_at: new Date().toISOString(),
         })
         .eq('id', tenant.id);
-      if (tenantError) throw tenantError;
+      if (tenantErr) throw tenantErr;
 
-      // 2. Update user profile
-      const { error: profileError } = await supabase
+      // 2. Update profile (owner name + phone)
+      const { error: profileErr } = await supabase
         .from('profiles')
         .update({
           full_name: ownerName.trim(),
-          phone: ownerPhone.trim(),
-          updated_at: new Date().toISOString(),
+          phone:     ownerPhone.trim() || null,
         })
         .eq('user_id', profile.user_id);
-      if (profileError) throw profileError;
+      if (profileErr) throw profileErr;
 
-      // 3. Update current branch if available
+      // 3. Update branch
       if (currentBranch?.id) {
-        const { error: branchError } = await supabase
+        const { error: branchErr } = await supabase
           .from('branches')
           .update({
-            phone: phone.trim(),
-            address: address.trim(),
-            opening_time: openTime + ':00',
-            closing_time: closeTime + ':00',
-            updated_at: new Date().toISOString(),
+            phone:        phone.trim() || null,
+            address:      address.trim() || null,
           })
           .eq('id', currentBranch.id);
-        if (branchError) throw branchError;
+        if (branchErr) throw branchErr;
       }
 
       await refreshProfile();
-
-      toast({ title: 'Settings saved', description: 'Your settings have been updated successfully.' });
+      showSaved('business');
     } catch (err: any) {
-      toast({ title: 'Failed to save settings', description: err?.message || 'Unknown error', variant: 'destructive' });
+      console.error('Save business error:', err);
+      toast({ title: ar ? 'فشل الحفظ' : 'Save failed', description: err?.message || 'Unknown error', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
   };
 
+  // ── Save working hours ───────────────────────────────────────
+  const handleSaveHours = async () => {
+    if (!currentBranch?.id) {
+      toast({ title: ar ? 'لا يوجد فرع محدد' : 'No branch selected', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('branches')
+        .update({
+          opening_time: openTime + ':00',
+          closing_time: closeTime + ':00',
+        })
+        .eq('id', currentBranch.id);
+      if (error) throw error;
+
+      // Persist working days to localStorage (branch-specific)
+      localStorage.setItem(`working_days_${currentBranch.id}`, JSON.stringify(workingDays));
+
+      await refreshProfile();
+      showSaved('hours');
+    } catch (err: any) {
+      console.error('Save hours error:', err);
+      toast({ title: ar ? 'فشل الحفظ' : 'Save failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Save notification preferences ───────────────────────────
+  const handleSaveNotifications = () => {
+    try {
+      localStorage.setItem(`notif_prefs_${tenant?.id}`, JSON.stringify({
+        emailNotif, smsNotif, bookingReminders, marketingEmails,
+      }));
+      showSaved('notifications');
+    } catch {
+      toast({ title: ar ? 'فشل الحفظ' : 'Save failed', variant: 'destructive' });
+    }
+  };
+
+  // ── Save currency/preferences ────────────────────────────────
+  const handleSavePreferences = async () => {
+    if (!tenant?.id) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('tenants')
+        .update({ currency })
+        .eq('id', tenant.id);
+      if (error) throw error;
+      await refreshProfile();
+      showSaved('preferences');
+    } catch (err: any) {
+      toast({ title: ar ? 'فشل الحفظ' : 'Save failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const showSaved = (tab: string) => {
+    setSavedTab(tab);
+    setTimeout(() => setSavedTab(null), 3000);
+  };
+
+  const toggleDay = (key: string) =>
+    setWorkingDays(d => ({ ...d, [key]: !d[key] }));
+
+  // ── SaveBar component ────────────────────────────────────────
+  const SaveBar = ({ tab, onSave }: { tab: string; onSave: () => void }) => (
+    <div className="flex items-center justify-end gap-3 pt-4 border-t border-border mt-6">
+      {savedTab === tab && (
+        <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium animate-in fade-in">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          {ar ? 'تم الحفظ بنجاح' : 'Saved successfully'}
+        </div>
+      )}
+      <Button onClick={onSave} disabled={saving} size="sm" className="gap-2 min-w-[110px]">
+        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+        {saving ? (ar ? 'جارٍ الحفظ...' : 'Saving...') : (ar ? 'حفظ التغييرات' : 'Save Changes')}
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+    <div className="p-6 space-y-6 max-w-3xl mx-auto" dir={ar ? 'rtl' : 'ltr'}>
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Manage your salon's settings and preferences</p>
+        <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
+          {ar ? 'الإعدادات' : 'Settings'}
+        </h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          {ar ? 'إدارة إعدادات وتفضيلات صالونك' : "Manage your salon's settings and preferences"}
+        </p>
       </div>
 
       <Tabs defaultValue="business" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="business" className="gap-2">
-            <Building2 className="h-4 w-4" /><span className="hidden sm:inline">Business</span>
-          </TabsTrigger>
-          <TabsTrigger value="hours" className="gap-2">
-            <Clock className="h-4 w-4" /><span className="hidden sm:inline">Hours</span>
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-2">
-            <Bell className="h-4 w-4" /><span className="hidden sm:inline">Notifications</span>
-          </TabsTrigger>
-          <TabsTrigger value="preferences" className="gap-2">
-            <Globe className="h-4 w-4" /><span className="hidden sm:inline">Preferences</span>
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 h-10">
+          <TabsTrigger value="business"      className="text-xs gap-1.5"><Building2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'النشاط' : 'Business'}</span></TabsTrigger>
+          <TabsTrigger value="hours"         className="text-xs gap-1.5"><Clock     className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'الأوقات' : 'Hours'}</span></TabsTrigger>
+          <TabsTrigger value="notifications" className="text-xs gap-1.5"><Bell      className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'الإشعارات' : 'Notifications'}</span></TabsTrigger>
+          <TabsTrigger value="preferences"   className="text-xs gap-1.5"><Globe     className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'التفضيلات' : 'Preferences'}</span></TabsTrigger>
         </TabsList>
 
-        {/* Business Profile */}
-        <TabsContent value="business" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Business Profile</CardTitle>
-              <CardDescription>Update your salon's business information</CardDescription>
+        {/* ── Business Profile ── */}
+        <TabsContent value="business" className="space-y-5">
+          <Card className="border">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">{ar ? 'معلومات النشاط التجاري' : 'Business Profile'}</CardTitle>
+              <CardDescription className="text-xs">{ar ? 'تحديث معلومات صالونك' : "Update your salon's business information"}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center gap-6">
-                <div className="h-20 w-20 rounded-lg bg-muted flex items-center justify-center border-2 border-dashed">
-                  {tenant?.logo_url ? (
-                    <img src={tenant.logo_url} alt="Logo" className="h-full w-full object-cover rounded-lg" />
-                  ) : (
-                    <Building2 className="h-8 w-8 text-muted-foreground" />
-                  )}
-                </div>
-                <div>
-                  <Button variant="outline" size="sm">
-                    <Upload className="h-4 w-4 mr-2" />Upload Logo
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 2MB. Recommended: 200x200px</p>
+            <CardContent className="space-y-5">
+
+              {/* Logo upload */}
+              <div>
+                <Label className="text-sm font-semibold mb-3 block">{ar ? 'شعار الصالون' : 'Salon Logo'}</Label>
+                <div className="flex items-center gap-4">
+                  <div className="h-20 w-20 rounded-xl bg-muted flex items-center justify-center border-2 border-dashed border-border relative overflow-hidden flex-shrink-0">
+                    {logoUrl ? (
+                      <>
+                        <img src={logoUrl} alt="Logo" className="h-full w-full object-cover" />
+                        <button
+                          onClick={handleRemoveLogo}
+                          className="absolute top-1 right-1 h-5 w-5 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </>
+                    ) : (
+                      <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
+                    )}
+                    {uploadingLogo && (
+                      <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={handleLogoUpload}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => logoInputRef.current?.click()}
+                      disabled={uploadingLogo}
+                      className="gap-2"
+                    >
+                      {uploadingLogo
+                        ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />{ar ? 'جارٍ الرفع...' : 'Uploading...'}</>
+                        : <><Upload className="h-3.5 w-3.5" />{ar ? 'رفع شعار' : 'Upload Logo'}</>}
+                    </Button>
+                    <p className="text-[11px] text-muted-foreground">
+                      {ar ? 'PNG أو JPG حتى 2MB. الحجم المثالي: 200×200' : 'PNG, JPG or WebP up to 2MB. Ideal: 200×200px'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
               <Separator />
 
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="businessName"><Building2 className="h-4 w-4 inline mr-2" />Business Name</Label>
-                  <Input id="businessName" value={businessName} onChange={e => setBusinessName(e.target.value)} placeholder="Your Salon Name" />
+              {/* Business name */}
+              <div className="grid gap-1.5">
+                <Label htmlFor="businessName" className="text-sm font-medium">
+                  <Building2 className="h-3.5 w-3.5 inline mr-1.5" />
+                  {ar ? 'اسم الصالون *' : 'Business Name *'}
+                </Label>
+                <Input id="businessName" value={businessName} onChange={e => setBusinessName(e.target.value)}
+                  placeholder={ar ? 'اسم صالونك' : 'Your Salon Name'} className="h-10" />
+              </div>
+
+              {/* Owner */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ownerName" className="text-sm font-medium">
+                    <User className="h-3.5 w-3.5 inline mr-1.5" />
+                    {ar ? 'اسم المالكة' : 'Owner Name'}
+                  </Label>
+                  <Input id="ownerName" value={ownerName} onChange={e => setOwnerName(e.target.value)}
+                    placeholder={ar ? 'الاسم الكامل' : 'Full Name'} className="h-10" />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="ownerName"><User className="h-4 w-4 inline mr-2" />Owner Name</Label>
-                  <Input id="ownerName" value={ownerName} onChange={e => setOwnerName(e.target.value)} placeholder="Owner's Full Name" />
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ownerPhone" className="text-sm font-medium">
+                    <Phone className="h-3.5 w-3.5 inline mr-1.5" />
+                    {ar ? 'هاتف المالكة' : 'Owner Phone'}
+                  </Label>
+                  <Input id="ownerPhone" value={ownerPhone} onChange={e => setOwnerPhone(e.target.value)}
+                    placeholder="+965 9XXX XXXX" className="h-10" dir="ltr" />
                 </div>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="ownerPhone"><Phone className="h-4 w-4 inline mr-2" />Owner Phone</Label>
-                    <Input id="ownerPhone" value={ownerPhone} onChange={e => setOwnerPhone(e.target.value)} placeholder="+965 1234 5678" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="branchPhone"><Phone className="h-4 w-4 inline mr-2" />Branch Phone</Label>
-                    <Input id="branchPhone" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+965 1234 5678" />
-                  </div>
+              </div>
+
+              {/* Branch contact */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="branchPhone" className="text-sm font-medium">
+                    <Phone className="h-3.5 w-3.5 inline mr-1.5" />
+                    {ar ? 'هاتف الفرع' : 'Branch Phone'}
+                    {currentBranch && <span className="text-muted-foreground font-normal ml-1">({currentBranch.name})</span>}
+                  </Label>
+                  <Input id="branchPhone" value={phone} onChange={e => setPhone(e.target.value)}
+                    placeholder="+965 2XXX XXXX" className="h-10" dir="ltr" />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="address"><MapPin className="h-4 w-4 inline mr-2" />Address</Label>
-                  <Textarea id="address" value={address} onChange={e => setAddress(e.target.value)} placeholder="Your salon address" rows={2} />
+                <div className="grid gap-1.5">
+                  <Label htmlFor="currency" className="text-sm font-medium">
+                    {ar ? 'العملة' : 'Currency'}
+                  </Label>
+                  <Select value={currency} onValueChange={setCurrency}>
+                    <SelectTrigger id="currency" className="h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="KWD">KWD — Kuwaiti Dinar</SelectItem>
+                      <SelectItem value="SAR">SAR — Saudi Riyal</SelectItem>
+                      <SelectItem value="AED">AED — UAE Dirham</SelectItem>
+                      <SelectItem value="QAR">QAR — Qatari Riyal</SelectItem>
+                      <SelectItem value="BHD">BHD — Bahraini Dinar</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="currency">Currency</Label>
-                    <Select value={currency} onValueChange={setCurrency}>
-                      <SelectTrigger id="currency"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="KWD">KWD - Kuwaiti Dinar</SelectItem>
-                        <SelectItem value="SAR">SAR - Saudi Riyal</SelectItem>
-                        <SelectItem value="AED">AED - UAE Dirham</SelectItem>
-                        <SelectItem value="USD">USD - US Dollar</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="taxRate">Default Tax Rate (%)</Label>
-                    <Input id="taxRate" type="number" min="0" max="100" step="0.1" value={taxRate} onChange={e => setTaxRate(e.target.value)} placeholder="0" />
-                  </div>
-                </div>
+              </div>
+
+              {/* Address */}
+              <div className="grid gap-1.5">
+                <Label htmlFor="address" className="text-sm font-medium">
+                  <MapPin className="h-3.5 w-3.5 inline mr-1.5" />
+                  {ar ? 'العنوان' : 'Address'}
+                  {currentBranch && <span className="text-muted-foreground font-normal ml-1">({currentBranch.name})</span>}
+                </Label>
+                <Textarea id="address" value={address} onChange={e => setAddress(e.target.value)}
+                  placeholder={ar ? 'عنوان الفرع' : 'Branch address'} rows={2} className="resize-none" />
+              </div>
+
+              {/* Tax rate */}
+              <div className="grid gap-1.5 max-w-xs">
+                <Label htmlFor="taxRate" className="text-sm font-medium">
+                  {ar ? 'نسبة الضريبة الافتراضية (%)' : 'Default Tax Rate (%)'}
+                </Label>
+                <Input id="taxRate" type="number" min="0" max="100" step="0.1"
+                  value={taxRate} onChange={e => setTaxRate(e.target.value)} className="h-10" />
+                <p className="text-[11px] text-muted-foreground">{ar ? 'الكويت: 0% ضريبة قيمة مضافة' : 'Kuwait: 0% VAT'}</p>
               </div>
             </CardContent>
           </Card>
+          <SaveBar tab="business" onSave={handleSaveBusiness} />
         </TabsContent>
 
-        {/* Working Hours */}
-        <TabsContent value="hours" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Working Hours</CardTitle>
-              <CardDescription>Set your salon's operating hours for {currentBranch?.name || 'this branch'}</CardDescription>
+        {/* ── Working Hours ── */}
+        <TabsContent value="hours" className="space-y-5">
+          <Card className="border">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">{ar ? 'ساعات العمل' : 'Working Hours'}</CardTitle>
+              <CardDescription className="text-xs">
+                {currentBranch
+                  ? (ar ? `إعداد أوقات العمل لـ ${currentBranch.name}` : `Set operating hours for ${currentBranch.name}`)
+                  : (ar ? 'ساعات العمل الافتراضية' : 'Default operating hours')}
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="openTime">Opening Time</Label>
-                  <Input id="openTime" type="time" value={openTime} onChange={e => setOpenTime(e.target.value)} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="closeTime">Closing Time</Label>
-                  <Input id="closeTime" type="time" value={closeTime} onChange={e => setCloseTime(e.target.value)} />
+            <CardContent className="space-y-5">
+              {/* Open / close times */}
+              <div>
+                <p className="text-sm font-semibold mb-3">{ar ? 'وقت الافتتاح والإغلاق' : 'Opening & Closing Time'}</p>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="openTime" className="text-sm">{ar ? 'وقت الافتتاح' : 'Opening Time'}</Label>
+                    <Input id="openTime" type="time" value={openTime} onChange={e => setOpenTime(e.target.value)} className="h-10" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="closeTime" className="text-sm">{ar ? 'وقت الإغلاق' : 'Closing Time'}</Label>
+                    <Input id="closeTime" type="time" value={closeTime} onChange={e => setCloseTime(e.target.value)} className="h-10" />
+                  </div>
                 </div>
               </div>
+
               <Separator />
+
+              {/* Working days — real controlled state */}
               <div>
-                <h4 className="font-medium mb-4">Weekly Schedule</h4>
-                <div className="space-y-3">
-                  {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => (
-                    <div key={day} className="flex items-center justify-between py-2 px-3 rounded-lg border">
+                <p className="text-sm font-semibold mb-3">{ar ? 'أيام العمل الأسبوعية' : 'Weekly Working Days'}</p>
+                <div className="space-y-2">
+                  {DAYS.map(day => (
+                    <div key={day.key}
+                      className={cn(
+                        'flex items-center justify-between py-3 px-4 rounded-xl border transition-colors',
+                        workingDays[day.key]
+                          ? 'border-primary/30 bg-primary/5'
+                          : 'border-border bg-card opacity-60'
+                      )}
+                    >
                       <div className="flex items-center gap-3">
-                        <Switch defaultChecked={day !== 'Friday'} />
-                        <span className="font-medium">{day}</span>
+                        <Switch
+                          checked={workingDays[day.key] ?? false}
+                          onCheckedChange={() => toggleDay(day.key)}
+                        />
+                        <span className="font-medium text-sm">{ar ? day.ar : day.en}</span>
                       </div>
-                      <span className="text-sm text-muted-foreground">
-                        {day === 'Friday' ? 'Closed' : `${openTime} - ${closeTime}`}
+                      <span className="text-xs text-muted-foreground">
+                        {workingDays[day.key]
+                          ? `${openTime} — ${closeTime}`
+                          : (ar ? 'مغلق' : 'Closed')}
                       </span>
                     </div>
                   ))}
@@ -242,92 +526,102 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+          <SaveBar tab="hours" onSave={handleSaveHours} />
         </TabsContent>
 
-        {/* Notifications */}
-        <TabsContent value="notifications" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
-              <CardDescription>Manage how you receive notifications</CardDescription>
+        {/* ── Notifications ── */}
+        <TabsContent value="notifications" className="space-y-5">
+          <Card className="border">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">{ar ? 'تفضيلات الإشعارات' : 'Notification Preferences'}</CardTitle>
+              <CardDescription className="text-xs">{ar ? 'إدارة كيفية تلقي الإشعارات' : 'Manage how you receive notifications'}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                {[
-                  { label: 'Email Notifications', desc: 'Receive booking updates via email', val: emailNotifications, set: setEmailNotifications },
-                  { label: 'SMS Notifications', desc: 'Receive important alerts via SMS', val: smsNotifications, set: setSmsNotifications },
-                  { label: 'Booking Reminders', desc: 'Send reminders to clients before appointments', val: bookingReminders, set: setBookingReminders },
-                  { label: 'Marketing Emails', desc: 'Receive product updates and offers', val: marketingEmails, set: setMarketingEmails },
-                ].map(({ label, desc, val, set }, i) => (
-                  <div key={label}>
-                    {i > 0 && <Separator className="mb-4" />}
-                    <div className="flex items-center justify-between py-2">
-                      <div>
-                        <p className="font-medium">{label}</p>
-                        <p className="text-sm text-muted-foreground">{desc}</p>
-                      </div>
-                      <Switch checked={val} onCheckedChange={set} />
+            <CardContent className="space-y-1">
+              {[
+                {
+                  label:  { en: 'Email Notifications',    ar: 'إشعارات البريد الإلكتروني' },
+                  desc:   { en: 'Receive booking updates via email', ar: 'تلقي تحديثات الحجوزات عبر البريد' },
+                  val: emailNotif, set: setEmailNotif,
+                },
+                {
+                  label:  { en: 'SMS Notifications',      ar: 'إشعارات الرسائل النصية' },
+                  desc:   { en: 'Receive important alerts via SMS', ar: 'تلقي تنبيهات مهمة عبر الرسائل' },
+                  val: smsNotif, set: setSmsNotif,
+                },
+                {
+                  label:  { en: 'Booking Reminders',      ar: 'تذكيرات الحجوزات' },
+                  desc:   { en: 'Send reminders to clients before appointments', ar: 'إرسال تذكيرات للعميلات قبل مواعيدهن' },
+                  val: bookingReminders, set: setBookingReminders,
+                },
+                {
+                  label:  { en: 'Marketing Emails',       ar: 'بريد تسويقي' },
+                  desc:   { en: 'Receive product updates and promotions', ar: 'تلقي تحديثات المنتجات والعروض' },
+                  val: marketingEmails, set: setMarketingEmails,
+                },
+              ].map(({ label, desc, val, set }, i) => (
+                <div key={label.en}>
+                  {i > 0 && <Separator className="my-1" />}
+                  <div className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="text-sm font-medium">{ar ? label.ar : label.en}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{ar ? desc.ar : desc.en}</p>
                     </div>
+                    <Switch checked={val} onCheckedChange={set} />
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
+          <SaveBar tab="notifications" onSave={handleSaveNotifications} />
         </TabsContent>
 
-        {/* Preferences */}
-        <TabsContent value="preferences" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Regional & Display Preferences</CardTitle>
-              <CardDescription>Customize your salon's regional settings</CardDescription>
+        {/* ── Preferences ── */}
+        <TabsContent value="preferences" className="space-y-5">
+          <Card className="border">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">{ar ? 'الإعدادات الإقليمية' : 'Regional & Display'}</CardTitle>
+              <CardDescription className="text-xs">{ar ? 'تخصيص إعدادات الصالون الإقليمية' : "Customize your salon's regional settings"}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-5">
               <div className="grid sm:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Currency</Label>
+                <div className="grid gap-1.5">
+                  <Label className="text-sm font-medium">{ar ? 'العملة' : 'Currency'}</Label>
                   <Select value={currency} onValueChange={setCurrency}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="KWD">KWD - Kuwaiti Dinar</SelectItem>
-                      <SelectItem value="SAR">SAR - Saudi Riyal</SelectItem>
-                      <SelectItem value="AED">AED - UAE Dirham</SelectItem>
-                      <SelectItem value="USD">USD - US Dollar</SelectItem>
+                      <SelectItem value="KWD">KWD — Kuwaiti Dinar</SelectItem>
+                      <SelectItem value="SAR">SAR — Saudi Riyal</SelectItem>
+                      <SelectItem value="AED">AED — UAE Dirham</SelectItem>
+                      <SelectItem value="QAR">QAR — Qatari Riyal</SelectItem>
+                      <SelectItem value="BHD">BHD — Bahraini Dinar</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid gap-2">
-                  <Label>Timezone</Label>
+                <div className="grid gap-1.5">
+                  <Label className="text-sm font-medium">{ar ? 'المنطقة الزمنية' : 'Timezone'}</Label>
                   <Select defaultValue="Asia/Kuwait">
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Asia/Kuwait">Asia/Kuwait (GMT+3)</SelectItem>
                       <SelectItem value="Asia/Riyadh">Asia/Riyadh (GMT+3)</SelectItem>
                       <SelectItem value="Asia/Dubai">Asia/Dubai (GMT+4)</SelectItem>
+                      <SelectItem value="Asia/Qatar">Asia/Qatar (GMT+3)</SelectItem>
+                      <SelectItem value="Asia/Bahrain">Asia/Bahrain (GMT+3)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              <Separator />
-              <div>
-                <h4 className="font-medium mb-4">Theme</h4>
-                <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1"><Palette className="h-4 w-4 mr-2" />Light</Button>
-                  <Button variant="outline" className="flex-1"><Palette className="h-4 w-4 mr-2" />Dark</Button>
-                  <Button variant="outline" className="flex-1"><Palette className="h-4 w-4 mr-2" />System</Button>
-                </div>
+
+              <div className="p-3 rounded-xl bg-muted/40 border border-border text-xs text-muted-foreground">
+                {ar
+                  ? 'ملاحظة: تغيير العملة هنا يؤثر على عرض المبالغ في جميع أنحاء النظام. لا يغير المبالغ المحفوظة في قاعدة البيانات.'
+                  : 'Note: Changing currency affects how amounts are displayed throughout the system. It does not convert existing amounts in the database.'}
               </div>
             </CardContent>
           </Card>
+          <SaveBar tab="preferences" onSave={handleSavePreferences} />
         </TabsContent>
       </Tabs>
-
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving}>
-          <Save className="h-4 w-4 mr-2" />
-          {saving ? 'Saving...' : 'Save Changes'}
-        </Button>
-      </div>
     </div>
   );
 }
