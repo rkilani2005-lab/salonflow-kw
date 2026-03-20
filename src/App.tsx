@@ -41,6 +41,7 @@ import GeneralLedger from "./pages/finance/GeneralLedger";
 import CheckRegister from "./pages/finance/CheckRegister";
 import LoanManager from "./pages/finance/LoanManager";
 import ChartOfAccounts from "./pages/finance/ChartOfAccounts";
+import DaySession from "./pages/DaySession";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -106,6 +107,7 @@ const App = () => (
                 <Route path="/staff" element={<Staff />} />
                 <Route path="/services" element={<Services />} />
                 <Route path="/pos" element={<POS />} />
+                <Route path="/day-session" element={<DaySession />} />
                 <Route path="/inventory" element={<Inventory />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
