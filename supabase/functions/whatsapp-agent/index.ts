@@ -13,7 +13,7 @@ interface AgentRequest {
   audioUrl?: string;
   messageId?: string;
   timestamp?: string;
-  tenantId?: string; // For simulator mode
+  tenantId?: string;
   simulatorMode?: boolean;
 }
 
@@ -22,10 +22,10 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+  const SUPABASE_URL             = Deno.env.get("SUPABASE_URL");
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  const WHATSAPP_BUSINESS_TOKEN = Deno.env.get("WHATSAPP_BUSINESS_TOKEN");
+  const LOVABLE_API_KEY          = Deno.env.get("LOVABLE_API_KEY");
+  const WHATSAPP_BUSINESS_TOKEN  = Deno.env.get("WHATSAPP_BUSINESS_TOKEN");
   const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !LOVABLE_API_KEY) {
@@ -44,37 +44,23 @@ serve(async (req) => {
 
     console.log(`Processing message from ${phoneNumber}: ${messageContent}`);
 
-    // Find tenant configuration for this phone number (or use provided tenantId for simulator)
-    let config;
+    // ── Find tenant config ────────────────────────────────────
+    let config: any;
     let effectiveTenantId = tenantId;
 
     if (simulatorMode && tenantId) {
-      // Simulator mode - use provided tenant ID
       const { data: configData } = await supabase
-        .from("whatsapp_config")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .single();
+        .from("whatsapp_config").select("*").eq("tenant_id", tenantId).single();
       config = configData;
     } else {
-      // Real webhook - find tenant by phone config
       const { data: configs } = await supabase
-        .from("whatsapp_config")
-        .select("*")
-        .eq("is_enabled", true);
-
-      // Find the config where this phone is in owner/staff list, or any enabled tenant for customer
+        .from("whatsapp_config").select("*").eq("is_enabled", true);
       if (configs) {
         for (const c of configs) {
           const isOwner = c.owner_phone_numbers?.includes(phoneNumber);
           const isStaff = c.staff_phone_numbers?.includes(phoneNumber);
-          if (isOwner || isStaff) {
-            config = c;
-            effectiveTenantId = c.tenant_id;
-            break;
-          }
+          if (isOwner || isStaff) { config = c; effectiveTenantId = c.tenant_id; break; }
         }
-        // If not found as owner/staff, use first enabled config (customer)
         if (!config && configs.length > 0) {
           config = configs[0];
           effectiveTenantId = configs[0].tenant_id;
@@ -83,22 +69,18 @@ serve(async (req) => {
     }
 
     if (!effectiveTenantId) {
-      return new Response(JSON.stringify({ 
+      return new Response(JSON.stringify({
         error: "No WhatsApp configuration found",
-        reply: "Sorry, this service is not configured. Please contact support."
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+        reply: "Sorry, this service is not configured. Please contact support.",
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Determine if this is an admin (owner/staff) or customer
     const isOwner = config?.owner_phone_numbers?.includes(phoneNumber) || simulatorMode;
     const isStaff = config?.staff_phone_numbers?.includes(phoneNumber);
     const isAdmin = isOwner || isStaff;
     const conversationType = isAdmin ? "admin" : "customer";
 
-    // Get or create conversation
+    // ── Get or create conversation ────────────────────────────
     let { data: conversation } = await supabase
       .from("whatsapp_conversations")
       .select("*")
@@ -107,7 +89,7 @@ serve(async (req) => {
       .single();
 
     if (!conversation) {
-      const { data: newConversation, error: createError } = await supabase
+      const { data: newConversation } = await supabase
         .from("whatsapp_conversations")
         .insert({
           tenant_id: effectiveTenantId,
@@ -115,16 +97,11 @@ serve(async (req) => {
           conversation_type: conversationType,
           conversation_state: {},
         })
-        .select()
-        .single();
-
-      if (createError) {
-        console.error("Error creating conversation:", createError);
-      }
+        .select().single();
       conversation = newConversation;
     }
 
-    // Save incoming message
+    // ── Save incoming message ─────────────────────────────────
     const detectedLanguage = detectLanguage(messageContent);
     await supabase.from("whatsapp_messages").insert({
       conversation_id: conversation?.id,
@@ -137,7 +114,7 @@ serve(async (req) => {
       metadata: {},
     });
 
-    // Get conversation history for context
+    // ── Get message history ───────────────────────────────────
     const { data: messageHistory } = await supabase
       .from("whatsapp_messages")
       .select("*")
@@ -145,10 +122,11 @@ serve(async (req) => {
       .order("created_at", { ascending: true })
       .limit(20);
 
-    // Build context for AI
+    // ── Build context ─────────────────────────────────────────
     const contextData = await buildContext(supabase, effectiveTenantId, isAdmin);
 
-    // Generate AI response
+    // ── Generate AI response ─────────────────────────────────
+    // Pass supabase + tenantId so tool handlers can write to DB
     const aiResponse = await generateAIResponse(
       LOVABLE_API_KEY,
       messageContent,
@@ -156,10 +134,12 @@ serve(async (req) => {
       isAdmin,
       contextData,
       messageHistory || [],
-      conversation?.conversation_state || {}
+      conversation?.conversation_state || {},
+      supabase,
+      effectiveTenantId
     );
 
-    // Save outgoing message
+    // ── Save outgoing message ─────────────────────────────────
     await supabase.from("whatsapp_messages").insert({
       conversation_id: conversation?.id,
       direction: "outbound",
@@ -169,20 +149,17 @@ serve(async (req) => {
       metadata: aiResponse.metadata || {},
     });
 
-    // Update conversation state
+    // ── Update conversation state ─────────────────────────────
     if (aiResponse.newState) {
-      await supabase
-        .from("whatsapp_conversations")
-        .update({
-          conversation_state: aiResponse.newState,
-          last_message_at: new Date().toISOString(),
-          needs_human_intervention: aiResponse.needsHuman || false,
-          intervention_reason: aiResponse.interventionReason || null,
-        })
-        .eq("id", conversation?.id);
+      await supabase.from("whatsapp_conversations").update({
+        conversation_state: aiResponse.newState,
+        last_message_at: new Date().toISOString(),
+        needs_human_intervention: aiResponse.needsHuman || false,
+        intervention_reason: aiResponse.interventionReason || null,
+      }).eq("id", conversation?.id);
     }
 
-    // Send reply via WhatsApp (only if not in simulator mode)
+    // ── Send via WhatsApp if not simulator ────────────────────
     if (!simulatorMode && WHATSAPP_BUSINESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID) {
       await sendWhatsAppMessage(
         WHATSAPP_BUSINESS_TOKEN,
@@ -198,10 +175,8 @@ serve(async (req) => {
       language: detectedLanguage,
       conversationType,
       metadata: aiResponse.metadata,
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
   } catch (error) {
     console.error("Agent error:", error);
     const msg = error instanceof Error ? error.message : String(error);
@@ -212,43 +187,38 @@ serve(async (req) => {
   }
 });
 
+// ── Helpers ───────────────────────────────────────────────────
+
 function detectLanguage(text: string): "en" | "ar" {
-  // Simple Arabic detection based on character range
   const arabicPattern = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
   return arabicPattern.test(text) ? "ar" : "en";
 }
 
 async function buildContext(supabase: any, tenantId: string, isAdmin: boolean) {
-  const context: any = {};
+  const context: any = { tenantId };
 
-  // Get services
   const { data: services } = await supabase
-    .from("services")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .eq("is_active", true);
+    .from("services").select("*").eq("is_active", true);
   context.services = services || [];
 
-  // Get staff
   const { data: staff } = await supabase
-    .from("staff")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .eq("is_active", true);
+    .from("staff").select("*").eq("is_active", true);
   context.staff = staff || [];
 
-  // Get today's bookings
+  // Get first active branch for booking
+  const { data: branches } = await supabase
+    .from("branches").select("*").eq("tenant_id", tenantId).eq("is_active", true).limit(1);
+  context.branch = branches?.[0] || null;
+
   const today = new Date().toISOString().split("T")[0];
   const { data: todayBookings } = await supabase
-    .from("bookings")
-    .select("*")
+    .from("bookings").select("*")
     .gte("booking_date", today)
     .order("booking_date", { ascending: true })
     .limit(50);
   context.upcomingBookings = todayBookings || [];
 
   if (isAdmin) {
-    // Get revenue data for admin queries
     const { data: revenueData } = await supabase
       .from("bookings")
       .select("price, booking_date, status, service_name, client_name")
@@ -256,19 +226,13 @@ async function buildContext(supabase: any, tenantId: string, isAdmin: boolean) {
       .gte("booking_date", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]);
     context.revenueData = revenueData || [];
 
-    // Get expenses
     const { data: expenses } = await supabase
-      .from("expenses")
-      .select("*")
-      .eq("tenant_id", tenantId)
+      .from("expenses").select("*").eq("tenant_id", tenantId)
       .gte("expense_date", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]);
     context.expenses = expenses || [];
 
-    // Get client stats
     const { data: clients } = await supabase
-      .from("clients")
-      .select("*")
-      .eq("tenant_id", tenantId);
+      .from("clients").select("*").eq("tenant_id", tenantId);
     context.clients = clients || [];
   }
 
@@ -282,7 +246,9 @@ async function generateAIResponse(
   isAdmin: boolean,
   context: any,
   history: any[],
-  currentState: any
+  currentState: any,
+  supabase: any,
+  tenantId: string
 ) {
   const systemPrompt = isAdmin
     ? buildAdminSystemPrompt(language, context)
@@ -290,7 +256,7 @@ async function generateAIResponse(
 
   const messages = [
     { role: "system", content: systemPrompt },
-    ...history.slice(-10).map((m) => ({
+    ...history.slice(-10).map((m: any) => ({
       role: m.direction === "inbound" ? "user" : "assistant",
       content: m.message_content,
     })),
@@ -320,9 +286,15 @@ async function generateAIResponse(
   const data = await response.json();
   const assistantMessage = data.choices?.[0]?.message;
 
-  // Handle tool calls if present
   if (assistantMessage?.tool_calls) {
-    const toolResults = await processToolCalls(assistantMessage.tool_calls, context, currentState);
+    // ── Now passing supabase + tenantId into processToolCalls ──
+    const toolResults = await processToolCalls(
+      assistantMessage.tool_calls,
+      context,
+      currentState,
+      supabase,
+      tenantId
+    );
     return {
       reply: toolResults.reply,
       messageType: toolResults.messageType || "text",
@@ -341,231 +313,232 @@ async function generateAIResponse(
   };
 }
 
-function buildAdminSystemPrompt(language: "en" | "ar", context: any) {
-  const lang = language === "ar" ? "Arabic" : "English";
-  const today = new Date().toISOString().split("T")[0];
-  
-  // Calculate today's revenue
-  const todayRevenue = context.revenueData
-    ?.filter((b: any) => b.booking_date === today)
-    ?.reduce((sum: number, b: any) => sum + (b.price || 0), 0) || 0;
-  
-  const todayAppointments = context.upcomingBookings?.filter((b: any) => b.booking_date === today)?.length || 0;
+// ── Tool handlers (the actual DB work happens here) ───────────
 
-  return `You are ZAINA, the AI business intelligence assistant for a salon management system. You MUST respond in ${lang}.
-
-CURRENT DATA (${today}):
-- Today's Revenue: ${todayRevenue} KWD
-- Today's Appointments: ${todayAppointments}
-- Total Active Services: ${context.services?.length || 0}
-- Total Active Staff: ${context.staff?.length || 0}
-- Clients in database: ${context.clients?.length || 0}
-
-RECENT BOOKINGS (last 30 days): ${JSON.stringify(context.revenueData?.slice(0, 20) || [])}
-EXPENSES (last 30 days): ${JSON.stringify(context.expenses?.slice(0, 10) || [])}
-TOP SERVICES: ${context.services?.map((s: any) => `${s.name}: ${s.price} KWD`).join(", ")}
-
-You can answer questions about:
-- Revenue (daily, weekly, monthly summaries)
-- Appointments and bookings
-- Popular services and staff performance
-- Client insights and repeat customers
-- Expense tracking
-
-Format financial data clearly with KWD currency. Use emojis for visual appeal (📊 💰 📈 📉).
-${language === "ar" ? "Use Arabic numerals and RTL-friendly formatting." : ""}`;
-}
-
-function buildCustomerSystemPrompt(language: "en" | "ar", context: any) {
-  const lang = language === "ar" ? "Arabic" : "English";
-  const servicesList = context.services
-    ?.map((s: any) => `- ${s.name}${s.name_ar ? ` (${s.name_ar})` : ""}: ${s.price} KWD, ${s.duration} min`)
-    .join("\n") || "No services available";
-
-  return `You are ZAINA, the friendly booking assistant for a salon. You MUST respond in ${lang}.
-
-${language === "ar" ? "أهلاً وسهلاً! أنا زينة، مساعدتك لحجز المواعيد." : "Welcome! I'm ZAINA, your booking assistant."}
-
-AVAILABLE SERVICES:
-${servicesList}
-
-AVAILABLE STAFF:
-${context.staff?.map((s: any) => s.name).join(", ") || "Any available stylist"}
-
-YOUR TASKS:
-1. Help customers book appointments
-2. Answer questions about services and prices
-3. Help reschedule or cancel existing bookings
-4. Provide salon information
-
-BOOKING FLOW:
-1. Ask which service they want
-2. Ask preferred date and time
-3. Offer 2-3 available slots
-4. Confirm the booking
-
-Be warm, professional, and helpful. Use emojis sparingly (💇‍♀️ 💅 ✨).
-If you cannot understand after 2 attempts, say you'll connect them with a team member.`;
-}
-
-function getAdminTools() {
-  return [
-    {
-      type: "function",
-      function: {
-        name: "get_revenue_report",
-        description: "Generate a revenue report for a specific period",
-        parameters: {
-          type: "object",
-          properties: {
-            period: { type: "string", enum: ["today", "week", "month"] },
-          },
-          required: ["period"],
-        },
-      },
-    },
-    {
-      type: "function",
-      function: {
-        name: "get_top_clients",
-        description: "Get the top customers by visit count",
-        parameters: {
-          type: "object",
-          properties: {
-            limit: { type: "number", default: 5 },
-          },
-        },
-      },
-    },
-    {
-      type: "function",
-      function: {
-        name: "get_popular_services",
-        description: "Get the most popular services",
-        parameters: {
-          type: "object",
-          properties: {
-            limit: { type: "number", default: 5 },
-          },
-        },
-      },
-    },
-  ];
-}
-
-function getCustomerTools() {
-  return [
-    {
-      type: "function",
-      function: {
-        name: "check_availability",
-        description: "Check available appointment slots",
-        parameters: {
-          type: "object",
-          properties: {
-            service_name: { type: "string" },
-            preferred_date: { type: "string" },
-          },
-          required: ["service_name"],
-        },
-      },
-    },
-    {
-      type: "function",
-      function: {
-        name: "create_booking",
-        description: "Create a new appointment booking",
-        parameters: {
-          type: "object",
-          properties: {
-            service_name: { type: "string" },
-            date: { type: "string" },
-            time: { type: "string" },
-            client_name: { type: "string" },
-            client_phone: { type: "string" },
-          },
-          required: ["service_name", "date", "time"],
-        },
-      },
-    },
-    {
-      type: "function",
-      function: {
-        name: "request_human",
-        description: "Request human assistance when unable to help",
-        parameters: {
-          type: "object",
-          properties: {
-            reason: { type: "string" },
-          },
-          required: ["reason"],
-        },
-      },
-    },
-  ];
-}
-
-async function processToolCalls(toolCalls: any[], context: any, currentState: any) {
-  // Process tool calls and return appropriate response
+async function processToolCalls(
+  toolCalls: any[],
+  context: any,
+  currentState: any,
+  supabase: any,
+  tenantId: string
+) {
   for (const call of toolCalls) {
     const functionName = call.function?.name;
-    const args = JSON.parse(call.function?.arguments || "{}");
+    let args: any = {};
+    try { args = JSON.parse(call.function?.arguments || "{}"); } catch {}
 
+    // ── get_revenue_report ────────────────────────────────────
     if (functionName === "get_revenue_report") {
-      const period = args.period;
+      const period = args.period || "today";
       const today = new Date();
-      let startDate: Date;
+      const startDate = period === "today" ? today
+        : period === "week"  ? new Date(today.getTime() - 7  * 86400000)
+        :                      new Date(today.getTime() - 30 * 86400000);
 
-      if (period === "today") {
-        startDate = today;
-      } else if (period === "week") {
-        startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-      } else {
-        startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-      }
-
-      const relevantBookings = context.revenueData?.filter((b: any) => 
-        new Date(b.booking_date) >= startDate
-      ) || [];
-
-      const totalRevenue = relevantBookings.reduce((sum: number, b: any) => sum + (b.price || 0), 0);
-      const count = relevantBookings.length;
+      const relevant = context.revenueData?.filter((b: any) =>
+        new Date(b.booking_date) >= startDate) || [];
+      const total = relevant.reduce((s: number, b: any) => s + (b.price || 0), 0);
+      const count = relevant.length;
 
       return {
-        reply: `📊 *Revenue Report (${period})*\n\n💰 Total Revenue: ${totalRevenue} KWD\n📅 Appointments: ${count}\n💵 Avg per booking: ${count > 0 ? (totalRevenue / count).toFixed(2) : 0} KWD`,
+        reply: `📊 *Revenue Report (${period})*\n\n💰 Total: ${total} KWD\n📅 Appointments: ${count}\n💵 Avg: ${count > 0 ? (total / count).toFixed(3) : "0.000"} KWD`,
         messageType: "report",
-        metadata: { type: "revenue", period, total: totalRevenue, count },
+        metadata: { type: "revenue", period, total, count },
         newState: currentState,
       };
     }
 
+    // ── get_top_clients ───────────────────────────────────────
+    if (functionName === "get_top_clients") {
+      const top = [...(context.clients || [])]
+        .sort((a: any, b: any) => (b.visit_count || 0) - (a.visit_count || 0))
+        .slice(0, args.limit || 5);
+      const list = top.map((c: any, i: number) => `${i + 1}. ${c.name} — ${c.visit_count || 0} visits`).join("\n");
+      return {
+        reply: `👑 *Top Clients*\n\n${list || "No data yet."}`,
+        messageType: "text",
+        metadata: {},
+        newState: currentState,
+      };
+    }
+
+    // ── check_availability ────────────────────────────────────
+    // FIXED: queries real bookings to find free slots
+    if (functionName === "check_availability") {
+      const serviceName = args.service_name || "";
+      const service = context.services?.find((s: any) =>
+        s.name.toLowerCase().includes(serviceName.toLowerCase())
+      );
+      const duration = service?.duration || 60;
+
+      // Build next 3 working days
+      const slots: string[] = [];
+      const now = new Date();
+      let checkDate = new Date(now);
+
+      while (slots.length < 3) {
+        checkDate.setDate(checkDate.getDate() + 1);
+        const dateStr = checkDate.toISOString().split("T")[0];
+        const dayBookings = context.upcomingBookings?.filter(
+          (b: any) => b.booking_date === dateStr && !["cancelled", "no_show"].includes(b.status)
+        ) || [];
+
+        // Try hours 9–20 in 30-min steps
+        for (let h = 9; h < 20 && slots.length < 3; h++) {
+          for (const m of [0, 30]) {
+            const startMin = h * 60 + m;
+            const endMin   = startMin + duration;
+            const timeStr  = `${h.toString().padStart(2,"0")}:${m === 0 ? "00" : "30"}`;
+
+            // Check no overlap with existing bookings
+            const busy = dayBookings.some((b: any) => {
+              const bStart = toMinutes(b.start_time);
+              const bEnd   = toMinutes(b.end_time);
+              return startMin < bEnd && endMin > bStart;
+            });
+
+            if (!busy) {
+              const d = new Date(checkDate);
+              const label = d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
+              slots.push(`${label} at ${timeStr}`);
+            }
+          }
+        }
+      }
+
+      const svcLabel = service?.name || serviceName;
+      const lines = slots.map((s, i) => `${["1️⃣","2️⃣","3️⃣"][i]} ${s}`).join("\n");
+
+      return {
+        reply: `Great choice! Here are available slots for *${svcLabel}* (${duration} min):\n\n${lines}\n\nWhich slot works for you? 😊`,
+        messageType: "booking_offer",
+        metadata: { slots, service: svcLabel, duration },
+        newState: { ...currentState, step: "select_slot", service: svcLabel, serviceId: service?.id, serviceDuration: duration, servicePrice: service?.price },
+      };
+    }
+
+    // ── create_booking ────────────────────────────────────────
+    // FIXED: actually writes to clients + bookings tables
+    if (functionName === "create_booking") {
+      const clientName  = args.client_name  || "Guest";
+      const clientPhone = args.client_phone || "";
+      const serviceName = args.service_name || currentState?.service || "";
+      const dateStr     = args.date || new Date(Date.now() + 86400000).toISOString().split("T")[0];
+      const timeStr     = args.time || "10:00";
+
+      // Normalise time to HH:MM
+      const timeParts = timeStr.match(/(\d{1,2}):(\d{2})/);
+      const startTime = timeParts
+        ? `${timeParts[1].padStart(2,"0")}:${timeParts[2]}`
+        : "10:00";
+
+      // Look up service from context or DB
+      let service = context.services?.find((s: any) =>
+        s.name.toLowerCase().includes(serviceName.toLowerCase())
+      );
+      if (!service && currentState?.serviceId) {
+        service = context.services?.find((s: any) => s.id === currentState.serviceId);
+      }
+
+      const duration = service?.duration || currentState?.serviceDuration || 60;
+      const price    = service?.price    || currentState?.servicePrice    || 0;
+      const [endH, endM] = (() => {
+        const [sh, sm] = startTime.split(":").map(Number);
+        const total = sh * 60 + sm + duration;
+        return [Math.floor(total / 60), total % 60];
+      })();
+      const endTime = `${endH.toString().padStart(2,"0")}:${endM.toString().padStart(2,"0")}`;
+
+      // Pick first available staff
+      const staffMember = context.staff?.[0];
+
+      // 1. Find or create client record
+      let clientId: string | null = null;
+      if (clientPhone) {
+        const { data: existing } = await supabase
+          .from("clients")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("phone", clientPhone)
+          .maybeSingle();
+
+        if (existing) {
+          clientId = existing.id;
+        } else {
+          const { data: newClient, error: clientErr } = await supabase
+            .from("clients")
+            .insert({
+              tenant_id: tenantId,
+              name:       clientName,
+              phone:      clientPhone,
+              tier:       "normal",
+            })
+            .select("id")
+            .single();
+
+          if (clientErr) {
+            console.error("Error creating client:", clientErr);
+          } else {
+            clientId = newClient.id;
+          }
+        }
+      }
+
+      // 2. Create booking
+      const { data: booking, error: bookingErr } = await supabase
+        .from("bookings")
+        .insert({
+          tenant_id:        tenantId,
+          client_id:        clientId,
+          client_name:      clientName,
+          client_phone:     clientPhone,
+          staff_id:         staffMember?.id || null,
+          service_id:       service?.id || null,
+          service_name:     service?.name || serviceName,
+          service_category: service?.category || "other",
+          booking_date:     dateStr,
+          start_time:       startTime,
+          end_time:         endTime,
+          duration,
+          price,
+          status:           "confirmed",
+          notes:            "Booked via WhatsApp AI Agent",
+        })
+        .select("id")
+        .single();
+
+      if (bookingErr) {
+        console.error("Error creating booking:", bookingErr);
+        return {
+          reply: `Sorry, I had trouble saving the booking. Please call us directly or try again. 🙏`,
+          messageType: "text",
+          metadata: {},
+          newState: currentState,
+        };
+      }
+
+      console.log(`✅ Booking created: ${booking.id} for ${clientName} on ${dateStr} at ${startTime}`);
+
+      const dateLabel = new Date(dateStr).toLocaleDateString("en-GB", {
+        weekday: "long", day: "numeric", month: "long"
+      });
+
+      return {
+        reply: `✅ *Booking Confirmed!*\n\nHi ${clientName}! Your appointment is all set:\n\n📋 *Service:* ${service?.name || serviceName}\n📅 *Date:* ${dateLabel}\n🕐 *Time:* ${startTime}\n${staffMember ? `💇‍♀️ *Stylist:* ${staffMember.name}\n` : ""}💰 *Price:* ${Number(price).toFixed(3)} KWD\n\nWe look forward to seeing you! Reply if you need to make any changes. 😊`,
+        messageType: "booking_confirmed",
+        metadata: { bookingId: booking.id, clientId, date: dateStr, time: startTime },
+        newState: { ...currentState, step: "booked", bookingId: booking.id },
+      };
+    }
+
+    // ── request_human ─────────────────────────────────────────
     if (functionName === "request_human") {
       return {
-        reply: "I'm connecting you with our team. They'll respond shortly! 🙏\n\nسأوصلك بفريقنا. سيردون عليك قريباً!",
+        reply: "I'm connecting you with our team right away. They'll respond shortly! 🙏\n\nسأوصلك بفريقنا الآن. سيردون عليك قريباً!",
         messageType: "handoff",
         newState: currentState,
         needsHuman: true,
         interventionReason: args.reason || "Customer requested human assistance",
-      };
-    }
-
-    if (functionName === "check_availability") {
-      // Return mock availability for now
-      const service = context.services?.find((s: any) => 
-        s.name.toLowerCase().includes(args.service_name?.toLowerCase() || "")
-      );
-      
-      const slots = [
-        "Tomorrow 10:00 AM",
-        "Tomorrow 2:00 PM", 
-        "Wednesday 11:00 AM"
-      ];
-
-      return {
-        reply: `Great choice! Here are available slots for ${service?.name || args.service_name}:\n\n1️⃣ ${slots[0]}\n2️⃣ ${slots[1]}\n3️⃣ ${slots[2]}\n\nWhich one works for you?`,
-        messageType: "booking_offer",
-        metadata: { slots, service: service?.name },
-        newState: { ...currentState, step: "select_slot", service: service?.name },
       };
     }
   }
@@ -577,16 +550,130 @@ async function processToolCalls(toolCalls: any[], context: any, currentState: an
   };
 }
 
+// ── System prompts ─────────────────────────────────────────────
+
+function buildAdminSystemPrompt(language: "en" | "ar", context: any) {
+  const lang = language === "ar" ? "Arabic" : "English";
+  const today = new Date().toISOString().split("T")[0];
+  const todayRevenue = context.revenueData?.filter((b: any) => b.booking_date === today)
+    ?.reduce((s: number, b: any) => s + (b.price || 0), 0) || 0;
+  const todayApts = context.upcomingBookings?.filter((b: any) => b.booking_date === today)?.length || 0;
+
+  return `You are ZAINA, the AI business intelligence assistant for a salon. Respond in ${lang}.
+
+TODAY (${today}): Revenue: ${todayRevenue} KWD · Appointments: ${todayApts}
+Staff: ${context.staff?.length || 0} · Clients: ${context.clients?.length || 0}
+Services: ${context.services?.map((s: any) => `${s.name}: ${s.price} KWD`).join(", ")}
+
+Use tools to answer questions about revenue, bookings, top clients, popular services.
+Format numbers with KWD currency. Use emojis for readability.`;
+}
+
+function buildCustomerSystemPrompt(language: "en" | "ar", context: any) {
+  const lang = language === "ar" ? "Arabic" : "English";
+  const servicesList = context.services
+    ?.map((s: any) => `- ${s.name}${s.name_ar ? ` (${s.name_ar})` : ""}: ${s.price} KWD, ${s.duration} min`)
+    .join("\n") || "No services available";
+
+  return `You are ZAINA, the friendly booking assistant for a salon. You MUST respond in ${lang}.
+
+AVAILABLE SERVICES:
+${servicesList}
+
+AVAILABLE STAFF: ${context.staff?.map((s: any) => s.name).join(", ") || "Any available stylist"}
+
+YOUR ROLE:
+1. Help customers book appointments — ALWAYS use the create_booking tool to save to the database
+2. Answer questions about services, prices, availability
+3. Use check_availability to show real open slots before booking
+4. If you cannot help after 2 attempts, use request_human
+
+BOOKING FLOW:
+1. Ask which service they want
+2. Call check_availability to show real open time slots
+3. Get client name and phone number
+4. Call create_booking with ALL details — this is MANDATORY to save the booking
+5. Confirm with the booking details
+
+CRITICAL: You MUST call the create_booking tool to save. Just saying "your booking is confirmed" without calling the tool does NOT save anything.
+
+Be warm, professional, use emojis sparingly (💇‍♀️ 💅 ✨).`;
+}
+
+// ── Tool definitions ──────────────────────────────────────────
+
+function getAdminTools() {
+  return [
+    { type: "function", function: { name: "get_revenue_report", description: "Generate revenue report", parameters: { type: "object", properties: { period: { type: "string", enum: ["today","week","month"] } }, required: ["period"] } } },
+    { type: "function", function: { name: "get_top_clients",    description: "Get top clients by visits", parameters: { type: "object", properties: { limit: { type: "number" } } } } },
+  ];
+}
+
+function getCustomerTools() {
+  return [
+    {
+      type: "function",
+      function: {
+        name: "check_availability",
+        description: "Check real available appointment slots for a service",
+        parameters: {
+          type: "object",
+          properties: {
+            service_name:   { type: "string", description: "Name of the service" },
+            preferred_date: { type: "string", description: "Preferred date YYYY-MM-DD (optional)" },
+          },
+          required: ["service_name"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "create_booking",
+        description: "SAVE a confirmed appointment to the database. MUST be called to actually create the booking.",
+        parameters: {
+          type: "object",
+          properties: {
+            service_name:  { type: "string",  description: "Service name" },
+            date:          { type: "string",  description: "Booking date YYYY-MM-DD" },
+            time:          { type: "string",  description: "Start time HH:MM" },
+            client_name:   { type: "string",  description: "Client full name" },
+            client_phone:  { type: "string",  description: "Client phone number" },
+          },
+          required: ["service_name", "date", "time", "client_name", "client_phone"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "request_human",
+        description: "Request human staff assistance",
+        parameters: {
+          type: "object",
+          properties: { reason: { type: "string" } },
+          required: ["reason"],
+        },
+      },
+    },
+  ];
+}
+
+// ── Utilities ─────────────────────────────────────────────────
+
+function toMinutes(timeStr: string): number {
+  if (!timeStr) return 0;
+  const m = timeStr.match(/(\d{1,2}):(\d{2})/);
+  return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : 0;
+}
+
 async function sendWhatsAppMessage(token: string, phoneNumberId: string, to: string, message: string) {
   try {
     const response = await fetch(
       `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
       {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           messaging_product: "whatsapp",
           to,
@@ -595,11 +682,7 @@ async function sendWhatsAppMessage(token: string, phoneNumberId: string, to: str
         }),
       }
     );
-
-    if (!response.ok) {
-      const error = await response.text();
-      console.error("WhatsApp send error:", error);
-    }
+    if (!response.ok) console.error("WhatsApp send error:", await response.text());
   } catch (error) {
     console.error("Failed to send WhatsApp message:", error);
   }
