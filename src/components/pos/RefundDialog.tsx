@@ -1,0 +1,489 @@
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Separator } from '@/components/ui/separator';
+import { AlertTriangle, RotateCcw, CheckCircle2, CreditCard, Banknote, Receipt } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+
+interface OriginalPayment {
+  id: string;
+  payment_method: string;
+  amount: number;
+}
+
+interface TransactionItem {
+  id: string;
+  item_type: string;
+  item_id: string;
+  item_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+}
+
+interface Transaction {
+  id: string;
+  grand_total: number;
+  subtotal: number;
+  tax_amount: number;
+  tip_amount: number;
+  discount_amount: number;
+  status: string;
+  client_id: string | null;
+  booking_id: string | null;
+  created_at: string;
+  transaction_payments: OriginalPayment[];
+  transaction_items: TransactionItem[];
+}
+
+interface RefundDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  transaction: Transaction | null;
+  onRefundComplete?: () => void;
+}
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash:        'Cash / نقداً',
+  knet:        'K-NET / كي نت',
+  credit_card: 'Credit Card / بطاقة ائتمان',
+  gift_card:   'Gift Card / بطاقة هدية',
+};
+
+const REFUND_REASONS = [
+  'Client dissatisfied with service',
+  'Service not delivered as promised',
+  'Double charge / billing error',
+  'Client changed mind',
+  'Medical reason',
+  'Wrong service charged',
+  'Product returned',
+  'Other',
+];
+
+type RefundType = 'full' | 'partial';
+
+export function RefundDialog({ open, onOpenChange, transaction, onRefundComplete }: RefundDialogProps) {
+  const { tenant } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const [refundType, setRefundType]       = useState<RefundType>('full');
+  const [partialAmount, setPartialAmount] = useState('');
+  const [refundMethod, setRefundMethod]   = useState('');
+  const [reason, setReason]               = useState('');
+  const [reasonDetail, setReasonDetail]   = useState('');
+  const [approverPin, setApproverPin]     = useState('');
+  const [step, setStep]                   = useState<'form' | 'confirm' | 'done'>('form');
+  const [processing, setProcessing]       = useState(false);
+  const [refundRef, setRefundRef]         = useState('');
+
+  // Reset on open
+  useEffect(() => {
+    if (open) {
+      setRefundType('full');
+      setPartialAmount('');
+      setReason('');
+      setReasonDetail('');
+      setApproverPin('');
+      setStep('form');
+      setProcessing(false);
+      // Default refund method to the largest original payment method
+      if (transaction?.transaction_payments?.length) {
+        const largest = [...transaction.transaction_payments]
+          .sort((a, b) => b.amount - a.amount)[0];
+        setRefundMethod(largest.payment_method);
+      }
+    }
+  }, [open, transaction]);
+
+  if (!transaction) return null;
+
+  const originalTotal  = Number(transaction.grand_total);
+  const refundAmount   = refundType === 'full'
+    ? originalTotal
+    : Math.min(parseFloat(partialAmount) || 0, originalTotal);
+  const currency       = tenant?.currency || 'KWD';
+  const isPartialValid = refundType === 'partial' && refundAmount > 0 && refundAmount <= originalTotal;
+  const canProceed     = refundAmount > 0 && reason && refundMethod &&
+                         (refundType === 'full' || isPartialValid);
+
+  const handleRefund = async () => {
+    if (!canProceed || !tenant) return;
+    setProcessing(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const isFullRefund = refundType === 'full' || refundAmount >= originalTotal;
+      const ref = `REF-${Date.now().toString(36).toUpperCase()}`;
+      setRefundRef(ref);
+
+      // 1. Update transaction status
+      await supabase
+        .from('transactions')
+        .update({
+          status: (isFullRefund ? 'refunded' : 'completed') as any,
+          notes: [
+            transaction.notes || '',
+            `REFUND ${ref}: ${refundAmount.toFixed(3)} ${currency} via ${refundMethod}. Reason: ${reason}${reasonDetail ? ' — ' + reasonDetail : ''}. By: ${user?.email}`,
+          ].filter(Boolean).join(' | '),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', transaction.id);
+
+      // 2. Insert a negative/reversal transaction for proper accounting
+      await supabase
+        .from('transactions')
+        .insert({
+          tenant_id: tenant.id,
+          client_id: transaction.client_id,
+          booking_id: null, // refund is not linked to booking directly
+          subtotal:       -(refundAmount),
+          discount_amount: 0,
+          tax_amount:      0,
+          tip_amount:      0,
+          grand_total:    -(refundAmount),
+          status:         'refunded' as any,
+          notes: `REFUND ${ref} for TXN ${transaction.id.slice(0, 8).toUpperCase()}. Reason: ${reason}${reasonDetail ? ' — ' + reasonDetail : ''}`,
+        });
+
+      // 3. Revert inventory for product items on full refund
+      if (isFullRefund) {
+        const productItems = transaction.transaction_items?.filter(i => i.item_type === 'product') || [];
+        for (const item of productItems) {
+          const { data: product } = await supabase
+            .from('products')
+            .select('current_stock')
+            .eq('id', item.item_id)
+            .single();
+
+          if (product) {
+            await supabase
+              .from('products')
+              .update({ current_stock: product.current_stock + item.quantity })
+              .eq('id', item.item_id);
+
+            await supabase
+              .from('inventory_transactions')
+              .insert({
+                tenant_id: tenant.id,
+                product_id: item.item_id,
+                quantity_change: item.quantity,
+                transaction_type: 'return' as any,
+                reference_id: transaction.id,
+                reference_type: 'refund',
+                notes: `Refund ${ref} — ${item.item_name} returned to stock`,
+              });
+          }
+        }
+
+        // 4. Revert booking status to cancelled on full refund
+        if (transaction.booking_id) {
+          await supabase
+            .from('bookings')
+            .update({ status: 'cancelled' as any })
+            .eq('id', transaction.booking_id);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings-calendar'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+
+      setStep('done');
+      toast({
+        title: `↩ Refund processed — ${ref}`,
+        description: `${refundAmount.toFixed(3)} ${currency} refunded via ${PAYMENT_METHOD_LABELS[refundMethod] || refundMethod}`,
+      });
+      onRefundComplete?.();
+    } catch (err: any) {
+      toast({ title: 'Refund failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // ── Done screen ──────────────────────────────────────────────
+  if (step === 'done') {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-sm">
+          <div className="flex flex-col items-center py-6 text-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+              <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-lg font-bold">Refund Complete</p>
+              <p className="text-sm text-muted-foreground mt-1">Reference: <span className="font-mono font-bold">{refundRef}</span></p>
+            </div>
+            <div className="w-full bg-muted/40 rounded-xl p-4 text-sm space-y-1.5 text-left">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amount refunded</span>
+                <span className="font-bold text-emerald-600">{refundAmount.toFixed(3)} {currency}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Refund method</span>
+                <span className="font-medium">{PAYMENT_METHOD_LABELS[refundMethod] || refundMethod}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Reason</span>
+                <span className="font-medium text-right max-w-[160px]">{reason}</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Hand {refundAmount.toFixed(3)} {currency} to the client{refundMethod === 'cash' ? ' in cash' : ` via ${refundMethod.replace('_',' ')}`}.
+            </p>
+            <Button className="w-full" onClick={() => onOpenChange(false)}>Done</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // ── Confirm screen ───────────────────────────────────────────
+  if (step === 'confirm') {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              Confirm Refund
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4 space-y-2 text-sm">
+              <div className="flex justify-between font-bold text-base">
+                <span>Refund amount</span>
+                <span className="text-amber-700 dark:text-amber-400">{refundAmount.toFixed(3)} {currency}</span>
+              </div>
+              <Separator className="bg-amber-200 dark:bg-amber-800" />
+              <div className="flex justify-between text-muted-foreground">
+                <span>Original sale</span>
+                <span>{originalTotal.toFixed(3)} {currency}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Refund via</span>
+                <span>{PAYMENT_METHOD_LABELS[refundMethod] || refundMethod}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Type</span>
+                <span>{refundType === 'full' ? 'Full refund' : 'Partial refund'}</span>
+              </div>
+              <div className="pt-1">
+                <span className="text-muted-foreground">Reason: </span>
+                <span className="font-medium">{reason}</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              This action will be logged against your account and cannot be undone.
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setStep('form')} disabled={processing}>
+              Back
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleRefund}
+              disabled={processing}
+              className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5 min-w-[120px]"
+            >
+              {processing ? (
+                <span className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <><RotateCcw className="h-3.5 w-3.5" />Process Refund</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // ── Main form ────────────────────────────────────────────────
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+              <RotateCcw className="h-4 w-4 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-base font-bold">Process Refund</p>
+              <p className="text-xs font-normal text-muted-foreground">
+                TXN #{transaction.id.slice(0, 8).toUpperCase()} · {format(new Date(transaction.created_at), 'dd MMM yyyy, h:mm a')}
+              </p>
+            </div>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-5 py-1">
+
+          {/* Original sale summary */}
+          <div className="rounded-xl bg-muted/40 border border-border p-3.5 space-y-1.5 text-sm">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Original Sale</p>
+            {transaction.transaction_items?.map(item => (
+              <div key={item.id} className="flex justify-between">
+                <span className="text-muted-foreground truncate max-w-[200px]">{item.item_name} × {item.quantity}</span>
+                <span className="font-medium">{Number(item.total_price).toFixed(3)}</span>
+              </div>
+            ))}
+            <Separator className="my-1" />
+            <div className="flex justify-between font-bold">
+              <span>Total paid</span>
+              <span>{originalTotal.toFixed(3)} {currency}</span>
+            </div>
+            <div className="flex gap-1.5 flex-wrap mt-1">
+              {transaction.transaction_payments?.map((p, i) => (
+                <Badge key={i} variant="outline" className="text-[10px] h-4 px-1.5 rounded-full">
+                  {PAYMENT_METHOD_LABELS[p.payment_method] || p.payment_method} — {Number(p.amount).toFixed(3)}
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          {/* Refund type */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold">Refund Type</Label>
+            <RadioGroup value={refundType} onValueChange={v => setRefundType(v as RefundType)} className="grid grid-cols-2 gap-2">
+              <Label htmlFor="full" className={cn(
+                'flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 cursor-pointer transition-all text-center',
+                refundType === 'full' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'
+              )}>
+                <RadioGroupItem value="full" id="full" className="sr-only" />
+                <Receipt className="h-5 w-5" />
+                <span className="text-sm font-semibold">Full Refund</span>
+                <span className="text-[11px] text-muted-foreground">{originalTotal.toFixed(3)} {currency}</span>
+              </Label>
+              <Label htmlFor="partial" className={cn(
+                'flex flex-col items-center gap-1.5 p-3.5 rounded-xl border-2 cursor-pointer transition-all text-center',
+                refundType === 'partial' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'
+              )}>
+                <RadioGroupItem value="partial" id="partial" className="sr-only" />
+                <CreditCard className="h-5 w-5" />
+                <span className="text-sm font-semibold">Partial Refund</span>
+                <span className="text-[11px] text-muted-foreground">Enter amount</span>
+              </Label>
+            </RadioGroup>
+          </div>
+
+          {/* Partial amount input */}
+          {refundType === 'partial' && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Refund Amount ({currency})</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  step="0.001"
+                  min="0.001"
+                  max={originalTotal}
+                  value={partialAmount}
+                  onChange={e => setPartialAmount(e.target.value)}
+                  placeholder={`0.000 — max ${originalTotal.toFixed(3)}`}
+                  className="h-10 pr-16"
+                  autoFocus
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">{currency}</span>
+              </div>
+              {parseFloat(partialAmount) > originalTotal && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Cannot exceed original amount of {originalTotal.toFixed(3)} {currency}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Refund method */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">Refund Method</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['cash', 'knet', 'credit_card'] as const).map(method => (
+                <button
+                  key={method}
+                  onClick={() => setRefundMethod(method)}
+                  className={cn(
+                    'flex items-center gap-2 p-3 rounded-xl border-2 text-sm font-medium transition-all text-left',
+                    refundMethod === method
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/40'
+                  )}
+                >
+                  {method === 'cash' ? <Banknote className="h-4 w-4 flex-shrink-0" /> : <CreditCard className="h-4 w-4 flex-shrink-0" />}
+                  <span className="text-xs">{method === 'cash' ? 'Cash' : method === 'knet' ? 'K-NET' : 'Credit Card'}</span>
+                  {/* Flag if matches original payment */}
+                  {transaction.transaction_payments?.some(p => p.payment_method === method) && (
+                    <span className="ml-auto text-[9px] text-primary font-bold">Original</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Reason */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">Reason for Refund <span className="text-destructive">*</span></Label>
+            <Select value={reason} onValueChange={setReason}>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue placeholder="Select a reason..." />
+              </SelectTrigger>
+              <SelectContent>
+                {REFUND_REASONS.map(r => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Additional detail */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">
+              Additional Notes <span className="text-muted-foreground font-normal">(optional)</span>
+            </Label>
+            <Textarea
+              value={reasonDetail}
+              onChange={e => setReasonDetail(e.target.value)}
+              placeholder="Any additional details about this refund..."
+              rows={2}
+              className="text-sm resize-none"
+            />
+          </div>
+
+          {/* Inventory note for full refund with products */}
+          {refundType === 'full' && transaction.transaction_items?.some(i => i.item_type === 'product') && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-xs text-blue-700 dark:text-blue-400">
+              <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+              <span>Product stock will be automatically restored for returned items.</span>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button
+            size="sm"
+            onClick={() => setStep('confirm')}
+            disabled={!canProceed}
+            className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white border-0"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Review Refund
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -7,8 +7,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Download } from 'lucide-react';
+import { Printer, Download, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTransactionById } from '@/hooks/useTransactions';
+import { RefundDialog } from './RefundDialog';
 import type { CartItem, PaymentEntry } from '@/hooks/useTransactions';
 
 interface ReceiptViewProps {
@@ -44,6 +46,10 @@ export function ReceiptView({
 }: ReceiptViewProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
   const { tenant } = useAuth();
+  const [refundOpen, setRefundOpen] = useState(false);
+
+  // Fetch full transaction data for the refund dialog
+  const { data: fullTransaction } = useTransactionById(open ? transactionId : null);
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
@@ -207,8 +213,27 @@ export function ReceiptView({
             <Download className="mr-2 h-4 w-4" />
             Download PDF
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => setRefundOpen(true)}
+            className="h-12 px-4 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/40"
+            title="Process refund"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Refund dialog */}
+    <RefundDialog
+      open={refundOpen}
+      onOpenChange={setRefundOpen}
+      transaction={fullTransaction as any}
+      onRefundComplete={() => {
+        setRefundOpen(false);
+        onOpenChange(false);
+      }}
+    />
   );
 }

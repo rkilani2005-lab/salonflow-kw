@@ -11,7 +11,9 @@ import { useCreateTransaction, type CartItem, type PaymentEntry } from '@/hooks/
 import { useStaff } from '@/hooks/useStaff';
 import type { Client } from '@/hooks/useClients';
 import { supabase } from '@/integrations/supabase/client';
-import { ShoppingCart, CalendarCheck } from 'lucide-react';
+import { ShoppingCart, CalendarCheck, RotateCcw } from 'lucide-react';
+import { RefundDialog } from '@/components/pos/RefundDialog';
+import { useTransactionById } from '@/hooks/useTransactions';
 
 export default function POS() {
   const [searchParams] = useSearchParams();
@@ -43,8 +45,13 @@ export default function POS() {
   // Payment state
   const [showPayment, setShowPayment] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [showRefund,  setShowRefund]  = useState(false);
   const [completedTxnId, setCompletedTxnId] = useState<string | null>(null);
   const [completedPayments, setCompletedPayments] = useState<PaymentEntry[]>([]);
+
+  // For refund: fetch the completed transaction linked to this booking
+  const [paidTxnId, setPaidTxnId] = useState<string | null>(null);
+  const { data: paidTransaction } = useTransactionById(paidTxnId);
 
   // Bug 5 fix: match staff by the authenticated user's email (not full_name)
   // Falls back to first active staff member if the logged-in user is not a staff record
@@ -97,6 +104,11 @@ export default function POS() {
           .from('clients').select('*').eq('id', booking.client_id).single();
         if (client) setSelectedClient(client as Client);
       }
+      // Fetch linked transaction so the Refund button works
+      const { data: txn } = await supabase
+        .from('transactions').select('id')
+        .eq('booking_id', id).eq('status', 'completed').maybeSingle();
+      if (txn) setPaidTxnId(txn.id);
       return; // do NOT load cart — payment already taken
     }
 
@@ -110,6 +122,7 @@ export default function POS() {
 
     if (existingTxn) {
       setBookingAlreadyPaid(true);
+      setPaidTxnId(existingTxn.id);
       if (booking.client_id) {
         const { data: client } = await supabase
           .from('clients').select('*').eq('id', booking.client_id).single();
@@ -250,6 +263,17 @@ export default function POS() {
                 This appointment has already been checked out. No further payment can be taken.
               </p>
             </div>
+            {paidTransaction && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowRefund(true)}
+                className="flex-shrink-0 h-8 gap-1.5 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Refund
+              </Button>
+            )}
           </div>
         )}
         <POSCart
@@ -299,6 +323,13 @@ export default function POS() {
           createdAt={new Date().toISOString()}
         />
       )}
+      {/* Refund dialog — accessible from already-paid banner */}
+      <RefundDialog
+        open={showRefund}
+        onOpenChange={setShowRefund}
+        transaction={paidTransaction as any}
+        onRefundComplete={() => setShowRefund(false)}
+      />
     </div>
   );
 }
