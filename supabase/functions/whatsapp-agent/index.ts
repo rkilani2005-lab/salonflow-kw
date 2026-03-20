@@ -75,8 +75,13 @@ serve(async (req) => {
       }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const isOwner = config?.owner_phone_numbers?.includes(phoneNumber) || simulatorMode;
-    const isStaff = config?.staff_phone_numbers?.includes(phoneNumber);
+    // In simulator mode: admin = +965-OWNER-SIM, customer = +965-CUSTOMER-SIM
+    const isOwner = simulatorMode
+      ? phoneNumber.includes("OWNER")
+      : config?.owner_phone_numbers?.includes(phoneNumber);
+    const isStaff = simulatorMode
+      ? false
+      : config?.staff_phone_numbers?.includes(phoneNumber);
     const isAdmin = isOwner || isStaff;
     const conversationType = isAdmin ? "admin" : "customer";
 
@@ -198,11 +203,11 @@ async function buildContext(supabase: any, tenantId: string, isAdmin: boolean) {
   const context: any = { tenantId };
 
   const { data: services } = await supabase
-    .from("services").select("*").eq("is_active", true);
+    .from("services").select("*").eq("tenant_id", tenantId).eq("is_active", true);
   context.services = services || [];
 
   const { data: staff } = await supabase
-    .from("staff").select("*").eq("is_active", true);
+    .from("staff").select("*").eq("tenant_id", tenantId).eq("is_active", true);
   context.staff = staff || [];
 
   // Get first active branch for booking
@@ -484,11 +489,10 @@ async function processToolCalls(
         }
       }
 
-      // 2. Create booking
+      // 2. Create booking (bookings table has no tenant_id — scoped via RLS)
       const { data: booking, error: bookingErr } = await supabase
         .from("bookings")
         .insert({
-          tenant_id:        tenantId,
           client_id:        clientId,
           client_name:      clientName,
           client_phone:     clientPhone,
