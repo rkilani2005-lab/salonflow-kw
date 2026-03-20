@@ -21,27 +21,23 @@ import type { Enums } from '@/integrations/supabase/types';
 // ── Data hooks ─────────────────────────────────────────────────
 
 function useBookings(date: Date) {
-  const { tenant } = useAuth();
   return useQuery({
-    queryKey: ['bookings-calendar', tenant?.id, format(date, 'yyyy-MM')],
+    queryKey: ['bookings-calendar', format(date, 'yyyy-MM')],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
-        .eq('tenant_id', tenant!.id)
         .gte('booking_date', format(date, 'yyyy-MM-01'))
         .lte('booking_date', format(date, 'yyyy-MM-31'))
         .order('start_time');
       if (error) throw error;
       return data || [];
     },
-    enabled: !!tenant?.id,
-    refetchInterval: 60_000, // auto-refresh every minute for no-show detection
+    refetchInterval: 60_000,
   });
 }
 
 function useCreateBooking() {
-  const { tenant } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   return useMutation({
@@ -60,11 +56,10 @@ function useCreateBooking() {
       price: number;
       notes?: string;
       status?: string;
-      tenant_id?: string;
     }) => {
       const { data, error } = await supabase
         .from('bookings')
-        .insert({ ...booking, tenant_id: tenant!.id })
+        .insert({ ...booking })
         .select()
         .single();
       if (error) throw error;
