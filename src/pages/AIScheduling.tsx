@@ -224,7 +224,7 @@ export default function AIScheduling() {
     setInput('');
     setThinking(true);
     try {
-      const reply = await askClaudeScheduling(text, ctx, [...messages, userMsg], currency);
+      const reply = await askSchedulingAgent(text, ctx, [...messages, userMsg], currency, tenant?.id || '');
       setMessages(prev => [...prev, { role: 'assistant', content: reply, ts: new Date() }]);
     } catch (err: any) {
       setMessages(prev => [...prev, {
