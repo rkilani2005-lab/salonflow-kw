@@ -110,7 +110,7 @@ function useInvitations() {
     queryKey: ['team-invitations', tenant?.id],
     queryFn: async () => {
       if (!tenant?.id) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('tenant_invitations')
         .select('id, email, role, status, created_at, expires_at')
         .eq('tenant_id', tenant.id)
