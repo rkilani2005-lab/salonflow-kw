@@ -71,7 +71,7 @@ export function WhatsAppTriggers() {
 
   const loadTriggers = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from('whatsapp_triggers')
       .select('*, template:whatsapp_templates(name, body_en)')
       .eq('tenant_id', tenant!.id)
@@ -84,8 +84,8 @@ export function WhatsAppTriggers() {
     setSeeding(true);
     try {
       // Seed templates then triggers
-      await supabase.rpc('seed_whatsapp_templates', { p_tenant_id: tenant!.id });
-      await supabase.rpc('seed_whatsapp_triggers',  { p_tenant_id: tenant!.id });
+      await (supabase as any).rpc('seed_whatsapp_templates', { p_tenant_id: tenant!.id });
+      await (supabase as any).rpc('seed_whatsapp_triggers',  { p_tenant_id: tenant!.id });
       await loadTriggers();
       toast({ title: '✅ Default automations created' });
     } catch (err: any) {
@@ -98,7 +98,7 @@ export function WhatsAppTriggers() {
   const toggleTrigger = async (trigger: Trigger) => {
     setSaving(trigger.id);
     try {
-      await supabase.from('whatsapp_triggers')
+      await (supabase as any).from('whatsapp_triggers')
         .update({ is_active: !trigger.is_active })
         .eq('id', trigger.id);
       setTriggers(prev => prev.map(t => t.id === trigger.id ? { ...t, is_active: !t.is_active } : t));

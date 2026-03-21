@@ -17,7 +17,7 @@ function useWAStatus() {
   return useQuery({
     queryKey: ['whatsapp-config', tenant?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('whatsapp_config')
         .select('is_enabled, connection_status, display_phone_number')
         .eq('tenant_id', tenant!.id)

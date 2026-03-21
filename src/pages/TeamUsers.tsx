@@ -216,7 +216,7 @@ export default function TeamUsers() {
   // ── Change role ───────────────────────────────────────────────
   const handleChangeRole = async (userId: string, newRole: string) => {
     if (!tenant?.id) return;
-    await supabase.from('user_roles').update({ role: newRole }).eq('user_id', userId).eq('tenant_id', tenant.id);
+    await (supabase as any).from('user_roles').update({ role: newRole as any }).eq('user_id', userId).eq('tenant_id', tenant.id);
     qc.invalidateQueries({ queryKey: ['team-members', tenant.id] });
     setChangeRole(null);
     toast({ title: ar ? 'تم تحديث الدور' : 'Role updated' });
