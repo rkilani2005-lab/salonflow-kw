@@ -94,7 +94,15 @@ export function ReceiptView({
 
           <div ref={receiptRef} className="font-mono text-xs space-y-2 p-4 bg-white text-black rounded">
             {/* Header */}
-            <div className="text-center">
+            <div className="text-center space-y-1">
+              {tenant?.logo_url && (
+                <img
+                  src={tenant.logo_url}
+                  alt={tenant?.name || 'Logo'}
+                  className="h-14 w-14 object-contain mx-auto mb-1"
+                  style={{ borderRadius: '4px' }}
+                />
+              )}
               <p className="text-base font-bold">{tenant?.name || 'Salon'}</p>
               <p className="text-[10px] text-gray-500">TAX INVOICE / فاتورة ضريبية</p>
             </div>
