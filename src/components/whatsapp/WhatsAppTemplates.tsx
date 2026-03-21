@@ -66,7 +66,7 @@ export function WhatsAppTemplates() {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from('whatsapp_templates')
       .select('*')
       .eq('tenant_id', tenant!.id)
@@ -85,7 +85,7 @@ export function WhatsAppTemplates() {
     if (!editing) return;
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('whatsapp_templates')
         .update({ body_en: editing.body_en, body_ar: editing.body_ar, name: editing.name })
         .eq('id', editing.id);

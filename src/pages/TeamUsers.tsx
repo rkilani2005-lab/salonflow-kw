@@ -110,7 +110,7 @@ function useInvitations() {
     queryKey: ['team-invitations', tenant?.id],
     queryFn: async () => {
       if (!tenant?.id) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('tenant_invitations')
         .select('id, email, role, status, created_at, expires_at')
         .eq('tenant_id', tenant.id)
@@ -196,7 +196,7 @@ export default function TeamUsers() {
   // ── Revoke invitation ────────────────────────────────────────
   const handleRevokeInvite = async (inviteId: string) => {
     setRevoking(inviteId);
-    await supabase.from('tenant_invitations').update({ status: 'revoked' }).eq('id', inviteId);
+    await (supabase as any).from('tenant_invitations').update({ status: 'revoked' }).eq('id', inviteId);
     qc.invalidateQueries({ queryKey: ['team-invitations', tenant?.id] });
     setRevoking(null);
     toast({ title: ar ? 'تم سحب الدعوة' : 'Invitation revoked' });
@@ -216,7 +216,7 @@ export default function TeamUsers() {
   // ── Change role ───────────────────────────────────────────────
   const handleChangeRole = async (userId: string, newRole: string) => {
     if (!tenant?.id) return;
-    await supabase.from('user_roles').update({ role: newRole }).eq('user_id', userId).eq('tenant_id', tenant.id);
+    await (supabase as any).from('user_roles').update({ role: newRole as any }).eq('user_id', userId).eq('tenant_id', tenant.id);
     qc.invalidateQueries({ queryKey: ['team-members', tenant.id] });
     setChangeRole(null);
     toast({ title: ar ? 'تم تحديث الدور' : 'Role updated' });
