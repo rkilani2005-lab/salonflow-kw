@@ -3,7 +3,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { askClaude } from '@/lib/claude';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,33 +45,62 @@ function useSchedulingContext(tenantId?: string) {
 
 interface AIMessage { role: 'user' | 'assistant'; content: string; ts: Date; }
 
-async function askClaudeScheduling(
+async function askSchedulingAgent(
   question: string,
   context: any,
   history: AIMessage[],
-  currency: string
+  currency: string,
+  tenantId: string
 ): Promise<string> {
   const systemPrompt = `You are ZAINA AI, an expert scheduling assistant for a ladies salon in Kuwait.
-You have access to the salon's upcoming bookings, staff roster, and service catalog.
+You have powerful tools to actually CREATE bookings, CREATE clients, check availability, search clients, and manage appointments.
+
+IMPORTANT: When users ask you to perform an action (book appointment, add client, cancel booking, etc.), 
+you MUST use the appropriate tool to actually execute it — do NOT just say it's done without calling the tool.
+
+Workflow for booking:
+1. If client is new → call create_client first, get their client_id
+2. Call check_availability to find free slots if user hasn't specified a time
+3. Call create_booking with all details (use client_id if you have it)
+4. Confirm what was booked with specific date/time
+
+Workflow for new client:
+1. Call create_client with their name and phone
+2. Confirm the client was created
+
 Respond concisely and actionably. Use bullet points and emojis for readability.
 Always suggest specific times (e.g. "Tuesday 2:00 PM with Fatima").
 Detect if the user writes in Arabic and respond in Arabic.
 Currency: ${currency}. Format KWD amounts as "X.XXX KWD".
 
-CURRENT DATA:
+CURRENT DATA (for context/answers):
 Upcoming bookings (next 7 days): ${JSON.stringify(context?.bookings?.slice(0,30) || [])}
 Active staff: ${JSON.stringify(context?.staff || [])}
 Services: ${JSON.stringify(context?.services?.slice(0,20) || [])}
 Today: ${format(new Date(), 'EEEE, MMMM d, yyyy')}`;
 
-  const response = await askClaude({
-    system: systemPrompt,
-    messages: [
-      ...history.slice(-6).map(m => ({ role: m.role, content: m.content })),
-      { role: 'user', content: question },
-    ],
+  const EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scheduling-agent`;
+  const response = await fetch(EDGE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+    },
+    body: JSON.stringify({
+      system: systemPrompt,
+      messages: [
+        ...history.slice(-8).map(m => ({ role: m.role, content: m.content })),
+        { role: 'user', content: question },
+      ],
+      tenantId,
+      maxTokens: 2048,
+    }),
   });
-  return response;
+
+  const data = await response.json();
+  if (!response.ok || data?.error) throw new Error(data?.error || `AI error: HTTP ${response.status}`);
+  if (!data?.text) throw new Error('Empty response from AI');
+  return data.text;
 }
 
 function StaffGapCard({ bookings, staff }: { bookings: any[]; staff: any[] }) {
@@ -179,14 +207,14 @@ export default function AIScheduling() {
 
   const quickPrompts = ar ? [
     'ما هي الفجوات في جدول هذا الأسبوع؟',
-    'اقترحي أفضل وقت لحجز عميلة جديدة',
-    'من هي أكثر موظفة انشغالاً اليوم؟',
-    'كيف يمكنني تحسين الجدول هذا الأسبوع؟',
+    'احجزي موعد لعميلة جديدة: سارة، 0501234567، غداً الساعة 10 صباحاً',
+    'أضيفي عميلة جديدة: نورة الأحمد، 0509876543',
+    'أظهري لي مواعيد اليوم',
   ] : [
     'What are the scheduling gaps this week?',
-    'Suggest the best slot for a new client tomorrow',
-    'Which staff member is most overloaded today?',
-    'How can I optimize the schedule this week?',
+    'Book appointment for new client: Sarah, +96550001234, tomorrow at 10am',
+    'Add new client: Noura Al-Ahmad, phone +96560001234',
+    "Show me today's full schedule",
   ];
 
   const send = async (text: string) => {
@@ -196,7 +224,7 @@ export default function AIScheduling() {
     setInput('');
     setThinking(true);
     try {
-      const reply = await askClaudeScheduling(text, ctx, [...messages, userMsg], currency);
+      const reply = await askSchedulingAgent(text, ctx, [...messages, userMsg], currency, tenant?.id || '');
       setMessages(prev => [...prev, { role: 'assistant', content: reply, ts: new Date() }]);
     } catch (err: any) {
       setMessages(prev => [...prev, {
