@@ -196,7 +196,7 @@ export default function TeamUsers() {
   // ── Revoke invitation ────────────────────────────────────────
   const handleRevokeInvite = async (inviteId: string) => {
     setRevoking(inviteId);
-    await supabase.from('tenant_invitations').update({ status: 'revoked' }).eq('id', inviteId);
+    await (supabase as any).from('tenant_invitations').update({ status: 'revoked' }).eq('id', inviteId);
     qc.invalidateQueries({ queryKey: ['team-invitations', tenant?.id] });
     setRevoking(null);
     toast({ title: ar ? 'تم سحب الدعوة' : 'Invitation revoked' });
