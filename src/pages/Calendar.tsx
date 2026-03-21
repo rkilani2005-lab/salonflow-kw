@@ -245,7 +245,7 @@ export default function CalendarPage() {
 
   // Walk-in: create as checked_in immediately
   const handleWalkInSubmit = useCallback(async (walkin: {
-    clientName: string; clientPhone: string; staffId: string; serviceId: string; startTime: string; notes: string; isWalkIn: true;
+    clientName: string; clientPhone: string; clientId?: string; staffId: string; serviceId: string; startTime: string; notes: string; isWalkIn: true;
   }) => {
     const service = services.find(s => s.id === walkin.serviceId);
     if (!service) return;
@@ -253,6 +253,7 @@ export default function CalendarPage() {
     const endMins = h * 60 + m + service.duration;
     const endTime = `${Math.floor(endMins / 60).toString().padStart(2, '0')}:${(endMins % 60).toString().padStart(2, '0')}`;
     await createBooking.mutateAsync({
+      client_id: walkin.clientId || null,
       client_name: walkin.clientName, client_phone: walkin.clientPhone,
       staff_id: walkin.staffId, service_id: walkin.serviceId, service_name: service.name,
       service_category: service.category as Enums<'service_category'>,

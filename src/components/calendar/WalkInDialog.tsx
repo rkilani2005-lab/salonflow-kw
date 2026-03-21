@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,9 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Staff, Service } from '@/types/calendar';
-import { UserPlus, Clock, Search, Zap } from 'lucide-react';
+import { UserPlus, Clock, Search, Zap, ChevronDown, Phone, CheckCircle2, UserCircle2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useClients, useCreateClient, type Client } from '@/hooks/useClients';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface WalkInDialogProps {
   open: boolean;
@@ -18,6 +20,7 @@ interface WalkInDialogProps {
   onSubmit: (walkin: {
     clientName: string;
     clientPhone: string;
+    clientId?: string;
     staffId: string;
     serviceId: string;
     startTime: string;
@@ -31,59 +34,138 @@ const SERVICE_CATEGORY_EMOJI: Record<string, string> = {
   waxing: '🪒', massage: '💆‍♀️', other: '✨',
 };
 
+type ClientMode = 'search' | 'selected' | 'new';
+
 export function WalkInDialog({ open, onOpenChange, staff, services, onSubmit }: WalkInDialogProps) {
   const now = new Date();
-  const currentTime = `${now.getHours().toString().padStart(2, '0')}:${Math.floor(now.getMinutes() / 5) * 5 === 0 ? '00' : (Math.floor(now.getMinutes() / 5) * 5).toString().padStart(2, '0')}`;
+  const roundedMinutes = Math.floor(now.getMinutes() / 5) * 5;
+  const currentTime = `${now.getHours().toString().padStart(2, '0')}:${roundedMinutes.toString().padStart(2, '0')}`;
 
-  const [clientName,  setClientName]  = useState('');
-  const [clientPhone, setClientPhone] = useState('');
-  const [staffId,     setStaffId]     = useState('');
-  const [serviceId,   setServiceId]   = useState('');
-  const [startTime,   setStartTime]   = useState(currentTime);
-  const [notes,       setNotes]       = useState('');
+  // Client state
+  const [clientMode, setClientMode]     = useState<ClientMode>('search');
+  const [clientSearch, setClientSearch] = useState('');
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  // New client quick-add
+  const [newName,  setNewName]  = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+
+  // Booking state
+  const [staffId,       setStaffId]       = useState('');
+  const [serviceId,     setServiceId]     = useState('');
+  const [startTime,     setStartTime]     = useState(currentTime);
+  const [notes,         setNotes]         = useState('');
   const [serviceSearch, setServiceSearch] = useState('');
-  const [submitting,  setSubmitting]  = useState(false);
+  const [submitting,    setSubmitting]    = useState(false);
+
+  const debouncedSearch = useDebounce(clientSearch, 300);
+  const { data: clients = [] } = useClients(debouncedSearch || undefined);
+  const createClient = useCreateClient();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Reset on open
   useEffect(() => {
     if (open) {
-      setClientName('');
-      setClientPhone('');
-      setServiceId('');
-      setNotes('');
-      setServiceSearch('');
+      setClientMode('search');
+      setClientSearch('');
+      setSelectedClient(null);
+      setShowDropdown(false);
+      setNewName(''); setNewPhone(''); setNewEmail('');
+      setServiceId(''); setNotes(''); setServiceSearch('');
       const n = new Date();
-      setStartTime(`${n.getHours().toString().padStart(2,'0')}:${Math.floor(n.getMinutes()/5)*5 === 0 ? '00' : (Math.floor(n.getMinutes()/5)*5).toString().padStart(2,'0')}`);
-      // Auto-select first available staff
+      const rm = Math.floor(n.getMinutes() / 5) * 5;
+      setStartTime(`${n.getHours().toString().padStart(2, '0')}:${rm.toString().padStart(2, '0')}`);
       const avail = staff.find(s => s.status !== 'off');
       setStaffId(avail?.id || staff[0]?.id || '');
     }
   }, [open, staff]);
 
+  // Show dropdown when searching and there are results
+  useEffect(() => {
+    if (debouncedSearch && clientMode === 'search') {
+      setShowDropdown(true);
+    }
+  }, [debouncedSearch, clientMode]);
+
+  const handleSelectClient = (client: Client) => {
+    setSelectedClient(client);
+    setClientMode('selected');
+    setShowDropdown(false);
+    setClientSearch('');
+  };
+
+  const handleClearClient = () => {
+    setSelectedClient(null);
+    setClientMode('search');
+    setClientSearch('');
+    setShowDropdown(false);
+  };
+
+  const handleSwitchToNew = () => {
+    // Pre-fill new client name from search
+    setNewName(clientSearch);
+    setClientMode('new');
+    setShowDropdown(false);
+  };
+
   const selectedService = services.find(s => s.id === serviceId);
   const selectedStaff   = staff.find(s => s.id === staffId);
 
   const filteredServices = services.filter(s =>
-    !serviceSearch || s.name.toLowerCase().includes(serviceSearch.toLowerCase()) ||
+    !serviceSearch ||
+    s.name.toLowerCase().includes(serviceSearch.toLowerCase()) ||
     s.category.toLowerCase().includes(serviceSearch.toLowerCase())
   );
 
-  // Group services by category for quick selection
   const grouped = filteredServices.reduce((acc, s) => {
     if (!acc[s.category]) acc[s.category] = [];
     acc[s.category].push(s);
     return acc;
   }, {} as Record<string, Service[]>);
 
-  const canSubmit = clientName.trim().length >= 2 && serviceId && staffId;
+  // Derived values for display
+  const displayName = clientMode === 'selected'
+    ? selectedClient?.name || ''
+    : clientMode === 'new'
+      ? newName
+      : '';
+
+  const canSubmit =
+    serviceId && staffId && (
+      (clientMode === 'selected' && selectedClient) ||
+      (clientMode === 'new' && newName.trim().length >= 2 && newPhone.trim().length >= 4)
+    );
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
+      let clientId: string | undefined;
+      let clientName: string;
+      let clientPhone: string;
+
+      if (clientMode === 'selected' && selectedClient) {
+        clientId    = selectedClient.id;
+        clientName  = selectedClient.name;
+        clientPhone = selectedClient.phone;
+      } else {
+        // Create new client first
+        const created = await createClient.mutateAsync({
+          name:  newName.trim(),
+          phone: newPhone.trim(),
+          email: newEmail.trim() || undefined,
+        });
+        clientId    = created.id;
+        clientName  = created.name;
+        clientPhone = created.phone;
+      }
+
       await onSubmit({
-        clientName: clientName.trim(),
-        clientPhone: clientPhone.trim(),
+        clientId,
+        clientName,
+        clientPhone,
         staffId,
         serviceId,
         startTime,
@@ -95,6 +177,9 @@ export function WalkInDialog({ open, onOpenChange, staff, services, onSubmit }: 
       setSubmitting(false);
     }
   };
+
+  // Filter shown clients — limit to 6 in dropdown
+  const filteredClients = clients.slice(0, 6);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -114,30 +199,173 @@ export function WalkInDialog({ open, onOpenChange, staff, services, onSubmit }: 
         </DialogHeader>
 
         <div className="space-y-4 py-1">
-          {/* Client info — minimal, just name required */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Client Name *</Label>
-              <Input
-                value={clientName}
-                onChange={e => setClientName(e.target.value)}
-                placeholder="e.g. Fatima"
-                className="h-10"
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Phone <span className="text-muted-foreground font-normal">(optional)</span></Label>
-              <Input
-                value={clientPhone}
-                onChange={e => setClientPhone(e.target.value)}
-                placeholder="+965 9XXX XXXX"
-                className="h-10"
-              />
-            </div>
+
+          {/* ── CLIENT SECTION ── */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold">Client *</Label>
+
+            {/* Selected client chip */}
+            {clientMode === 'selected' && selectedClient && (
+              <div className="flex items-center gap-2 p-2.5 rounded-xl border border-primary/30 bg-primary/5">
+                <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
+                  {selectedClient.name[0].toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold truncate">{selectedClient.name}</p>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                    <Phone className="h-2.5 w-2.5" />{selectedClient.phone}
+                    {selectedClient.tier !== 'normal' && (
+                      <Badge variant="outline" className={cn("text-[9px] h-3.5 px-1 ml-1",
+                        selectedClient.tier === 'vvip' ? 'text-amber-600 border-amber-300' : 'text-purple-600 border-purple-300'
+                      )}>{selectedClient.tier.toUpperCase()}</Badge>
+                    )}
+                  </p>
+                </div>
+                <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
+                <button onClick={handleClearClient} className="p-0.5 rounded hover:bg-muted ml-1">
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              </div>
+            )}
+
+            {/* Search input */}
+            {clientMode === 'search' && (
+              <div className="relative" ref={dropdownRef}>
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  value={clientSearch}
+                  onChange={e => { setClientSearch(e.target.value); setShowDropdown(true); }}
+                  onFocus={() => setShowDropdown(true)}
+                  placeholder="Search by name or phone..."
+                  className="pl-8 h-10"
+                  autoFocus
+                />
+                {clientSearch && (
+                  <button
+                    onClick={() => { setClientSearch(''); setShowDropdown(false); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                  >
+                    <X className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                )}
+
+                {/* Dropdown */}
+                {showDropdown && clientSearch && (
+                  <div className="absolute z-50 top-full mt-1 left-0 right-0 rounded-xl border border-border bg-popover shadow-lg overflow-hidden">
+                    {filteredClients.length > 0 ? (
+                      <>
+                        {filteredClients.map(client => (
+                          <button
+                            key={client.id}
+                            onClick={() => handleSelectClient(client)}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-muted text-left transition-colors"
+                          >
+                            <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-xs font-bold flex-shrink-0">
+                              {client.name[0].toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium truncate">{client.name}</p>
+                              <p className="text-[10px] text-muted-foreground">{client.phone}</p>
+                            </div>
+                            {client.tier !== 'normal' && (
+                              <Badge variant="outline" className={cn("text-[9px] h-3.5 px-1",
+                                client.tier === 'vvip' ? 'text-amber-600 border-amber-300' : 'text-purple-600 border-purple-300'
+                              )}>{client.tier.toUpperCase()}</Badge>
+                            )}
+                          </button>
+                        ))}
+                        <div className="border-t border-border">
+                          <button
+                            onClick={handleSwitchToNew}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-primary hover:bg-primary/5 transition-colors"
+                          >
+                            <UserPlus className="h-3.5 w-3.5" />
+                            Add "{clientSearch}" as new client
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="p-3">
+                        <p className="text-xs text-muted-foreground text-center mb-2">No existing client found</p>
+                        <button
+                          onClick={handleSwitchToNew}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs text-primary bg-primary/5 hover:bg-primary/10 rounded-lg transition-colors"
+                        >
+                          <UserPlus className="h-3.5 w-3.5" />
+                          Add "{clientSearch}" as new client
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Hint when empty */}
+                {!clientSearch && (
+                  <p className="text-[10px] text-muted-foreground mt-1 px-1">
+                    Type to search existing clients or{' '}
+                    <button onClick={() => setClientMode('new')} className="text-primary underline-offset-2 hover:underline">
+                      add new client
+                    </button>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* New client quick-add form */}
+            {clientMode === 'new' && (
+              <div className="rounded-xl border border-dashed border-primary/40 bg-primary/3 p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <UserCircle2 className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs font-semibold text-primary">New Client</span>
+                  </div>
+                  <button
+                    onClick={() => { setClientMode('search'); setNewName(''); setNewPhone(''); setNewEmail(''); }}
+                    className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-0.5"
+                  >
+                    <X className="h-3 w-3" /> Cancel
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-semibold">Name *</Label>
+                    <Input
+                      value={newName}
+                      onChange={e => setNewName(e.target.value)}
+                      placeholder="Client name"
+                      className="h-8 text-xs"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-semibold">Phone *</Label>
+                    <Input
+                      value={newPhone}
+                      onChange={e => setNewPhone(e.target.value)}
+                      placeholder="+965 9XXX XXXX"
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-semibold">Email <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                  <Input
+                    value={newEmail}
+                    onChange={e => setNewEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                {newName.trim().length >= 2 && newPhone.trim().length >= 4 && (
+                  <p className="text-[10px] text-emerald-600 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Client will be created when you check in
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Service selection — visual grid */}
+          {/* ── SERVICE SELECTION ── */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold">Service *</Label>
             <div className="relative">
@@ -183,7 +411,7 @@ export function WalkInDialog({ open, onOpenChange, staff, services, onSubmit }: 
             </div>
           </div>
 
-          {/* Staff + Time row */}
+          {/* ── STAFF + TIME ── */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Stylist *</Label>
@@ -218,7 +446,7 @@ export function WalkInDialog({ open, onOpenChange, staff, services, onSubmit }: 
             </div>
           </div>
 
-          {/* Notes */}
+          {/* ── NOTES ── */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold">Notes <span className="text-muted-foreground font-normal">(optional)</span></Label>
             <Input
@@ -229,12 +457,12 @@ export function WalkInDialog({ open, onOpenChange, staff, services, onSubmit }: 
             />
           </div>
 
-          {/* Summary card */}
-          {selectedService && selectedStaff && clientName && (
+          {/* ── SUMMARY ── */}
+          {selectedService && selectedStaff && displayName && (
             <div className="rounded-xl bg-primary/6 border border-primary/20 p-3.5 flex items-center gap-3">
               <Zap className="h-4 w-4 text-primary flex-shrink-0" />
               <div className="text-xs">
-                <p className="font-semibold">{clientName} → {selectedService.name}</p>
+                <p className="font-semibold">{displayName} → {selectedService.name}</p>
                 <p className="text-muted-foreground mt-0.5">
                   {selectedStaff.name} · {startTime} ({selectedService.duration}min) · {selectedService.price.toFixed(3)} KWD
                 </p>
