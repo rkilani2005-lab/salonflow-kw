@@ -84,19 +84,28 @@ const AppSidebar = () => {
       {/* ── Brand ── */}
       <SidebarHeader className="px-3 pt-4 pb-3">
         <div className="flex items-center gap-2.5">
-          {/* Logomark: Z with a fine rule underneath — editorial not bubbly */}
+          {/* Logomark: tenant logo or fallback Z */}
           <div className="flex-shrink-0 relative">
-            <div
-              className="h-7 w-7 bg-primary flex items-center justify-center"
-              style={{ borderRadius: '3px' }}
-            >
-              <span
-                className="text-primary-foreground font-black leading-none select-none"
-                style={{ fontFamily: 'Syne, sans-serif', fontSize: '15px', letterSpacing: '-0.05em' }}
+            {tenant?.logo_url ? (
+              <img
+                src={tenant.logo_url}
+                alt={tenant.name || 'Logo'}
+                className="h-7 w-7 object-cover flex-shrink-0"
+                style={{ borderRadius: '3px' }}
+              />
+            ) : (
+              <div
+                className="h-7 w-7 bg-primary flex items-center justify-center"
+                style={{ borderRadius: '3px' }}
               >
-                Z
-              </span>
-            </div>
+                <span
+                  className="text-primary-foreground font-black leading-none select-none"
+                  style={{ fontFamily: 'Syne, sans-serif', fontSize: '15px', letterSpacing: '-0.05em' }}
+                >
+                  {tenant?.name?.[0]?.toUpperCase() || 'Z'}
+                </span>
+              </div>
+            )}
           </div>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
