@@ -4,6 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { ServiceRecipeEditor } from './ServiceRecipeEditor';
 import { ServiceUsageHistory } from './ServiceUsageHistory';
+import { ServicePriceSchedules } from './ServicePriceSchedules';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Sheet,
    SheetContent,
@@ -60,6 +62,8 @@ import {
    const [isEditing, setIsEditing] = useState(false);
    const { data: service, isLoading } = useServiceById(serviceId);
    const updateService = useUpdateService();
+   const { tenant } = useAuth();
+   const currency = tenant?.currency || 'KWD';
  
    const form = useForm<FormData>({
      resolver: zodResolver(formSchema),
@@ -209,8 +213,18 @@ import {
                    </div>
                  </div>
  
-                   {/* Service Recipe (BOM) */}
+                  {/* Service Recipe (BOM) */}
                    <ServiceRecipeEditor serviceId={serviceId} />
+
+                   {/* Price Schedules */}
+                   <div className="space-y-2">
+                     <h4 className="text-sm font-medium text-muted-foreground">Price Schedules</h4>
+                     <ServicePriceSchedules
+                       serviceId={serviceId}
+                       basePrice={Number(service.price)}
+                       currency={currency}
+                     />
+                   </div>
 
                    {/* Usage History */}
                    <div className="space-y-2">
