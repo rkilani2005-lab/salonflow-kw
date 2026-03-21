@@ -207,14 +207,14 @@ export default function AIScheduling() {
 
   const quickPrompts = ar ? [
     'ما هي الفجوات في جدول هذا الأسبوع؟',
-    'اقترحي أفضل وقت لحجز عميلة جديدة',
-    'من هي أكثر موظفة انشغالاً اليوم؟',
-    'كيف يمكنني تحسين الجدول هذا الأسبوع؟',
+    'احجزي موعد لعميلة جديدة: سارة، 0501234567، غداً الساعة 10 صباحاً',
+    'أضيفي عميلة جديدة: نورة الأحمد، 0509876543',
+    'أظهري لي مواعيد اليوم',
   ] : [
     'What are the scheduling gaps this week?',
-    'Suggest the best slot for a new client tomorrow',
-    'Which staff member is most overloaded today?',
-    'How can I optimize the schedule this week?',
+    'Book appointment for new client: Sarah, +96550001234, tomorrow at 10am',
+    'Add new client: Noura Al-Ahmad, phone +96560001234',
+    "Show me today's full schedule",
   ];
 
   const send = async (text: string) => {
