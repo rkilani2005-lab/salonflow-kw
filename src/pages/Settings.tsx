@@ -121,14 +121,14 @@ export default function Settings() {
 
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
-        .from('salon-logos')
+        .from('logos')
         .upload(path, file, { upsert: true, contentType: file.type });
 
       if (uploadError) throw uploadError;
 
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from('salon-logos')
+        .from('logos')
         .getPublicUrl(path);
 
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`; // cache-bust
