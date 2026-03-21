@@ -66,7 +66,7 @@ export function WhatsAppTemplates() {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from('whatsapp_templates')
       .select('*')
       .eq('tenant_id', tenant!.id)
