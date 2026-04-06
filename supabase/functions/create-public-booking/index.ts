@@ -65,21 +65,30 @@ serve(async (req: Request) => {
       const rawPhone = body.clientPhone?.trim() || '';
       if (!rawPhone) return json({ found: false });
 
-      // Strip spaces for the raw form
+      // Strip all spaces and non-digits for comparison
       const phoneStripped = rawPhone.replace(/\s/g, '');
-
-      // Build all variants to try: exact, with/without +965, 8-digit local
       const digits = phoneStripped.replace(/[^\d]/g, '');
-      const variants = new Set<string>([phoneStripped]);
-      if (!phoneStripped.startsWith('+')) variants.add(`+${phoneStripped}`);
-      if (digits.length === 8)  variants.add(`+965${digits}`);
-      if (digits.length === 11 && digits.startsWith('965')) {
-        variants.add(`+${digits}`);
-        variants.add(digits.slice(3)); // 8-digit local
-      }
-      if (digits.length >= 8) variants.add(digits.slice(-8));
 
-      // Try each variant — first match wins
+      // Build every plausible stored format to try (exact match first)
+      const variants = new Set<string>();
+      variants.add(phoneStripped);                              // as typed: +96599876543
+      variants.add(`+${phoneStripped.replace(/^\+/, '')}`);     // ensure + prefix
+      if (digits.length === 8)  variants.add(`+965${digits}`); // 8-digit → full
+      if (digits.length === 8)  variants.add(digits);           // stored as bare 8-digit
+      if (digits.length === 11 && digits.startsWith('965')) {
+        variants.add(`+${digits}`);                             // +96599876543
+        variants.add(digits);                                   // 96599876543
+        variants.add(digits.slice(3));                          // 99876543
+      }
+      if (digits.length === 12 && digits.startsWith('0965')) {
+        variants.add(`+${digits.slice(1)}`);                    // 096599876543 → +96599876543
+        variants.add(digits.slice(4));                          // 8-digit local
+      }
+      if (digits.length > 8) variants.add(digits.slice(-8));   // last 8 as final fallback
+
+      console.log(`[lookup] rawPhone="${rawPhone}" digits="${digits}" trying ${variants.size} variants:`, [...variants]);
+
+      // Try each variant with exact match
       let client = null;
       for (const variant of variants) {
         const { data } = await supabase.from('clients')
@@ -87,10 +96,21 @@ serve(async (req: Request) => {
           .eq('tenant_id', body.tenantId)
           .eq('phone', variant)
           .maybeSingle();
-        if (data) { client = data; break; }
+        if (data) { client = data; console.log(`[lookup] matched on variant: "${variant}"`); break; }
       }
 
-      if (!client) return json({ found: false });
+      // Last resort: search by last 8 digits using LIKE (catches any prefix format)
+      if (!client && digits.length >= 8) {
+        const last8 = digits.slice(-8);
+        const { data } = await supabase.from('clients')
+          .select('id, name, email, loyalty_points, tier, created_at')
+          .eq('tenant_id', body.tenantId)
+          .like('phone', `%${last8}`)
+          .maybeSingle();
+        if (data) { client = data; console.log(`[lookup] matched via LIKE %${last8}`); }
+      }
+
+      if (!client) { console.log(`[lookup] no client found for "${rawPhone}"`); return json({ found: false }); }
 
       const { data: bookings } = await supabase.from('bookings')
         .select('price, status, booking_date, service_name')
@@ -111,7 +131,7 @@ serve(async (req: Request) => {
       return json({
         found: true,
         client: {
-          id: client.id, name: client.name, email: client.email, phone,
+          id: client.id, name: client.name, email: client.email, phone: phoneStripped,
           loyaltyPoints: client.loyalty_points, tier: client.tier,
           totalVisits, totalSpent, lastVisit, lastService,
           activePackages: packages || [],
