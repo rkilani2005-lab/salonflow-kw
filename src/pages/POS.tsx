@@ -443,21 +443,21 @@ export default function POS() {
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                   <span className="flex items-center gap-1"><Star className="h-3 w-3 text-amber-500"/>
-                    {selectedClient.loyalty_points || 0} points available
-                    {loyaltyConfig && <span>· {((selectedClient.loyalty_points || 0) * loyaltyConfig.kwd_per_point).toFixed(3)} KWD value</span>}
+                    {(selectedClient as any).loyalty_points || 0} points available
+                    {loyaltyConfig && <span>· {(((selectedClient as any).loyalty_points || 0) * loyaltyConfig.kwd_per_point).toFixed(3)} KWD value</span>}
                   </span>
                 </div>
-                {(selectedClient.loyalty_points || 0) >= loyaltyConfig.min_redeem_points && (
+                {((selectedClient as any).loyalty_points || 0) >= loyaltyConfig.min_redeem_points && (
                   <div className="flex gap-1.5">
                     <Input
-                      type="number" min="0" max={selectedClient.loyalty_points || 0}
+                      type="number" min="0" max={(selectedClient as any).loyalty_points || 0}
                       value={redeemPoints || ''}
-                      onChange={e => setRedeemPoints(Math.min(Number(e.target.value), selectedClient.loyalty_points || 0))}
+                      onChange={e => setRedeemPoints(Math.min(Number(e.target.value), (selectedClient as any).loyalty_points || 0))}
                       placeholder="Points to redeem"
                       className="h-8 text-xs flex-1"
                     />
                     <Button size="sm" variant="outline" className="h-8 text-xs flex-shrink-0"
-                      onClick={() => setRedeemPoints(selectedClient.loyalty_points || 0)}>
+                      onClick={() => setRedeemPoints((selectedClient as any).loyalty_points || 0)}>
                       Max
                     </Button>
                     {redeemPoints > 0 && (
