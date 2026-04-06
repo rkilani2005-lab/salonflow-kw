@@ -11,9 +11,11 @@ import { useCreateTransaction, type CartItem, type PaymentEntry } from '@/hooks/
 import { useStaff } from '@/hooks/useStaff';
 import type { Client } from '@/hooks/useClients';
 import { supabase } from '@/integrations/supabase/client';
-import { ShoppingCart, CalendarCheck, RotateCcw } from 'lucide-react';
+import { ShoppingCart, CalendarCheck, RotateCcw, Tag, Star, X, Loader2 } from 'lucide-react';
 import { RefundDialog } from '@/components/pos/RefundDialog';
 import { useTransactionById } from '@/hooks/useTransactions';
+import { useLoyaltyConfig, validatePromoCode, validateGiftCard } from '@/hooks/useLoyalty';
+import { Input } from '@/components/ui/input';
 
 export default function POS() {
   const [searchParams] = useSearchParams();
@@ -53,6 +55,17 @@ export default function POS() {
   const [paidTxnId, setPaidTxnId] = useState<string | null>(null);
   const { data: paidTransaction } = useTransactionById(paidTxnId);
 
+  // Loyalty & Promo
+  const { data: loyaltyConfig } = useLoyaltyConfig();
+  const [promoCode,        setPromoCode]        = useState('');
+  const [promoResult,      setPromoResult]      = useState<any>(null);
+  const [promoError,       setPromoError]       = useState('');
+  const [promoLoading,     setPromoLoading]     = useState(false);
+  const [redeemPoints,     setRedeemPoints]     = useState(0);  // points client wants to redeem
+  const [giftCardCode,     setGiftCardCode]     = useState('');
+  const [giftCardResult,   setGiftCardResult]   = useState<any>(null);
+  const [giftCardError,    setGiftCardError]    = useState('');
+
   // Bug 5 fix: match staff by the authenticated user's email (not full_name)
   // Falls back to first active staff member if the logged-in user is not a staff record
   const currentStaff = useMemo(() => {
@@ -72,9 +85,21 @@ export default function POS() {
     return Math.min(discountValue, subtotal);
   }, [discountType, discountValue, subtotal, discountApprovedBy]);
 
+  // Promo discount
+  const promoDiscount = promoResult?.is_valid ? Number(promoResult.discount_amount) : 0;
+
+  // Loyalty points redemption value
+  const loyaltyDiscount = useMemo(() => {
+    if (!redeemPoints || !loyaltyConfig?.is_enabled) return 0;
+    const val = Math.round(redeemPoints * loyaltyConfig.kwd_per_point * 1000) / 1000;
+    const maxPct = loyaltyConfig.max_redeem_pct / 100;
+    return Math.min(val, subtotal * maxPct);
+  }, [redeemPoints, loyaltyConfig, subtotal]);
+
+  const totalDiscount  = Math.round((discountAmount + promoDiscount + loyaltyDiscount) * 1000) / 1000;
   const taxRate = Number(tenant?.default_tax_rate || 0) / 100;
-  const taxAmount = Math.round((subtotal - discountAmount) * taxRate * 1000) / 1000;
-  const grandTotal = Math.round((subtotal - discountAmount + taxAmount + tipAmount) * 1000) / 1000;
+  const taxAmount = Math.round((subtotal - totalDiscount) * taxRate * 1000) / 1000;
+  const grandTotal = Math.round((subtotal - totalDiscount + taxAmount + tipAmount) * 1000) / 1000;
 
   // Whether this booking has already been paid — blocks all checkout UI
   const [bookingAlreadyPaid, setBookingAlreadyPaid] = useState(false);
@@ -174,12 +199,28 @@ export default function POS() {
     setDiscountReason(reason);
   };
 
-  const handleCheckout = () => {
-    setShowPayment(true);
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim() || !tenant?.id) return;
+    setPromoLoading(true); setPromoError('');
+    try {
+      const result = await validatePromoCode(tenant.id, promoCode.trim(), subtotal);
+      if (result?.is_valid) { setPromoResult(result); setPromoError(''); }
+      else { setPromoResult(null); setPromoError(result?.error_msg || 'Invalid promo code'); }
+    } catch { setPromoError('Failed to validate code'); }
+    finally { setPromoLoading(false); }
   };
 
+  const handleApplyGiftCard = async () => {
+    if (!giftCardCode.trim() || !tenant?.id) return;
+    setGiftCardError('');
+    const card = await validateGiftCard(tenant.id, giftCardCode.trim());
+    if (card) { setGiftCardResult(card); setGiftCardError(''); }
+    else setGiftCardError('Gift card not found or depleted');
+  };
+
+  const handleCheckout = () => { setShowPayment(true); };
+
   const handlePaymentConfirm = async (payments: PaymentEntry[]) => {
-    // GUARD 3: prevent double-submission if already paid
     if (bookingAlreadyPaid || createTransaction.isPending) return;
     try {
       const txn = await createTransaction.mutateAsync({
@@ -191,21 +232,82 @@ export default function POS() {
         subtotal,
         discount_type: discountType,
         discount_value: discountValue,
-        discount_amount: discountAmount,
-        discount_reason: discountReason,
+        discount_amount: totalDiscount,
+        discount_reason: [discountReason, promoResult?.is_valid ? `Promo: ${promoCode}` : '', redeemPoints ? `Loyalty: ${redeemPoints}pts` : ''].filter(Boolean).join(' | '),
         discount_approved_by: discountApprovedBy,
         tax_amount: taxAmount,
         tip_amount: tipAmount,
         grand_total: grandTotal,
       });
 
+      // Award loyalty points to client
+      if (selectedClient?.id && loyaltyConfig?.is_enabled && grandTotal > 0) {
+        const pointsEarned = Math.floor(grandTotal * loyaltyConfig.points_per_kwd);
+        const pointsSpent  = redeemPoints;
+        const netPoints    = pointsEarned - pointsSpent;
+
+        // Get current balance
+        const { data: clientData } = await supabase
+          .from('clients').select('loyalty_points').eq('id', selectedClient.id).single();
+        const currentBalance = Number(clientData?.loyalty_points || 0);
+        const newBalance = Math.max(0, currentBalance + netPoints);
+
+        await supabase.from('clients').update({ loyalty_points: newBalance }).eq('id', selectedClient.id);
+
+        if (pointsEarned > 0) {
+          await supabase.from('loyalty_transactions').insert({
+            tenant_id: tenant!.id, client_id: selectedClient.id,
+            transaction_id: txn.id, type: 'earn',
+            points: pointsEarned, balance_after: currentBalance + pointsEarned,
+            note: `Earned from sale ${txn.id.slice(0,8)}`,
+          });
+        }
+        if (pointsSpent > 0) {
+          await supabase.from('loyalty_transactions').insert({
+            tenant_id: tenant!.id, client_id: selectedClient.id,
+            transaction_id: txn.id, type: 'redeem',
+            points: -pointsSpent, balance_after: newBalance,
+            note: `Redeemed for ${loyaltyDiscount.toFixed(3)} KWD discount`,
+          });
+        }
+      }
+
+      // Mark promo code usage
+      if (promoResult?.is_valid && promoResult.id) {
+        await supabase.from('promo_codes')
+          .update({ usage_count: supabase.rpc as any })
+          .eq('id', promoResult.id);
+        // Use raw SQL increment via rpc workaround
+        await supabase.rpc('increment_promo_usage' as any, { p_id: promoResult.id }).catch(() => {
+          // Fallback: fetch and increment manually
+          supabase.from('promo_codes').select('usage_count').eq('id', promoResult.id).single()
+            .then(({ data }) => {
+              if (data) supabase.from('promo_codes')
+                .update({ usage_count: data.usage_count + 1 }).eq('id', promoResult.id);
+            });
+        });
+      }
+
+      // Deduct gift card balance if used
+      if (giftCardResult) {
+        const gcPayment = payments.find(p => p.payment_method === 'gift_card');
+        if (gcPayment) {
+          const newBal = Math.max(0, Number(giftCardResult.balance) - gcPayment.amount);
+          await supabase.from('gift_cards').update({
+            balance: newBal, status: newBal <= 0 ? 'depleted' : 'active',
+          }).eq('id', giftCardResult.id);
+          await supabase.from('gift_card_transactions').insert({
+            gift_card_id: giftCardResult.id, transaction_id: txn.id,
+            type: 'redeemed', amount: -gcPayment.amount, balance_after: newBal,
+          });
+        }
+      }
+
       setCompletedTxnId(txn.id);
       setCompletedPayments(payments);
       setShowPayment(false);
       setShowReceipt(true);
-    } catch (err) {
-      // Error handled by mutation
-    }
+    } catch (err) { /* handled by mutation */ }
   };
 
   const handleNewSale = () => {
@@ -301,6 +403,77 @@ export default function POS() {
           onCheckout={bookingAlreadyPaid ? () => {} : handleCheckout}
           checkoutDisabled={bookingAlreadyPaid}
         />
+
+        {/* ── Promo Code + Loyalty Panel ── */}
+        {!bookingAlreadyPaid && items.length > 0 && (
+          <div className="px-4 pb-3 space-y-2 border-t pt-3">
+            {/* Promo Code */}
+            <div className="space-y-1">
+              <div className="flex gap-1.5">
+                <Input
+                  value={promoCode}
+                  onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoResult(null); setPromoError(''); }}
+                  placeholder="Promo code"
+                  className="h-8 text-xs font-mono flex-1"
+                />
+                <Button size="sm" variant="outline" className="h-8 text-xs gap-1 flex-shrink-0"
+                  onClick={handleApplyPromo} disabled={!promoCode.trim() || promoLoading}>
+                  {promoLoading ? <Loader2 className="h-3 w-3 animate-spin"/> : <Tag className="h-3 w-3"/>}
+                  Apply
+                </Button>
+                {promoResult?.is_valid && (
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground"
+                    onClick={() => { setPromoResult(null); setPromoCode(''); }}>
+                    <X className="h-3 w-3"/>
+                  </Button>
+                )}
+              </div>
+              {promoResult?.is_valid && (
+                <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
+                  <Tag className="h-3 w-3"/>✓ -{promoDiscount.toFixed(3)} KWD discount applied
+                </p>
+              )}
+              {promoError && <p className="text-[11px] text-destructive">{promoError}</p>}
+            </div>
+
+            {/* Loyalty Points Redemption */}
+            {selectedClient && loyaltyConfig?.is_enabled && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1"><Star className="h-3 w-3 text-amber-500"/>
+                    {selectedClient.loyalty_points || 0} points available
+                    {loyaltyConfig && <span>· {((selectedClient.loyalty_points || 0) * loyaltyConfig.kwd_per_point).toFixed(3)} KWD value</span>}
+                  </span>
+                </div>
+                {(selectedClient.loyalty_points || 0) >= loyaltyConfig.min_redeem_points && (
+                  <div className="flex gap-1.5">
+                    <Input
+                      type="number" min="0" max={selectedClient.loyalty_points || 0}
+                      value={redeemPoints || ''}
+                      onChange={e => setRedeemPoints(Math.min(Number(e.target.value), selectedClient.loyalty_points || 0))}
+                      placeholder="Points to redeem"
+                      className="h-8 text-xs flex-1"
+                    />
+                    <Button size="sm" variant="outline" className="h-8 text-xs flex-shrink-0"
+                      onClick={() => setRedeemPoints(selectedClient.loyalty_points || 0)}>
+                      Max
+                    </Button>
+                    {redeemPoints > 0 && (
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setRedeemPoints(0)}>
+                        <X className="h-3 w-3"/>
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {redeemPoints > 0 && (
+                  <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
+                    <Star className="h-3 w-3"/>✓ -{loyaltyDiscount.toFixed(3)} KWD from {redeemPoints} points
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* Payment dialog */}

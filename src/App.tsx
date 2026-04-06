@@ -42,7 +42,7 @@ import CheckRegister from "./pages/finance/CheckRegister";
 import LoanManager from "./pages/finance/LoanManager";
 import ChartOfAccounts from "./pages/finance/ChartOfAccounts";
 import ARInvoices from "./pages/finance/ARInvoices";
-import ARInvoices from "./pages/finance/ARInvoices";
+import GiftCardsAndPromos from "./pages/GiftCardsAndPromos";
 import DaySession from "./pages/DaySession";
 import TeamUsers from "./pages/TeamUsers";
 import NotFound from "./pages/NotFound";
@@ -113,8 +113,9 @@ const App = () => (
                 <Route path="/day-session" element={<DaySession />} />
                 <Route path="/inventory" element={<Inventory />} />
                 <Route path="/reports" element={<Reports />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/team"     element={<TeamUsers />} />
+                <Route path="/settings"    element={<Settings />} />
+                <Route path="/team"        element={<TeamUsers />} />
+                <Route path="/marketing"   element={<GiftCardsAndPromos />} />
                 <Route path="/subscription" element={<Subscription />} />
               <Route path="/ai/scheduling" element={<AIScheduling />} />
               <Route path="/ai/clients" element={<AIClientIntelligence />} />

@@ -11,7 +11,7 @@ import {
   Calendar, Users, Scissors, Package, CreditCard, BarChart3,
   Settings, LogOut, Sparkles, Crown, UserCog, Bot, LayoutDashboard,
   Brain, CalendarClock, HeartHandshake, PackageSearch, Landmark, Calculator,
-  UsersRound,
+  UsersRound, Gift,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -243,6 +243,7 @@ const AppSidebar = () => {
           <SidebarGroupContent>
             <SidebarMenu className="gap-px">
               {[
+                { url: '/marketing',    icon: Gift,       en: 'Marketing',    ar: 'التسويق',     roles: ['owner','manager'] },
                 { url: '/team',         icon: UsersRound, en: 'Team',         ar: 'الفريق',      roles: ['owner','manager'] },
                 { url: '/settings',     icon: Settings,   en: 'Settings',     ar: 'الإعدادات' },
                 ...(hasRole('owner') ? [{ url: '/subscription', icon: Crown, en: 'Subscription', ar: 'الاشتراك' }] : []),
