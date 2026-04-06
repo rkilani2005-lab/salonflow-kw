@@ -43,6 +43,9 @@ import LoanManager from "./pages/finance/LoanManager";
 import ChartOfAccounts from "./pages/finance/ChartOfAccounts";
 import ARInvoices from "./pages/finance/ARInvoices";
 import GiftCardsAndPromos from "./pages/GiftCardsAndPromos";
+import ReorderReport from "./pages/ReorderReport";
+import StaffAttendance from "./pages/StaffAttendance";
+import WaitingList from "./pages/WaitingList";
 import DaySession from "./pages/DaySession";
 import TeamUsers from "./pages/TeamUsers";
 import NotFound from "./pages/NotFound";
@@ -116,6 +119,9 @@ const App = () => (
                 <Route path="/settings"    element={<Settings />} />
                 <Route path="/team"        element={<TeamUsers />} />
                 <Route path="/marketing"   element={<GiftCardsAndPromos />} />
+                <Route path="/inventory/reorder" element={<ReorderReport />} />
+                <Route path="/attendance"  element={<StaffAttendance />} />
+                <Route path="/waitlist"    element={<WaitingList />} />
                 <Route path="/subscription" element={<Subscription />} />
               <Route path="/ai/scheduling" element={<AIScheduling />} />
               <Route path="/ai/clients" element={<AIClientIntelligence />} />

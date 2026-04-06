@@ -38,6 +38,8 @@ const businessNavItems: NavItem[] = [
   { title: 'POS',          titleAr: 'نقطة البيع',    url: '/pos',           icon: CreditCard,  roles: ['owner','manager','receptionist','cashier'] },
   { title: 'Day Session',  titleAr: 'جلسة اليوم',    url: '/day-session',   icon: Calculator,  roles: ['owner','manager','receptionist','cashier'] },
   { title: 'Inventory',    titleAr: 'المخزون',       url: '/inventory',     icon: Package,     roles: ['owner','manager','inventory_clerk'] },
+  { title: 'Waiting List', titleAr: 'قائمة الانتظار', url: '/waitlist',     icon: Clock,       roles: ['owner','manager','receptionist'] },
+  { title: 'Attendance',   titleAr: 'الحضور',         url: '/attendance',   icon: UserCog,     roles: ['owner','manager'] },
   { title: 'Finance',      titleAr: 'المحاسبة',      url: '/finance',       icon: Landmark,    roles: ['owner','manager','accountant'] },
   { title: 'Reports',      titleAr: 'التقارير',      url: '/reports',       icon: BarChart3,   roles: ['owner','manager','accountant'] },
   { title: 'WhatsApp AI',  titleAr: 'واتساب AI',     url: '/whatsapp-agent', icon: Bot,        roles: ['owner','manager'] },

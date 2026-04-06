@@ -8,13 +8,30 @@ import { VendorInvoicesTab } from '@/components/inventory/VendorInvoicesTab';
 import { StockTakeTab } from '@/components/inventory/stocktake/StockTakeTab';
 import { GoodsReceiptsTab } from '@/components/inventory/GoodsReceiptsTab';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useProducts } from '@/hooks/useProducts';
 
 const Inventory = () => {
+  const navigate = useNavigate();
+  const { data: products = [] } = useProducts();
+  const lowStockCount = products.filter(p => p.is_active && p.reorder_point != null && p.current_stock <= p.reorder_point).length;
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Inventory</h1>
-        <p className="text-muted-foreground">Manage products, suppliers, and procurement</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Inventory</h1>
+          <p className="text-muted-foreground">Manage products, suppliers, and procurement</p>
+        </div>
+        {lowStockCount > 0 && (
+          <Button variant="outline" size="sm" className="gap-2 h-9 border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30"
+            onClick={() => navigate('/inventory/reorder')}>
+            <AlertTriangle className="h-3.5 w-3.5"/>
+            {lowStockCount} item{lowStockCount !== 1 ? 's' : ''} need reorder
+          </Button>
+        )}
       </div>
 
       <Tabs defaultValue="products" className="w-full">
