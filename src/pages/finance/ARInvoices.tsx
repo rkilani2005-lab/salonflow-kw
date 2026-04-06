@@ -105,7 +105,7 @@ export default function ARInvoices() {
         tax_rate:    Number(it.tax_rate),
         total_price: Number(it.total_price),
         account_id:  null,
-      })),
+      })) as any,
     });
     setNewOpen(false);
     setNewForm({ client_id:'', client_name:'', invoice_date: format(new Date(),'yyyy-MM-dd'),
