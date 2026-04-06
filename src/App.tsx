@@ -81,7 +81,8 @@ const App = () => (
               <Route path="/book" element={<Booking />} />
               <Route path="/booking/success" element={<Booking />} />
               <Route path="/booking/failed" element={<Booking />} />
-              <Route path="/my" element={<ClientPortal />} />
+              <Route path="/my"     element={<ClientPortal />} />
+              <Route path="/portal" element={<ClientPortal />} />
 
               {/* Protected onboarding route (no layout) */}
               <Route
