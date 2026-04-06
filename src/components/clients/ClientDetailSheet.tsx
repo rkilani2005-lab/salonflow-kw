@@ -82,7 +82,7 @@ export default function ClientDetailSheet({ clientId, open, onOpenChange }: Prop
     setIsEditing(false); setEditData(null);
   };
 
-  const loyaltyBalance = loyaltyTxns.length > 0 ? loyaltyTxns[0].balance_after : (client as any)?.loyalty_points || 0;
+  const loyaltyBalance = loyaltyTxns.length > 0 ? (loyaltyTxns[0] as any).balance_after : (client as any)?.loyalty_points || 0;
   const totalTips = transactions.reduce((s: number, t: any) => s + Number(t.tip_amount), 0);
   const avgTicket = transactions.length > 0
     ? (transactions.reduce((s: number, t: any) => s + Number(t.grand_total), 0) / transactions.length)
