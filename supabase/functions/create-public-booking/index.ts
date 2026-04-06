@@ -62,14 +62,33 @@ serve(async (req: Request) => {
 
     // ── lookup-client — phone recognition ─────────────────────
     if (body.action === 'lookup-client') {
-      const phone = body.clientPhone?.replace(/\s/g, '');
-      if (!phone) return json({ found: false });
+      const rawPhone = body.clientPhone?.trim() || '';
+      if (!rawPhone) return json({ found: false });
 
-      const { data: client } = await supabase.from('clients')
-        .select('id, name, email, loyalty_points, tier, created_at')
-        .eq('tenant_id', body.tenantId)
-        .eq('phone', phone)
-        .maybeSingle();
+      // Strip spaces for the raw form
+      const phoneStripped = rawPhone.replace(/\s/g, '');
+
+      // Build all variants to try: exact, with/without +965, 8-digit local
+      const digits = phoneStripped.replace(/[^\d]/g, '');
+      const variants = new Set<string>([phoneStripped]);
+      if (!phoneStripped.startsWith('+')) variants.add(`+${phoneStripped}`);
+      if (digits.length === 8)  variants.add(`+965${digits}`);
+      if (digits.length === 11 && digits.startsWith('965')) {
+        variants.add(`+${digits}`);
+        variants.add(digits.slice(3)); // 8-digit local
+      }
+      if (digits.length >= 8) variants.add(digits.slice(-8));
+
+      // Try each variant — first match wins
+      let client = null;
+      for (const variant of variants) {
+        const { data } = await supabase.from('clients')
+          .select('id, name, email, loyalty_points, tier, created_at')
+          .eq('tenant_id', body.tenantId)
+          .eq('phone', variant)
+          .maybeSingle();
+        if (data) { client = data; break; }
+      }
 
       if (!client) return json({ found: false });
 
@@ -182,22 +201,34 @@ serve(async (req: Request) => {
 
       const sanitizedName  = clientName.trim();
       const sanitizedPhone = clientPhone.replace(/\s/g, '');
+
+      // Normalise to +965XXXXXXXX if it's an 8-digit Kuwait local number
+      const phoneDigits = sanitizedPhone.replace(/[^\d]/g, '');
+      const normalizedPhone = phoneDigits.length === 8
+        ? `+965${phoneDigits}`
+        : (phoneDigits.length === 11 && phoneDigits.startsWith('965') ? `+${phoneDigits}` : sanitizedPhone);
+
       const [h, m]  = startTime.split(':').map(Number);
       const endMin  = h * 60 + m + service.duration;
       const endTime = `${Math.floor(endMin/60).toString().padStart(2,'0')}:${(endMin%60).toString().padStart(2,'0')}`;
 
-      // Find or create client
+      // Find or create client — try all variants so we match existing regardless of stored format
+      const lookupVariants = new Set([sanitizedPhone, normalizedPhone, phoneDigits.slice(-8)]);
       let clientId: string;
       let isNewClient = false;
-      const { data: existing } = await supabase.from('clients')
-        .select('id').eq('phone', sanitizedPhone).eq('tenant_id', body.tenantId).maybeSingle();
+      let existingId: string | null = null;
+      for (const v of lookupVariants) {
+        const { data: existing } = await supabase.from('clients')
+          .select('id').eq('phone', v).eq('tenant_id', body.tenantId).maybeSingle();
+        if (existing) { existingId = existing.id; break; }
+      }
 
-      if (existing) {
-        clientId = existing.id;
+      if (existingId) {
+        clientId = existingId;
         if (clientEmail) await supabase.from('clients').update({ email: clientEmail }).eq('id', clientId).is('email', null);
       } else {
         const { data: newClient, error: ce } = await supabase.from('clients')
-          .insert({ name: sanitizedName, phone: sanitizedPhone, email: clientEmail || null, tenant_id: body.tenantId })
+          .insert({ name: sanitizedName, phone: normalizedPhone, email: clientEmail || null, tenant_id: body.tenantId })
           .select('id').single();
         if (ce || !newClient) return json({ error: 'Failed to create client' }, 500);
         clientId = newClient.id;
@@ -205,7 +236,7 @@ serve(async (req: Request) => {
       }
 
       const { data: booking, error: be } = await supabase.from('bookings').insert({
-        client_id: clientId, client_name: sanitizedName, client_phone: sanitizedPhone,
+        client_id: clientId, client_name: sanitizedName, client_phone: normalizedPhone,
         staff_id: staffId || null, service_id: service.id, service_name: service.name,
         service_category: service.category, booking_date: bookingDate, start_time: startTime,
         end_time: endTime, duration: service.duration, price: service.price,

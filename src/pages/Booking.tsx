@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { format, addDays, isBefore, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { formatPhoneInput, isValidKuwaitPhone } from '@/lib/phoneUtils';
 
 // ─── Types ────────────────────────────────────────────────────
 interface Service {
@@ -436,17 +437,19 @@ export default function BookingPage() {
                   <Input
                     dir="ltr"
                     type="tel"
+                    inputMode="numeric"
                     placeholder="+965 9XXX XXXX"
                     value={phoneInput}
-                    onChange={e => setPhoneInput(e.target.value)}
+                    onFocus={() => { if (!phoneInput) setPhoneInput('+965 '); }}
+                    onChange={e => setPhoneInput(formatPhoneInput(e.target.value))}
                     onKeyDown={e => e.key === 'Enter' && handlePhoneLookup()}
-                    className="h-12 text-base text-center tracking-wider"
+                    className="h-12 text-base text-center tracking-widest font-mono"
                     autoFocus
                   />
                 </div>
                 <Button
                   onClick={handlePhoneLookup}
-                  disabled={!phoneInput.trim() || lookingUp}
+                  disabled={!isValidKuwaitPhone(phoneInput) || lookingUp}
                   className="w-full h-12 text-base font-semibold gap-2">
                   {lookingUp
                     ? <><Loader2 className="h-4 w-4 animate-spin"/>{ar ? 'جارٍ البحث...' : 'Checking...'}</>
@@ -846,7 +849,7 @@ export default function BookingPage() {
                 />
               </div>
 
-              {/* Phone — readonly for returning clients */}
+              {/* Phone — readonly for returning clients, auto-formatted for new */}
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium flex items-center gap-1.5">
                   <Phone className="h-3.5 w-3.5 text-muted-foreground"/>
@@ -859,11 +862,13 @@ export default function BookingPage() {
                 </Label>
                 <Input
                   type="tel"
+                  inputMode="numeric"
                   dir="ltr"
                   value={clientPhone}
-                  onChange={e => !foundClient && setClientPhone(e.target.value)}
+                  onFocus={() => { if (!foundClient && !clientPhone) setClientPhone('+965 '); }}
+                  onChange={e => { if (!foundClient) setClientPhone(formatPhoneInput(e.target.value)); }}
                   placeholder="+965 9XXX XXXX"
-                  className={cn('h-11', foundClient && 'bg-muted/40 cursor-not-allowed text-muted-foreground')}
+                  className={cn('h-11 font-mono tracking-wide', foundClient && 'bg-muted/40 cursor-not-allowed text-muted-foreground')}
                   readOnly={!!foundClient}
                 />
               </div>

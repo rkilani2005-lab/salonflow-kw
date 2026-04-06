@@ -22,7 +22,8 @@
    SelectValue,
  } from '@/components/ui/select';
  import { useCreateClient, ClientTier } from '@/hooks/useClients';
- 
+ import { formatPhoneInput } from '@/lib/phoneUtils';
+
  const clientSchema = z.object({
    name: z.string().trim().min(1, 'Name is required').max(100, 'Name must be less than 100 characters'),
    phone: z.string().trim().min(1, 'Phone is required').max(20, 'Phone must be less than 20 characters'),
@@ -46,6 +47,7 @@
      register,
      handleSubmit,
      reset,
+     setValue,
      formState: { errors, isSubmitting },
    } = useForm<ClientFormData>({
      resolver: zodResolver(clientSchema),
@@ -92,8 +94,14 @@
              <Label htmlFor="phone">Phone *</Label>
              <Input
                id="phone"
-               placeholder="+965 xxxx xxxx"
+               type="tel"
+               inputMode="numeric"
+               dir="ltr"
+               placeholder="+965 9XXX XXXX"
+               className="font-mono"
                {...register('phone')}
+               onFocus={e => { if (!e.target.value) setValue('phone', '+965 '); }}
+               onChange={e => setValue('phone', formatPhoneInput(e.target.value), { shouldValidate: true })}
              />
              {errors.phone && (
                <p className="text-sm text-destructive">{errors.phone.message}</p>

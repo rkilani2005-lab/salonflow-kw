@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { formatPhoneInput } from '@/lib/phoneUtils';
 import { useStaff } from '@/hooks/useStaff';
 import { useServicesManagement } from '@/hooks/useServices';
 import { useClients } from '@/hooks/useClients';
@@ -294,7 +295,15 @@ export default function WaitingList() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">{ar ? 'الهاتف *' : 'Phone *'}</Label>
-                <Input value={clientPhone} onChange={e => setClientPhone(e.target.value)} className="h-9" placeholder="+965 XXXX"/>
+                <Input
+                  value={clientPhone}
+                  onFocus={() => { if (!clientPhone) setClientPhone('+965 '); }}
+                  onChange={e => setClientPhone(formatPhoneInput(e.target.value))}
+                  className="h-9 font-mono"
+                  placeholder="+965 9XXX XXXX"
+                  inputMode="numeric"
+                  dir="ltr"
+                />
               </div>
             </div>
 

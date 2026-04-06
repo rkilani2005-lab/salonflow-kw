@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formatPhoneInput } from '@/lib/phoneUtils';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Staff, Service } from '@/types/calendar';
@@ -341,9 +342,12 @@ export function WalkInDialog({ open, onOpenChange, staff, services, onSubmit }: 
                     <Label className="text-[10px] font-semibold">Phone *</Label>
                     <Input
                       value={newPhone}
-                      onChange={e => setNewPhone(e.target.value)}
+                      onFocus={() => { if (!newPhone) setNewPhone('+965 '); }}
+                      onChange={e => setNewPhone(formatPhoneInput(e.target.value))}
                       placeholder="+965 9XXX XXXX"
-                      className="h-8 text-xs"
+                      className="h-8 text-xs font-mono"
+                      inputMode="numeric"
+                      dir="ltr"
                     />
                   </div>
                 </div>
