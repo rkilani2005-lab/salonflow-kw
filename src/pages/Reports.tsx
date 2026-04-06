@@ -432,7 +432,7 @@ export default function Reports() {
   const handleExport = (format: 'csv' | 'pdf') => {
     const dateLabel = `${range} · ${new Date().toLocaleDateString()}`;
     if (activeTab === 'revenue' && trend) {
-      const rows = trend.map(r => ({ date: r.date, revenue: r.revenue.toFixed(3), transactions: r.count }));
+      const rows = trend.map((r: any) => ({ date: r.name, revenue: r.revenue.toFixed(3), transactions: 0 }));
       if (format === 'csv') exportCSV(rows, 'revenue_trend', { date: 'Date', revenue: `Revenue (${currency})`, transactions: 'Transactions' });
       else exportPrintPDF(
         `<h1>Revenue Report</h1><p class="sub">${dateLabel}</p>` +
@@ -445,7 +445,7 @@ export default function Reports() {
         'Revenue Report'
       );
     } else if (activeTab === 'services' && services) {
-      const rows = services.map(s => ({ service: s.name, revenue: s.revenue.toFixed(3), bookings: s.count, avg: s.avgPrice.toFixed(3) }));
+      const rows = services.map((s: any) => ({ service: s.name, revenue: s.revenue.toFixed(3), bookings: s.bookings, avg: (s.bookings > 0 ? s.revenue / s.bookings : 0).toFixed(3) }));
       if (format === 'csv') exportCSV(rows, 'services_report', { service: 'Service', revenue: `Revenue (${currency})`, bookings: 'Bookings', avg: `Avg Price (${currency})` });
       else exportPrintPDF(
         `<h1>Services Report</h1><p class="sub">${dateLabel}</p>` +
@@ -474,7 +474,7 @@ export default function Reports() {
         'Staff Performance'
       );
     } else if (activeTab === 'inventory' && inventory) {
-      const rows = inventory.map(p => ({
+      const rows = (inventory.rows || []).map((p: any) => ({
         name: p.name, category: p.category, current_stock: p.current_stock,
         reorder_point: p.reorder_point ?? '-', status: p.status, cost_price: p.cost_price.toFixed(3),
       }));
