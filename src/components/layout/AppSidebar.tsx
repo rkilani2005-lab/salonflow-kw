@@ -11,7 +11,7 @@ import {
   Calendar, Users, Scissors, Package, CreditCard, BarChart3,
   Settings, LogOut, Sparkles, Crown, UserCog, Bot, LayoutDashboard,
   Brain, CalendarClock, HeartHandshake, PackageSearch, Landmark, Calculator,
-  UsersRound, Gift,
+  UsersRound, Gift, Clock, Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +40,7 @@ const businessNavItems: NavItem[] = [
   { title: 'Inventory',    titleAr: 'المخزون',       url: '/inventory',     icon: Package,     roles: ['owner','manager','inventory_clerk'] },
   { title: 'Waiting List', titleAr: 'قائمة الانتظار', url: '/waitlist',     icon: Clock,       roles: ['owner','manager','receptionist'] },
   { title: 'Attendance',   titleAr: 'الحضور',         url: '/attendance',   icon: UserCog,     roles: ['owner','manager'] },
+  { title: 'Feedback',     titleAr: 'التقييمات',      url: '/feedback',     icon: Star,        roles: ['owner','manager'] },
   { title: 'Finance',      titleAr: 'المحاسبة',      url: '/finance',       icon: Landmark,    roles: ['owner','manager','accountant'] },
   { title: 'Reports',      titleAr: 'التقارير',      url: '/reports',       icon: BarChart3,   roles: ['owner','manager','accountant'] },
   { title: 'WhatsApp AI',  titleAr: 'واتساب AI',     url: '/whatsapp-agent', icon: Bot,        roles: ['owner','manager'] },

@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Receipt, Download, Filter } from 'lucide-react';
+import { exportCSV } from '@/lib/exportUtils';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -98,7 +99,20 @@ export default function ExpenseManager() {
           <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>{ar?'إدارة المصروفات':'Expense Management'}</h1>
           <p className="text-sm text-muted-foreground mt-1">{ar?'التكاليف المباشرة وغير المباشرة والاستحقاقات':'Direct & indirect costs, accruals'}</p>
         </div>
-        <Button size="sm" onClick={() => setShowAdd(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5"/>{ar?'إضافة مصروف':'Add Expense'}</Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" className="gap-1.5 h-9"
+            onClick={() => {
+              const rows = filtered.map(e => ({
+                date: e.expense_date, category: e.category, description: e.description,
+                amount: Number(e.amount).toFixed(3), tax: Number(e.tax_amount).toFixed(3),
+                total: Number(e.total_amount).toFixed(3), status: e.status, type: e.cost_type,
+              }));
+              exportCSV(rows, 'expenses', { date: 'Date', category: 'Category', description: 'Description', amount: `Amount (${currency})`, tax: 'Tax', total: 'Total', status: 'Status', type: 'Type' });
+            }}>
+            <Download className="h-3.5 w-3.5"/>{ar?'CSV':'CSV'}
+          </Button>
+          <Button size="sm" onClick={() => setShowAdd(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5"/>{ar?'إضافة مصروف':'Add Expense'}</Button>
+        </div>
       </div>
 
       {/* Summary cards */}

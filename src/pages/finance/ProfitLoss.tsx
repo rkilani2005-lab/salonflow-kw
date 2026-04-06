@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { exportCSV } from '@/lib/exportUtils';
 import { Download, TrendingUp, TrendingDown, DollarSign, BarChart3 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -74,7 +75,19 @@ export default function ProfitLoss() {
               <SelectItem value="ytd">{ar?'من بداية العام':'Year-to-Date'}</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"><Download className="h-3.5 w-3.5"/>{ar?'تصدير':'Export'}</Button>
+          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"
+            onClick={() => {
+              if (!data) return;
+              const rows = [
+                ...data.revenue.map((a: any) => ({ section: 'Revenue', account: a.name, amount: a.amount.toFixed(3) })),
+                ...data.cogs.map((a: any) => ({ section: 'COGS', account: a.name, amount: a.amount.toFixed(3) })),
+                ...data.opex.map((a: any) => ({ section: 'OpEx', account: a.name, amount: a.amount.toFixed(3) })),
+                { section: 'TOTAL', account: 'Net Income', amount: data.netIncome.toFixed(3) },
+              ];
+              exportCSV(rows, `pnl_${label.replace(/\s/g,'_')}`, { section: 'Section', account: 'Account', amount: `Amount (${currency})` });
+            }}>
+            <Download className="h-3.5 w-3.5"/>{ar?'تصدير':'Export'}
+          </Button>
         </div>
       </div>
 

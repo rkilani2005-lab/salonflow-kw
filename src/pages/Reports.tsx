@@ -25,6 +25,7 @@ import {
   startOfMonth, endOfMonth, subMonths, getHours, getDay,
 } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { exportCSV, exportPrintPDF, buildHTMLTable, buildKPIBlock } from '@/lib/exportUtils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type DateRange = '7d' | '30d' | '90d' | '1y';
@@ -408,6 +409,7 @@ export default function Reports() {
   const { language } = useLanguage();
   const ar = language === 'ar';
   const [range, setRange] = useState<DateRange>('30d');
+  const [activeTab, setActiveTab] = useState('revenue');
   const currency = tenant?.currency || 'KWD';
   const tid = tenant?.id;
 
@@ -423,6 +425,71 @@ export default function Reports() {
   const { data: inventory                   } = useInventoryReport(tid);
 
   const maxHeat = useMemo(() => heatmap ? Math.max(...heatmap.flat(), 1) : 1, [heatmap]);
+
+  // ── Export current tab ────────────────────────────────────────
+  const handleExport = (format: 'csv' | 'pdf') => {
+    const dateLabel = `${range} · ${new Date().toLocaleDateString()}`;
+    if (activeTab === 'revenue' && trend) {
+      const rows = trend.map(r => ({ date: r.date, revenue: r.revenue.toFixed(3), transactions: r.count }));
+      if (format === 'csv') exportCSV(rows, 'revenue_trend', { date: 'Date', revenue: `Revenue (${currency})`, transactions: 'Transactions' });
+      else exportPrintPDF(
+        `<h1>Revenue Report</h1><p class="sub">${dateLabel}</p>` +
+        buildKPIBlock([
+          { label: 'Total Revenue', value: `${kpis?.revenue.toFixed(3)} ${currency}` },
+          { label: 'Transactions',  value: kpis?.transactions || 0 },
+          { label: 'Avg Ticket',    value: `${kpis?.avgTicket?.toFixed(3)} ${currency}` },
+        ]) +
+        buildHTMLTable(rows, { date: 'Date', revenue: `Revenue (${currency})`, transactions: 'Transactions' }, ''),
+        'Revenue Report'
+      );
+    } else if (activeTab === 'services' && services) {
+      const rows = services.map(s => ({ service: s.name, revenue: s.revenue.toFixed(3), bookings: s.count, avg: s.avgPrice.toFixed(3) }));
+      if (format === 'csv') exportCSV(rows, 'services_report', { service: 'Service', revenue: `Revenue (${currency})`, bookings: 'Bookings', avg: `Avg Price (${currency})` });
+      else exportPrintPDF(
+        `<h1>Services Report</h1><p class="sub">${dateLabel}</p>` +
+        buildHTMLTable(rows, { service: 'Service', revenue: `Revenue (${currency})`, bookings: 'Bookings', avg: `Avg Price (${currency})` }, ''),
+        'Services Report'
+      );
+    } else if (activeTab === 'staff' && staff) {
+      const rows = staff.map(s => ({
+        name: s.name, transactions: s.txns, revenue: s.revenue.toFixed(3),
+        avg_ticket: s.avgTicket.toFixed(3), tips: s.tips.toFixed(3),
+        commission: (s as any).commission?.toFixed(3) || '0.000',
+        pending_commission: (s as any).commissionPending?.toFixed(3) || '0.000',
+        share: `${s.pct}%`,
+      }));
+      if (format === 'csv') exportCSV(rows, 'staff_performance', {
+        name: 'Staff', transactions: 'Txns', revenue: `Revenue (${currency})`,
+        avg_ticket: `Avg Ticket (${currency})`, tips: `Tips (${currency})`,
+        commission: `Commission (${currency})`, pending_commission: `Pending (${currency})`, share: 'Revenue Share',
+      });
+      else exportPrintPDF(
+        `<h1>Staff Performance Report</h1><p class="sub">${dateLabel}</p>` +
+        buildHTMLTable(rows, {
+          name: 'Staff', transactions: 'Txns', revenue: `Revenue (${currency})`,
+          avg_ticket: `Avg Ticket`, tips: 'Tips', commission: 'Commission', share: 'Share',
+        }, ''),
+        'Staff Performance'
+      );
+    } else if (activeTab === 'inventory' && inventory) {
+      const rows = inventory.map(p => ({
+        name: p.name, category: p.category, current_stock: p.current_stock,
+        reorder_point: p.reorder_point ?? '-', status: p.status, cost_price: p.cost_price.toFixed(3),
+      }));
+      if (format === 'csv') exportCSV(rows, 'inventory_report', {
+        name: 'Product', category: 'Category', current_stock: 'Stock',
+        reorder_point: 'Reorder Point', status: 'Status', cost_price: `Cost (${currency})`,
+      });
+      else exportPrintPDF(
+        `<h1>Inventory Report</h1><p class="sub">${dateLabel}</p>` +
+        buildHTMLTable(rows, {
+          name: 'Product', category: 'Category', current_stock: 'Stock',
+          reorder_point: 'Reorder Pt', status: 'Status', cost_price: `Cost`,
+        }, ''),
+        'Inventory Report'
+      );
+    }
+  };
 
   const heatColor = (val: number) => {
     if (val === 0) return 'bg-muted/40';
@@ -463,12 +530,16 @@ export default function Reports() {
               <SelectItem value="1y">{t('Last 12 months','آخر 12 شهر')}</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-            <Download className="h-3.5 w-3.5" />{t('Export','تصدير')}
+          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"
+            onClick={() => handleExport('csv')}>
+            <Download className="h-3.5 w-3.5" />{t('CSV','CSV')}
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"
+            onClick={() => handleExport('pdf')}>
+            <Download className="h-3.5 w-3.5" />{t('PDF','PDF')}
           </Button>
         </div>
       </div>
-
       {/* ── KPI Row ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard label={t('Total Revenue','إجمالي الإيرادات')}  value={`${kpis?.revenue.toFixed(3)||0} ${currency}`}  trend={kpis?.revChange}   icon={DollarSign}  loading={kpisL} />
@@ -486,7 +557,7 @@ export default function Reports() {
       </div>
 
       {/* ── Tabs ── */}
-      <Tabs defaultValue="revenue" className="space-y-4">
+      <Tabs defaultValue="revenue" className="space-y-4" onValueChange={setActiveTab}>
         <TabsList className="h-9 text-xs gap-0.5">
           <TabsTrigger value="revenue"  className="text-xs px-3">{t('Revenue','الإيرادات')}</TabsTrigger>
           <TabsTrigger value="services" className="text-xs px-3">{t('Services','الخدمات')}</TabsTrigger>
