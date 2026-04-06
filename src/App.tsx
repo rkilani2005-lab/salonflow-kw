@@ -42,6 +42,7 @@ import CheckRegister from "./pages/finance/CheckRegister";
 import LoanManager from "./pages/finance/LoanManager";
 import ChartOfAccounts from "./pages/finance/ChartOfAccounts";
 import ARInvoices from "./pages/finance/ARInvoices";
+import ARInvoices from "./pages/finance/ARInvoices";
 import DaySession from "./pages/DaySession";
 import TeamUsers from "./pages/TeamUsers";
 import NotFound from "./pages/NotFound";
