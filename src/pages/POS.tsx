@@ -10,7 +10,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCreateTransaction, type CartItem, type PaymentEntry } from '@/hooks/useTransactions';
 import { useStaff } from '@/hooks/useStaff';
 import type { Client } from '@/hooks/useClients';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as _supabase } from '@/integrations/supabase/client';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabase = _supabase as any;
 import { ShoppingCart, CalendarCheck, RotateCcw, Tag, Star, X, Loader2 } from 'lucide-react';
 import { RefundDialog } from '@/components/pos/RefundDialog';
 import { useTransactionById } from '@/hooks/useTransactions';

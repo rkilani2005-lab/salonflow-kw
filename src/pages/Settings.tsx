@@ -14,7 +14,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as _supabase } from '@/integrations/supabase/client';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabase = _supabase as any;
 import {
   Building2, Clock, Bell, Globe, Save, Upload, User, Phone,
   MapPin, CheckCircle2, Loader2, ImageIcon, X, Calendar, Link, Copy, Check,
