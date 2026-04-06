@@ -48,6 +48,7 @@ import StaffAttendance from "./pages/StaffAttendance";
 import WaitingList from "./pages/WaitingList";
 import ClientFeedback from "./pages/ClientFeedback";
 import Packages from "./pages/Packages";
+import ClientPortal from "./pages/ClientPortal";
 import DaySession from "./pages/DaySession";
 import TeamUsers from "./pages/TeamUsers";
 import NotFound from "./pages/NotFound";
@@ -80,6 +81,7 @@ const App = () => (
               <Route path="/book" element={<Booking />} />
               <Route path="/booking/success" element={<Booking />} />
               <Route path="/booking/failed" element={<Booking />} />
+              <Route path="/my" element={<ClientPortal />} />
 
               {/* Protected onboarding route (no layout) */}
               <Route
