@@ -140,13 +140,23 @@ export default function POS() {
       setIsGuest(true);
     }
 
+    // Use effective price (respects time-windowed price schedules)
+    let effectivePrice = Number(booking.price);
+    if (booking.service_id) {
+      const { data: ep } = await supabase
+        .rpc('get_effective_price', { p_service_id: booking.service_id });
+      if (ep !== null && ep !== undefined) effectivePrice = Number(ep);
+    }
+
     const serviceItem: CartItem = {
       item_type: 'service',
       item_id: booking.service_id || '',
       item_name: booking.service_name,
       quantity: 1,
-      unit_price: Number(booking.price),
-      total_price: Number(booking.price),
+      unit_price: effectivePrice,
+      total_price: effectivePrice,
+      // Capture staff for commission calculation
+      staff_commission_id: booking.staff_id || undefined,
     };
 
     if (booking.service_id) {

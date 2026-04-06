@@ -212,6 +212,49 @@ export const useCreateTransaction = () => {
           .eq('id', input.booking_id);
       }
 
+      // 7. Calculate and record staff commissions for service items
+      const serviceItemsForCommission = input.items.filter(
+        i => i.item_type === 'service' && i.staff_commission_id
+      );
+      for (const item of serviceItemsForCommission) {
+        const staffId = item.staff_commission_id!;
+        // Find the service category from DB
+        let category = 'other';
+        if (item.item_id) {
+          const { data: svc } = await supabase
+            .from('services').select('category').eq('id', item.item_id).single();
+          if (svc?.category) category = svc.category;
+        }
+        // Look up commission rule (category-specific first, then default)
+        const { data: rules } = await supabase
+          .from('staff_commission_rules')
+          .select('*')
+          .eq('staff_id', staffId)
+          .eq('is_active', true)
+          .or(`service_category.eq.${category},service_category.is.null`)
+          .order('service_category', { ascending: false, nullsFirst: false });
+
+        const rule = rules?.[0];
+        if (rule) {
+          const commissionAmt = rule.commission_type === 'percentage'
+            ? Math.round(item.total_price * (rule.commission_value / 100) * 1000) / 1000
+            : rule.commission_value;
+
+          await supabase.from('staff_commission_earnings').insert({
+            tenant_id:           tenant.id,
+            staff_id:            staffId,
+            transaction_id:      txn.id,
+            rule_id:             rule.id,
+            service_name:        item.item_name,
+            sale_amount:         item.total_price,
+            commission_type:     rule.commission_type,
+            commission_rate:     rule.commission_value,
+            commission_amount:   commissionAmt,
+            payout_status:       'pending',
+          });
+        }
+      }
+
       return txn;
     },
     onSuccess: () => {

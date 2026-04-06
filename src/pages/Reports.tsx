@@ -229,27 +229,39 @@ function useStaffPerformance(tid?: string, range: DateRange = '7d') {
   return useQuery({
     queryKey: ['staff-perf', tid, range],
     queryFn: async () => {
-      const { data } = await supabase.from('transactions')
-        .select('grand_total,tip_amount,staff_id,staff:staff_id(name)')
-        .eq('status','completed')
-        .not('staff_id','is',null)
-        .gte('created_at',from.toISOString()).lte('created_at',to.toISOString());
-      const map: Record<string,{name:string;rev:number;tips:number;txns:number}> = {};
-      (data||[]).forEach((t:any) => {
+      const [txnRes, commRes] = await Promise.all([
+        supabase.from('transactions')
+          .select('grand_total,tip_amount,staff_id,staff:staff_id(name)')
+          .eq('status','completed')
+          .not('staff_id','is',null)
+          .gte('created_at',from.toISOString()).lte('created_at',to.toISOString()),
+        supabase.from('staff_commission_earnings')
+          .select('staff_id,commission_amount,payout_status')
+          .gte('created_at',from.toISOString()).lte('created_at',to.toISOString()),
+      ]);
+      const map: Record<string,{name:string;rev:number;tips:number;txns:number;commission:number;commissionPending:number}> = {};
+      (txnRes.data||[]).forEach((t:any) => {
         const id = t.staff_id as string;
-        if (!map[id]) map[id]={name:t.staff?.name||'Unknown',rev:0,tips:0,txns:0};
+        if (!map[id]) map[id]={name:t.staff?.name||'Unknown',rev:0,tips:0,txns:0,commission:0,commissionPending:0};
         map[id].rev  += Number(t.grand_total);
         map[id].tips += Number(t.tip_amount);
         map[id].txns += 1;
+      });
+      (commRes.data||[]).forEach((c:any) => {
+        if (!map[c.staff_id]) return;
+        map[c.staff_id].commission += Number(c.commission_amount);
+        if (c.payout_status === 'pending') map[c.staff_id].commissionPending += Number(c.commission_amount);
       });
       const rows = Object.values(map).sort((a,b)=>b.rev-a.rev);
       const maxRev = Math.max(...rows.map(r=>r.rev),1);
       return rows.map(r=>({
         ...r,
-        revenue:  Math.round(r.rev*1000)/1000,
-        tips:     Math.round(r.tips*1000)/1000,
-        avgTicket:r.txns>0 ? Math.round((r.rev/r.txns)*1000)/1000 : 0,
-        pct:      Math.round((r.rev/maxRev)*100),
+        revenue:            Math.round(r.rev*1000)/1000,
+        tips:               Math.round(r.tips*1000)/1000,
+        avgTicket:          r.txns>0 ? Math.round((r.rev/r.txns)*1000)/1000 : 0,
+        commission:         Math.round(r.commission*1000)/1000,
+        commissionPending:  Math.round(r.commissionPending*1000)/1000,
+        pct:                Math.round((r.rev/maxRev)*100),
       }));
     },
     enabled: !!tid,
@@ -717,6 +729,8 @@ export default function Reports() {
                           <th className="text-right py-2.5 px-4 font-semibold">{t('Revenue','الإيرادات')}</th>
                           <th className="text-right py-2.5 px-4 font-semibold">{t('Avg Ticket','متوسط الفاتورة')}</th>
                           <th className="text-right py-2.5 px-4 font-semibold">{t('Tips','الإكراميات')}</th>
+                          <th className="text-right py-2.5 px-4 font-semibold">{t('Commission','العمولة')}</th>
+                          <th className="text-right py-2.5 px-4 font-semibold text-amber-600">{t('Pending','معلقة')}</th>
                           <th className="py-2.5 px-4 font-semibold">{t('Share','الحصة')}</th>
                         </tr>
                       </thead>
@@ -730,9 +744,11 @@ export default function Reports() {
                               </div>
                             </td>
                             <td className="py-3 px-4 text-right">{s.txns}</td>
-                            <td className="py-3 px-4 text-right font-semibold">{s.revenue.toFixed(3)} {currency}</td>
+                            <td className="py-3 px-4 text-right font-semibold">{s.revenue.toFixed(3)}</td>
                             <td className="py-3 px-4 text-right">{s.avgTicket.toFixed(3)}</td>
                             <td className="py-3 px-4 text-right text-emerald-600">{s.tips.toFixed(3)}</td>
+                            <td className="py-3 px-4 text-right text-primary font-semibold">{(s as any).commission?.toFixed(3) ?? '—'}</td>
+                            <td className="py-3 px-4 text-right text-amber-600 font-semibold">{(s as any).commissionPending?.toFixed(3) ?? '—'}</td>
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2">
                                 <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">

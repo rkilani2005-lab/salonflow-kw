@@ -2,6 +2,8 @@
  import { useForm } from 'react-hook-form';
  import { zodResolver } from '@hookform/resolvers/zod';
  import * as z from 'zod';
+ import { StaffCommissionRules } from './StaffCommissionRules';
+ import { useAuth } from '@/contexts/AuthContext';
  import {
    Sheet,
    SheetContent,
@@ -63,6 +65,8 @@
    const [isEditing, setIsEditing] = useState(false);
    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
    const { data: staff, isLoading } = useStaffWithServices(staffId);
+   const { tenant } = useAuth();
+   const currency = tenant?.currency || 'KWD';
    const { data: allServices } = useServices();
    const updateStaff = useUpdateStaff();
    const deleteStaff = useDeleteStaff();
@@ -246,6 +250,17 @@
                    </div>
                  </div>
  
+                 {/* Commission Rules */}
+                 {staffId && (
+                   <div className="pt-2">
+                     <StaffCommissionRules
+                       staffId={staffId}
+                       staffName={staff?.name || ''}
+                       currency={currency}
+                     />
+                   </div>
+                 )}
+
                  <Button onClick={() => setIsEditing(true)} className="w-full">
                    Edit Staff
                  </Button>

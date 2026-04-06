@@ -41,6 +41,7 @@ import GeneralLedger from "./pages/finance/GeneralLedger";
 import CheckRegister from "./pages/finance/CheckRegister";
 import LoanManager from "./pages/finance/LoanManager";
 import ChartOfAccounts from "./pages/finance/ChartOfAccounts";
+import ARInvoices from "./pages/finance/ARInvoices";
 import DaySession from "./pages/DaySession";
 import TeamUsers from "./pages/TeamUsers";
 import NotFound from "./pages/NotFound";
@@ -124,6 +125,7 @@ const App = () => (
               <Route path="/finance/checks" element={<CheckRegister />} />
               <Route path="/finance/loans" element={<LoanManager />} />
               <Route path="/finance/accounts" element={<ChartOfAccounts />} />
+              <Route path="/finance/invoices" element={<ARInvoices />} />
               </Route>
 
               {/* Super Admin routes — all under /zaina-admin/ */}
