@@ -117,7 +117,7 @@ const Staff = () => {
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" className="gap-1.5 h-9"
             onClick={() => exportCSV(
-              (data || []).map((s: any) => ({ name: s.name, name_ar: s.name_ar || '', phone: s.phone || '', email: s.email || '', status: s.is_active ? 'Active' : 'Inactive', hours: `${s.working_hours_start}–${s.working_hours_end}` })),
+              (staff || []).map((s: any) => ({ name: s.name, name_ar: s.name_ar || '', phone: s.phone || '', email: s.email || '', status: s.is_active ? 'Active' : 'Inactive', hours: `${s.working_hours_start}–${s.working_hours_end}` })),
               'staff',
               { name: 'Name', name_ar: 'Arabic Name', phone: 'Phone', email: 'Email', status: 'Status', hours: 'Working Hours' }
             )}>
