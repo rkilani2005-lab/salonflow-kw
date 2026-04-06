@@ -96,6 +96,7 @@ export default function ARInvoices() {
     if (!newForm.client_name) return;
     await createInvoice.mutateAsync({
       ...newForm,
+      invoice_number: '',
       subtotal, tax_amount: taxTotal,
       total_amount: grandTotal, currency,
       items: newItems.map(it => ({
@@ -106,7 +107,7 @@ export default function ARInvoices() {
         total_price: Number(it.total_price),
         account_id:  null,
       })) as any,
-    });
+    } as any);
     setNewOpen(false);
     setNewForm({ client_id:'', client_name:'', invoice_date: format(new Date(),'yyyy-MM-dd'),
       due_date: format(new Date(Date.now()+30*86400000),'yyyy-MM-dd'), notes:'', status:'draft',
