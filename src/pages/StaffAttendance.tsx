@@ -200,6 +200,19 @@ export default function StaffAttendance() {
             {staffList.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Button size="sm" variant="outline" className="gap-1.5 h-9 ml-auto"
+          onClick={() => {
+            const { exportCSV } = require('@/lib/exportUtils');
+            const rows = summary.map(s => ({
+              name: s.name, present: s.present, absent: s.absent,
+              late: s.late, hours: s.totalHrs.toFixed(1),
+            }));
+            exportCSV(rows, `attendance_${format(viewMonth,'yyyy-MM')}`, {
+              name: 'Staff', present: 'Present', absent: 'Absent', late: 'Late', hours: 'Hours',
+            });
+          }}>
+          <Download className="h-3.5 w-3.5"/>CSV
+        </Button>
       </div>
 
       {/* Summary cards */}

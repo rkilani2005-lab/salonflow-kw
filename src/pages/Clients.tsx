@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Plus, Users, Star, Crown, Phone, Mail, Calendar } from 'lucide-react';
+import { Search, Plus, Users, Star, Crown, Phone, Mail, Calendar, Download } from 'lucide-react';
 import { useClients, ClientTier } from '@/hooks/useClients';
 import AddClientDialog from '@/components/clients/AddClientDialog';
 import ClientDetailSheet from '@/components/clients/ClientDetailSheet';
 import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { exportCSV } from '@/lib/exportUtils';
 
 const TIER_CONFIG: Record<ClientTier, { label: string; labelAr: string; cls: string; icon: React.ReactNode }> = {
   normal: { label: 'Client',  labelAr: 'عميلة',  cls: 'bg-muted text-muted-foreground border-border',                                icon: null },
@@ -129,10 +130,20 @@ const Clients = () => {
             {stats.total} {ar ? 'عميلة مسجلة' : 'clients registered'}
           </p>
         </div>
-        <Button size="sm" onClick={() => setIsAddDialogOpen(true)} className="gap-1.5 shadow-sm">
-          <Plus className="h-3.5 w-3.5" />
-          {ar ? 'إضافة عميلة' : 'Add Client'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className="gap-1.5 h-9"
+            onClick={() => exportCSV(
+              (clients || []).map((c: any) => ({ name: c.name, phone: c.phone, email: c.email || '', tier: c.tier, created: format(new Date(c.created_at), 'yyyy-MM-dd') })),
+              'clients',
+              { name: 'Name', phone: 'Phone', email: 'Email', tier: 'Tier', created: 'Member Since' }
+            )}>
+            <Download className="h-3.5 w-3.5" />{ar ? 'CSV' : 'CSV'}
+          </Button>
+          <Button size="sm" onClick={() => setIsAddDialogOpen(true)} className="gap-1.5 shadow-sm">
+            <Plus className="h-3.5 w-3.5" />
+            {ar ? 'إضافة عميلة' : 'Add Client'}
+          </Button>
+        </div>
       </div>
 
       {/* Stats row */}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,11 +12,12 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Building2, Clock, Bell, Globe, Save, Upload, User, Phone,
-  MapPin, CheckCircle2, Loader2, ImageIcon, X,
+  MapPin, CheckCircle2, Loader2, ImageIcon, X, Calendar, Link, Copy, Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -315,11 +317,12 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="business" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 h-10">
+        <TabsList className="grid w-full grid-cols-5 h-10">
           <TabsTrigger value="business"      className="text-xs gap-1.5"><Building2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'النشاط' : 'Business'}</span></TabsTrigger>
           <TabsTrigger value="hours"         className="text-xs gap-1.5"><Clock     className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'الأوقات' : 'Hours'}</span></TabsTrigger>
           <TabsTrigger value="notifications" className="text-xs gap-1.5"><Bell      className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'الإشعارات' : 'Notifications'}</span></TabsTrigger>
           <TabsTrigger value="preferences"   className="text-xs gap-1.5"><Globe     className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'التفضيلات' : 'Preferences'}</span></TabsTrigger>
+          <TabsTrigger value="booking"       className="text-xs gap-1.5"><Calendar  className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'الحجز' : 'Booking'}</span></TabsTrigger>
         </TabsList>
 
         {/* ── Business Profile ── */}
@@ -621,7 +624,187 @@ export default function Settings() {
           </Card>
           <SaveBar tab="preferences" onSave={handleSavePreferences} />
         </TabsContent>
+
+        {/* ── Online Booking Config ── */}
+        <TabsContent value="booking" className="space-y-5">
+          <OnlineBookingConfig ar={ar} tenantId={tenant?.id} />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+// ── Online Booking Config component ──────────────────────────
+function OnlineBookingConfig({ ar, tenantId }: { ar: boolean; tenantId?: string }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [copied, setCopied] = useState(false);
+
+  const { data: config, isLoading } = useQuery({
+    queryKey: ['booking-config', tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from('booking_config').select('*').eq('tenant_id', tenantId!).maybeSingle();
+      return data as any;
+    },
+    enabled: !!tenantId,
+  });
+
+  const [enabled,        setEnabled]        = useState(true);
+  const [slug,           setSlug]           = useState('');
+  const [headerTitle,    setHeaderTitle]    = useState('');
+  const [welcomeMsg,     setWelcomeMsg]     = useState('');
+  const [requireDeposit, setRequireDeposit] = useState(false);
+  const [depositPct,     setDepositPct]     = useState('25');
+  const [advanceDays,    setAdvanceDays]    = useState('30');
+  const [minNotice,      setMinNotice]      = useState('2');
+  const [showPrices,     setShowPrices]     = useState(true);
+  const [showStaff,      setShowStaff]      = useState(true);
+  const [inited,         setInited]         = useState(false);
+  const [saving,         setSaving]         = useState(false);
+
+  if (config && !inited) {
+    setEnabled(config.is_enabled ?? true);
+    setSlug(config.slug || '');
+    setHeaderTitle(config.header_title || '');
+    setWelcomeMsg(config.welcome_msg || '');
+    setRequireDeposit(config.require_deposit ?? false);
+    setDepositPct(String(config.deposit_pct || 25));
+    setAdvanceDays(String(config.advance_booking_days || 30));
+    setMinNotice(String(config.min_notice_hours || 2));
+    setShowPrices(config.show_prices ?? true);
+    setShowStaff(config.show_staff ?? true);
+    setInited(true);
+  }
+
+  const bookingUrl = slug
+    ? `${window.location.origin}/book?slug=${slug}`
+    : `${window.location.origin}/book?tenant=${tenantId}`;
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        tenant_id:             tenantId,
+        is_enabled:            enabled,
+        slug:                  slug.trim().toLowerCase().replace(/\s+/g, '-') || null,
+        header_title:          headerTitle || null,
+        welcome_msg:           welcomeMsg || null,
+        require_deposit:       requireDeposit,
+        deposit_pct:           Number(depositPct),
+        advance_booking_days:  Number(advanceDays),
+        min_notice_hours:      Number(minNotice),
+        show_prices:           showPrices,
+        show_staff:            showStaff,
+      };
+      if (config?.id) {
+        await supabase.from('booking_config').update(payload).eq('id', config.id);
+      } else {
+        await supabase.from('booking_config').insert(payload);
+      }
+      qc.invalidateQueries({ queryKey: ['booking-config'] });
+      toast({ title: '✅ Booking settings saved' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally { setSaving(false); }
+  };
+
+  const copyUrl = () => {
+    navigator.clipboard.writeText(bookingUrl);
+    setCopied(true); setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (isLoading) return <Skeleton className="h-64 w-full rounded-md"/>;
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      {/* Enable toggle */}
+      <Card className="border">
+        <CardContent className="p-4 flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-sm">{ar?'الحجز الإلكتروني':'Online Booking'}</p>
+            <p className="text-xs text-muted-foreground">{ar?'السماح للعميلات بالحجز عبر الإنترنت':'Allow clients to book appointments online'}</p>
+          </div>
+          <Switch checked={enabled} onCheckedChange={setEnabled}/>
+        </CardContent>
+      </Card>
+
+      {/* Booking link */}
+      <Card className="border">
+        <CardContent className="p-4 space-y-3">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{ar?'رابط الحجز':'Booking Link'}</p>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">{ar?'الرابط المخصص (slug)':'Custom Slug'}</Label>
+            <div className="flex gap-2">
+              <div className="flex items-center gap-1 px-3 py-2 rounded-md border bg-muted/40 text-xs text-muted-foreground flex-shrink-0">
+                /book?slug=
+              </div>
+              <Input value={slug} onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,''))}
+                className="h-9 font-mono flex-1" placeholder="my-salon"/>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 p-2.5 rounded-md bg-muted/40">
+            <p className="text-[11px] font-mono truncate flex-1 text-muted-foreground">{bookingUrl}</p>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 flex-shrink-0" onClick={copyUrl}>
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-500"/> : <Copy className="h-3.5 w-3.5"/>}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Behaviour */}
+      <Card className="border">
+        <CardContent className="p-4 space-y-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{ar?'سلوك الحجز':'Booking Behaviour'}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">{ar?'الحجز المسبق (أيام)':'Advance booking (days)'}</Label>
+              <Input type="number" min="1" max="365" value={advanceDays} onChange={e => setAdvanceDays(e.target.value)} className="h-9"/>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">{ar?'الحد الأدنى للإشعار (ساعات)':'Min notice (hours)'}</Label>
+              <Input type="number" min="0" max="72" value={minNotice} onChange={e => setMinNotice(e.target.value)} className="h-9"/>
+            </div>
+          </div>
+          <Separator/>
+          {[
+            { label: ar?'عرض الأسعار':'Show prices', val: showPrices, set: setShowPrices },
+            { label: ar?'عرض الموظفات':'Show stylists', val: showStaff, set: setShowStaff },
+            { label: ar?'عربون إلزامي':'Require deposit for all', val: requireDeposit, set: setRequireDeposit },
+          ].map(({ label, val, set }) => (
+            <div key={label} className="flex items-center justify-between">
+              <span className="text-sm">{label}</span>
+              <Switch checked={val} onCheckedChange={set}/>
+            </div>
+          ))}
+          {requireDeposit && (
+            <div className="space-y-1.5 pl-4 border-l-2 border-primary/20">
+              <Label className="text-xs font-semibold">{ar?'نسبة العربون (%)':'Deposit %'}</Label>
+              <Input type="number" min="1" max="100" value={depositPct} onChange={e => setDepositPct(e.target.value)} className="h-9 w-32"/>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Custom text */}
+      <Card className="border">
+        <CardContent className="p-4 space-y-3">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{ar?'نصوص مخصصة':'Custom Text'}</p>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">{ar?'عنوان الصفحة':'Page Header Title'}</Label>
+            <Input value={headerTitle} onChange={e => setHeaderTitle(e.target.value)} className="h-9" placeholder="Book Your Appointment"/>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">{ar?'رسالة الترحيب':'Welcome Message'}</Label>
+            <Textarea value={welcomeMsg} onChange={e => setWelcomeMsg(e.target.value)} rows={2} className="resize-none text-sm"
+              placeholder="Welcome! We look forward to seeing you."/>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Button onClick={handleSave} disabled={saving} className="gap-1.5">
+        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Save className="h-3.5 w-3.5"/>}
+        {ar?'حفظ إعدادات الحجز':'Save Booking Settings'}
+      </Button>
     </div>
   );
 }

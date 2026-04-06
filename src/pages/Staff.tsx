@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Plus, Users, Clock, UserCheck, Phone, Mail, Scissors } from 'lucide-react';
+import { Search, Plus, Users, Clock, UserCheck, Phone, Mail, Scissors, Download } from 'lucide-react';
 import { useStaff } from '@/hooks/useStaff';
 import AddStaffDialog from '@/components/staff/AddStaffDialog';
 import StaffDetailSheet from '@/components/staff/StaffDetailSheet';
+import { exportCSV } from '@/lib/exportUtils';
 import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -113,10 +114,20 @@ const Staff = () => {
             {stats.active} {ar ? 'نشطة من' : 'active of'} {stats.total}
           </p>
         </div>
-        <Button size="sm" onClick={() => setIsAddDialogOpen(true)} className="gap-1.5 shadow-sm">
-          <Plus className="h-3.5 w-3.5" />
-          {ar ? 'إضافة موظفة' : 'Add Staff'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className="gap-1.5 h-9"
+            onClick={() => exportCSV(
+              (data || []).map((s: any) => ({ name: s.name, name_ar: s.name_ar || '', phone: s.phone || '', email: s.email || '', status: s.is_active ? 'Active' : 'Inactive', hours: `${s.working_hours_start}–${s.working_hours_end}` })),
+              'staff',
+              { name: 'Name', name_ar: 'Arabic Name', phone: 'Phone', email: 'Email', status: 'Status', hours: 'Working Hours' }
+            )}>
+            <Download className="h-3.5 w-3.5" />CSV
+          </Button>
+          <Button size="sm" onClick={() => setIsAddDialogOpen(true)} className="gap-1.5 shadow-sm">
+            <Plus className="h-3.5 w-3.5" />
+            {ar ? 'إضافة موظفة' : 'Add Staff'}
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
