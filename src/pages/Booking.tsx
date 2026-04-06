@@ -192,12 +192,21 @@ export default function BookingPage() {
           clientEmail: clientEmail.trim() || undefined,
         },
       });
+
+      // Check SDK-level error first (network / non-2xx)
+      if (response.error) throw new Error(response.error.message || 'Booking service unavailable');
+      // Check application-level error in response body
       if (response.data?.error) throw new Error(response.data.error);
+
       if (response.data?.requiresPayment && response.data?.paymentUrl) {
         window.location.href = response.data.paymentUrl;
         return;
       }
-      setBookingRef(response.data?.bookingId?.slice(-6).toUpperCase() || 'ZAINA');
+
+      // Verify we actually got a booking ID back
+      if (!response.data?.bookingId) throw new Error('Booking was not confirmed — please try again');
+
+      setBookingRef(response.data.bookingId.slice(-6).toUpperCase());
       setPortalToken(response.data?.portalToken || '');
       setIsNewClient(response.data?.isNewClient ?? false);
       setStep('success');
@@ -250,16 +259,18 @@ export default function BookingPage() {
           {/* Celebration */}
           <div className="text-center pt-4">
             <div className="relative mx-auto mb-4 w-fit">
-              <div className="h-20 w-20 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
-                <CheckCircle2 className="h-10 w-10 text-emerald-500"/>
+              <div className="h-20 w-20 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                <Clock className="h-10 w-10 text-amber-500"/>
               </div>
-              <Sparkles className="absolute -top-1 -right-1 h-6 w-6 text-amber-500 animate-pulse"/>
+              <Sparkles className="absolute -top-1 -right-1 h-6 w-6 text-primary animate-pulse"/>
             </div>
             <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'Syne, sans-serif' }}>
-              {ar ? 'تم الحجز بنجاح! 🎉' : 'Booking Confirmed! 🎉'}
+              {ar ? 'تم استلام طلبك! 🎉' : 'Request Received! 🎉'}
             </h1>
-            <p className="text-sm text-muted-foreground">
-              {ar ? 'سنرسل لك تأكيداً عبر واتساب قريباً.' : "We'll send a WhatsApp confirmation shortly."}
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {ar
+                ? 'سيتم مراجعة طلبك وتأكيده قريباً. ستتلقين رسالة واتساب بالتأكيد.'
+                : 'Your request is being reviewed. You\'ll receive a WhatsApp confirmation shortly.'}
             </p>
           </div>
 

@@ -48,6 +48,7 @@ import StaffAttendance from "./pages/StaffAttendance";
 import WaitingList from "./pages/WaitingList";
 import ClientFeedback from "./pages/ClientFeedback";
 import Packages from "./pages/Packages";
+import BookingRequests from "./pages/BookingRequests";
 import ClientPortal from "./pages/ClientPortal";
 import DaySession from "./pages/DaySession";
 import TeamUsers from "./pages/TeamUsers";
@@ -127,8 +128,9 @@ const App = () => (
                 <Route path="/inventory/reorder" element={<ReorderReport />} />
                 <Route path="/attendance"  element={<StaffAttendance />} />
                 <Route path="/waitlist"    element={<WaitingList />} />
-                <Route path="/feedback"    element={<ClientFeedback />} />
-                <Route path="/packages"    element={<Packages />} />
+                <Route path="/feedback"         element={<ClientFeedback />} />
+                <Route path="/packages"         element={<Packages />} />
+                <Route path="/booking-requests" element={<BookingRequests />} />
                 <Route path="/subscription" element={<Subscription />} />
               <Route path="/ai/scheduling" element={<AIScheduling />} />
               <Route path="/ai/clients" element={<AIClientIntelligence />} />

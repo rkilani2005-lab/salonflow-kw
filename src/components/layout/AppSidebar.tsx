@@ -11,7 +11,7 @@ import {
   Calendar, Users, Scissors, Package, CreditCard, BarChart3,
   Settings, LogOut, Sparkles, Crown, UserCog, Bot, LayoutDashboard,
   Brain, CalendarClock, HeartHandshake, PackageSearch, Landmark, Calculator,
-  UsersRound, Gift, Clock, Star,
+  UsersRound, Gift, Clock, Star, Inbox,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,12 +27,13 @@ type NavItem = {
 };
 
 const mainNavItems: NavItem[] = [
-  { title: 'Dashboard',  titleAr: 'الرئيسية',   url: '/dashboard', icon: LayoutDashboard },
-  { title: 'Calendar',   titleAr: 'التقويم',     url: '/calendar',  icon: Calendar },
-  { title: 'Clients',    titleAr: 'العميلات',    url: '/clients',   icon: Users,       roles: ['owner','manager','receptionist'] },
-  { title: 'Staff',      titleAr: 'الموظفات',   url: '/staff',     icon: UserCog,     roles: ['owner','manager'] },
-  { title: 'Services',   titleAr: 'الخدمات',    url: '/services',  icon: Scissors,    roles: ['owner','manager'] },
-  { title: 'Packages',   titleAr: 'الباقات',    url: '/packages',  icon: Package,     roles: ['owner','manager'] },
+  { title: 'Dashboard',        titleAr: 'الرئيسية',       url: '/dashboard',        icon: LayoutDashboard },
+  { title: 'Calendar',         titleAr: 'التقويم',         url: '/calendar',         icon: Calendar },
+  { title: 'Booking Requests', titleAr: 'طلبات الحجز',     url: '/booking-requests', icon: Inbox,       roles: ['owner','manager','receptionist'] },
+  { title: 'Clients',          titleAr: 'العميلات',        url: '/clients',          icon: Users,       roles: ['owner','manager','receptionist'] },
+  { title: 'Staff',            titleAr: 'الموظفات',       url: '/staff',            icon: UserCog,     roles: ['owner','manager'] },
+  { title: 'Services',         titleAr: 'الخدمات',        url: '/services',         icon: Scissors,    roles: ['owner','manager'] },
+  { title: 'Packages',         titleAr: 'الباقات',        url: '/packages',         icon: Package,     roles: ['owner','manager'] },
 ];
 
 const businessNavItems: NavItem[] = [
