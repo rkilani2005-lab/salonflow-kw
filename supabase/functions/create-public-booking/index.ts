@@ -499,6 +499,7 @@ serve(async (req: Request) => {
               return json({
                 success:         true,
                 bookingId:       booking.id,
+                booking:         booking,
                 requiresPayment: true,
                 paymentUrl:      pr.Data.PaymentURL,
                 portalToken:     tokenRow?.token,
@@ -513,7 +514,8 @@ serve(async (req: Request) => {
 
       return json({
         success:         true,
-        bookingId:       booking.id,
+        bookingId:       booking.id,   // primary field
+        booking:         booking,       // full object (backward compat)
         requiresPayment: false,
         isNewClient,
         portalToken:     tokenRow?.token || null,

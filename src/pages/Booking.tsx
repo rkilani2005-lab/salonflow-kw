@@ -193,22 +193,36 @@ export default function BookingPage() {
         },
       });
 
-      // Check SDK-level error first (network / non-2xx)
-      if (response.error) throw new Error(response.error.message || 'Booking service unavailable');
-      // Check application-level error in response body
-      if (response.data?.error) throw new Error(response.data.error);
+      // Extract the booking ID from any response shape the edge function might return
+      // (supports both current format {bookingId} and legacy {booking:{id}})
+      const d = response.data;
+      const bookingId = d?.bookingId || d?.booking?.id || null;
 
-      if (response.data?.requiresPayment && response.data?.paymentUrl) {
-        window.location.href = response.data.paymentUrl;
+      // Application-level error in response body (returned with 4xx/5xx)
+      const appError = d?.error || null;
+
+      // SDK-level error (non-2xx returned and SDK caught it)
+      if (response.error && !bookingId) {
+        // Try to surface the actual message from response body first
+        throw new Error(appError || response.error.message || 'Booking service unavailable');
+      }
+
+      if (appError && !bookingId) throw new Error(appError);
+
+      if (d?.requiresPayment && d?.paymentUrl) {
+        window.location.href = d.paymentUrl;
         return;
       }
 
-      // Verify we actually got a booking ID back
-      if (!response.data?.bookingId) throw new Error('Booking was not confirmed — please try again');
+      if (!bookingId) {
+        // Log full response to console for debugging
+        console.error('[booking] unexpected response:', JSON.stringify(d));
+        throw new Error('Booking could not be saved — please try again or call us directly');
+      }
 
-      setBookingRef(response.data.bookingId.slice(-6).toUpperCase());
-      setPortalToken(response.data?.portalToken || '');
-      setIsNewClient(response.data?.isNewClient ?? false);
+      setBookingRef(bookingId.slice(-6).toUpperCase());
+      setPortalToken(d?.portalToken || '');
+      setIsNewClient(d?.isNewClient ?? false);
       setStep('success');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Please try again.';
