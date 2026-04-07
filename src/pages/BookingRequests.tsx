@@ -142,7 +142,7 @@ export default function BookingRequests() {
       if (updErr) throw updErr;
 
       // Also update online_booking_requests if it exists (best-effort)
-      supabase
+      (supabase as any)
         .from('online_booking_requests')
         .update({
           status:      actionType === 'approve' ? 'approved' : 'declined',
