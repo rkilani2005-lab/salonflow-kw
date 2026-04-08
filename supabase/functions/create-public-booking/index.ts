@@ -194,7 +194,7 @@ serve(async (req: Request) => {
           name: client.name,
           email: client.email,
           phone: phoneStripped,     // always the input form, stripped of spaces
-          loyaltyPoints: client.loyalty_points,
+          loyaltyPoints: 0,
           tier: client.tier,
           totalVisits,
           totalSpent,
