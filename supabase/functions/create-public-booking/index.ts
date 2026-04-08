@@ -117,24 +117,26 @@ serve(async (req: Request) => {
 
       // 1. Exact match WITH tenant_id
       for (const v of variants) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('clients')
-          .select('id, name, email, loyalty_points, tier, created_at, tenant_id')
+          .select('id, name, email, tier, created_at, tenant_id')
           .eq('tenant_id', body.tenantId)
           .eq('phone', v)
           .maybeSingle();
+        if (error) { console.error(`[lookup] query error for "${v}":`, error.message); }
         if (data) { client = data; console.log(`[lookup] matched (tenant+phone): "${v}"`); break; }
       }
 
       // 2. Phone-only match (catches clients with NULL tenant_id created before RLS)
       if (!client) {
         for (const v of variants) {
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('clients')
-            .select('id, name, email, loyalty_points, tier, created_at, tenant_id')
+            .select('id, name, email, tier, created_at, tenant_id')
             .eq('phone', v)
             .is('tenant_id', null)
             .maybeSingle();
+          if (error) { console.error(`[lookup] null-tenant query error for "${v}":`, error.message); }
           if (data) {
             client = data;
             console.log(`[lookup] matched (phone only, null tenant): "${v}" → backfilling tenant_id`);
@@ -148,12 +150,13 @@ serve(async (req: Request) => {
       // 3. LIKE fallback on last 8 digits (any tenant match first, then null)
       if (!client && digits.length >= 8) {
         const last8 = digits.slice(-8);
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('clients')
-          .select('id, name, email, loyalty_points, tier, created_at, tenant_id')
+          .select('id, name, email, tier, created_at, tenant_id')
           .eq('tenant_id', body.tenantId)
           .like('phone', `%${last8}`)
           .maybeSingle();
+        if (error) { console.error(`[lookup] LIKE query error:`, error.message); }
         if (data) { client = data; console.log(`[lookup] LIKE match: %${last8}`); }
       }
 
@@ -191,7 +194,7 @@ serve(async (req: Request) => {
           name: client.name,
           email: client.email,
           phone: phoneStripped,     // always the input form, stripped of spaces
-          loyaltyPoints: client.loyalty_points,
+          loyaltyPoints: 0,
           tier: client.tier,
           totalVisits,
           totalSpent,
