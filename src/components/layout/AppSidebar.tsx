@@ -260,7 +260,7 @@ const AppSidebar = () => {
                   <SidebarMenuButton asChild tooltip={item.en} isActive={isActive(item.url)}>
                     <button
                       onClick={() => navigate(item.url)}
-                      aria-label={item.title}
+                      aria-label={item.en}
                       className={cn(
                         'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-all duration-100 relative',
                         isActive(item.url)

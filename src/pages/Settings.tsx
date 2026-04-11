@@ -121,7 +121,7 @@ export default function Settings() {
       const { data: branchRow } = await supabase
         .from('branches').select('working_days').eq('id', currentBranch.id).single();
       if (branchRow?.working_days) {
-        setWorkingDays(branchRow.working_days as number[]);
+        setWorkingDays(branchRow.working_days as Record<string, boolean>);
       } else {
         const storedDays = localStorage.getItem(`working_days_${currentBranch?.id}`);
         if (storedDays) setWorkingDays(JSON.parse(storedDays));

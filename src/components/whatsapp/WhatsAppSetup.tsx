@@ -92,7 +92,7 @@ export function WhatsAppSetup() {
   // Load existing config
   useEffect(() => {
     if (!tenant?.id) return;
-    supabase.from('whatsapp_config').select('id, tenant_id, phone_number_id, waba_id, access_token, webhook_verify_token, is_active, business_name').eq('tenant_id', tenant.id).maybeSingle()
+    (supabase as any).from('whatsapp_config').select('id, tenant_id, phone_number_id, waba_id, access_token, webhook_verify_token, is_active, is_enabled, business_name, display_phone_number, connection_status').eq('tenant_id', tenant.id).maybeSingle()
       .then(({ data }) => {
         if (!data) return;
         setConfigId(data.id);
