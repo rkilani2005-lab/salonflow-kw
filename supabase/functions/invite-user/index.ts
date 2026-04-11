@@ -171,9 +171,8 @@ serve(async (req) => {
   }
 });
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...cors(req), 'Content-Type': 'application/json' },
-  });
+function json(body: unknown, status = 200, req?: Request) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (req) Object.assign(headers, cors(req));
+  return new Response(JSON.stringify(body), { status, headers });
 }
