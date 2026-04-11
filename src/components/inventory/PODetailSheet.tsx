@@ -18,6 +18,7 @@ import {
   usePurchaseOrderItems, useUpdatePOStatus,
   PO_STATUS_CONFIG, type PurchaseOrder,
 } from '@/hooks/usePurchaseOrders';
+import { useCanApprove, useMatchingRule, useApproverOptions } from '@/hooks/usePOApprovalWorkflow';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -26,7 +27,7 @@ import { format } from 'date-fns';
 import {
   CheckCircle, XCircle, Send, ArrowUpCircle, Ban,
   FileDown, Printer, Loader2, MessageCircle, Mail,
-  Clock, CheckCircle2, User, AlertCircle,
+  Clock, CheckCircle2, User, AlertCircle, Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -52,6 +53,7 @@ export const PODetailSheet = ({ po, onClose }: PODetailSheetProps) => {
   const { user, hasRole } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { data: approverOptions = [] } = useApproverOptions();
 
   const [pdfLoading,    setPdfLoading]    = useState(false);
   const [sendLoading,   setSendLoading]   = useState(false);
@@ -60,17 +62,24 @@ export const PODetailSheet = ({ po, onClose }: PODetailSheetProps) => {
   const [sendOpen,      setSendOpen]      = useState(false);
   const [sendMethod,    setSendMethod]    = useState<'whatsapp' | 'email' | 'manual'>('whatsapp');
 
+  // ── Rule-based approval check ─────────────────────────────
+  const matchingRule = useMatchingRule(po?.total_amount ?? 0);
+  const { canApprove: ruleCanApprove, reason: approvalBlockReason } = useCanApprove(
+    po?.total_amount ?? 0,
+    po?.requested_by ?? null
+  );
+  const isOwnerOrManager = hasRole('owner') || hasRole('manager');
+
   if (!po) return null;
 
-  // ── Permission checks ─────────────────────────────────────
-  const isOwnerOrManager = hasRole('owner') || hasRole('manager');
-  const isRequester      = po.requested_by === user?.id;
-  const canSubmit        = po.status === 'draft';
-  const canApprove       = isOwnerOrManager && po.status === 'pending_approval' && !isRequester;
-  const canApproveOwn    = isOwnerOrManager && po.status === 'pending_approval' && isRequester;
-  const canReject        = isOwnerOrManager && po.status === 'pending_approval';
-  const canSend          = po.status === 'approved';
-  const canCancel        = ['draft', 'pending_approval', 'approved'].includes(po.status);
+  const isRequester  = po.requested_by === user?.id;
+  const canSubmit    = po.status === 'draft';
+  const canApprove   = po.status === 'pending_approval' && ruleCanApprove;
+  const canApproveOwn = po.status === 'pending_approval' && isOwnerOrManager && isRequester;
+  const canReject    = po.status === 'pending_approval' && isOwnerOrManager;
+  const canSend      = po.status === 'approved';
+  const canCancel    = ['draft', 'pending_approval', 'approved'].includes(po.status);
+  const showBlockedMsg = po.status === 'pending_approval' && isOwnerOrManager && !ruleCanApprove && !isRequester;
 
   // ── Workflow timeline ─────────────────────────────────────
   const STATUS_ORDER = ['draft', 'pending_approval', 'approved', 'sent', 'partially_received', 'received'];
@@ -268,16 +277,42 @@ export const PODetailSheet = ({ po, onClose }: PODetailSheetProps) => {
               </div>
             )}
 
-            {/* ── 4-eyes principle notice ── */}
+            {/* ── 4-eyes notice: requester cannot approve own PO ── */}
             {canApproveOwn && (
               <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
                 <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-amber-800 dark:text-amber-300">4-eyes approval policy</p>
                   <p className="text-xs text-amber-700/80 dark:text-amber-400/70 mt-0.5">
-                    You submitted this PO — a different manager or owner must approve it.
+                    You submitted this PO — a different person must approve it.
+                    {matchingRule && ` Rule: "${matchingRule.name}"`}
                   </p>
                 </div>
+              </div>
+            )}
+
+            {/* ── Rule-blocked: role/person mismatch ── */}
+            {showBlockedMsg && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-muted border">
+                <Shield className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Approval not permitted for your role</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {approvalBlockReason}
+                    {matchingRule && ` — Rule: "${matchingRule.name}"`}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ── Active rule indicator ── */}
+            {matchingRule && po.status === 'pending_approval' && (
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                <Shield className="h-3 w-3" />
+                Applying rule: <span className="font-medium">{matchingRule.name}</span>
+                {matchingRule.max_amount != null
+                  ? ` (${matchingRule.min_amount.toFixed(0)}–${matchingRule.max_amount.toFixed(0)} KWD)`
+                  : ` (≥ ${matchingRule.min_amount.toFixed(0)} KWD)`}
               </div>
             )}
 

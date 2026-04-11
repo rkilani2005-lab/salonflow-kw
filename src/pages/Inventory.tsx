@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, Truck, ClipboardList, ArrowDownUp, FileText, ClipboardCheck, PackageCheck } from 'lucide-react';
+import { Package, Truck, ClipboardList, ArrowDownUp, FileText, ClipboardCheck, PackageCheck, ShieldCheck } from 'lucide-react';
 import { ProductsTab } from '@/components/inventory/ProductsTab';
 import { SuppliersTab } from '@/components/inventory/SuppliersTab';
 import { StockMovementsTab } from '@/components/inventory/StockMovementsTab';
@@ -7,6 +7,7 @@ import { PurchaseOrdersTab } from '@/components/inventory/PurchaseOrdersTab';
 import { VendorInvoicesTab } from '@/components/inventory/VendorInvoicesTab';
 import { StockTakeTab } from '@/components/inventory/stocktake/StockTakeTab';
 import { GoodsReceiptsTab } from '@/components/inventory/GoodsReceiptsTab';
+import { POApprovalWorkflow } from '@/components/inventory/POApprovalWorkflow';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
@@ -65,6 +66,10 @@ const Inventory = () => {
               <ClipboardCheck className="h-4 w-4" />
               <span className="hidden sm:inline">Stock Take</span>
             </TabsTrigger>
+            <TabsTrigger value="approval-workflow" className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              <span className="hidden sm:inline">Approval</span>
+            </TabsTrigger>
           </TabsList>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
@@ -89,6 +94,9 @@ const Inventory = () => {
         </TabsContent>
         <TabsContent value="stock-take">
           <StockTakeTab />
+        </TabsContent>
+        <TabsContent value="approval-workflow">
+          <POApprovalWorkflow />
         </TabsContent>
       </Tabs>
     </div>
