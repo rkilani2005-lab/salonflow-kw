@@ -25,7 +25,7 @@
      queryFn: async () => {
        let query = supabase
          .from('services')
-         .select('*')
+         .select('id, name, name_ar, category, duration, price, color, is_active, deposit_required, deposit_amount, tenant_id')
          .order('category', { ascending: true })
          .order('name', { ascending: true });
  
@@ -53,7 +53,7 @@
  
        const { data, error } = await supabase
          .from('services')
-         .select('*')
+         .select('id, name, name_ar, category, duration, price, color, is_active, deposit_required, deposit_amount, tenant_id')
          .eq('id', serviceId)
          .maybeSingle();
  

@@ -5,56 +5,90 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { lazy, Suspense } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import SuperAdminRoute from "@/components/admin/SuperAdminRoute";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AdminLayout from "@/components/admin/AdminLayout";
-import Landing from "./pages/Landing";
-import Dashboard from "./pages/Dashboard";
-import Calendar from "./pages/Calendar";
-import Booking from "./pages/Booking";
-import Auth from "./pages/Auth";
-import Onboarding from "./pages/Onboarding";
-import Subscription from "./pages/Subscription";
-import Clients from "./pages/Clients";
-import Staff from "./pages/Staff";
-import Services from "./pages/Services";
-import Reports from "./pages/Reports";
-import Settings from "./pages/Settings";
-import WhatsAppAgent from "./pages/WhatsAppAgent";
-import Inventory from "./pages/Inventory";
-import POS from "./pages/POS";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminTenants from "./pages/admin/AdminTenants";
-import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
-import AdminAnalytics from "./pages/admin/AdminAnalytics";
-import AdminLogin from "./pages/admin/AdminLogin";
-import AdminFinance from "./pages/admin/AdminFinance";
-import AdminAccounts from "./pages/admin/AdminAccounts";
-import AIScheduling from "./pages/AIScheduling";
-import AIClientIntelligence from "./pages/AIClientIntelligence";
-import AIInventory from "./pages/AIInventory";
-import FinanceHub from "./pages/finance/FinanceHub";
-import ProfitLoss from "./pages/finance/ProfitLoss";
-import ExpenseManager from "./pages/finance/ExpenseManager";
-import GeneralLedger from "./pages/finance/GeneralLedger";
-import CheckRegister from "./pages/finance/CheckRegister";
-import LoanManager from "./pages/finance/LoanManager";
-import ChartOfAccounts from "./pages/finance/ChartOfAccounts";
-import ARInvoices from "./pages/finance/ARInvoices";
-import GiftCardsAndPromos from "./pages/GiftCardsAndPromos";
-import ReorderReport from "./pages/ReorderReport";
-import StaffAttendance from "./pages/StaffAttendance";
-import WaitingList from "./pages/WaitingList";
-import ClientFeedback from "./pages/ClientFeedback";
-import Packages from "./pages/Packages";
-import BookingRequests from "./pages/BookingRequests";
-import ClientPortal from "./pages/ClientPortal";
-import DaySession from "./pages/DaySession";
-import TeamUsers from "./pages/TeamUsers";
-import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+// ── Lazy-loaded pages (each becomes its own JS chunk) ─────────
+// Critical path: Landing + Auth load eagerly (no layout shift)
+import Landing from "./pages/Landing";
+import Auth    from "./pages/Auth";
+
+// All other pages load on demand — 2.2MB → ~300KB initial bundle
+const Dashboard        = lazy(() => import("./pages/Dashboard"));
+const Calendar         = lazy(() => import("./pages/Calendar"));
+const Booking          = lazy(() => import("./pages/Booking"));
+const Onboarding       = lazy(() => import("./pages/Onboarding"));
+const Subscription     = lazy(() => import("./pages/Subscription"));
+const Clients          = lazy(() => import("./pages/Clients"));
+const Staff            = lazy(() => import("./pages/Staff"));
+const Services         = lazy(() => import("./pages/Services"));
+const Reports          = lazy(() => import("./pages/Reports"));
+const Settings         = lazy(() => import("./pages/Settings"));
+const WhatsAppAgent    = lazy(() => import("./pages/WhatsAppAgent"));
+const Inventory        = lazy(() => import("./pages/Inventory"));
+const POS              = lazy(() => import("./pages/POS"));
+const DaySession       = lazy(() => import("./pages/DaySession"));
+const TeamUsers        = lazy(() => import("./pages/TeamUsers"));
+const GiftCardsAndPromos = lazy(() => import("./pages/GiftCardsAndPromos"));
+const ReorderReport    = lazy(() => import("./pages/ReorderReport"));
+const StaffAttendance  = lazy(() => import("./pages/StaffAttendance"));
+const WaitingList      = lazy(() => import("./pages/WaitingList"));
+const ClientFeedback   = lazy(() => import("./pages/ClientFeedback"));
+const Packages         = lazy(() => import("./pages/Packages"));
+const BookingRequests  = lazy(() => import("./pages/BookingRequests"));
+const ClientPortal     = lazy(() => import("./pages/ClientPortal"));
+const NotFound         = lazy(() => import("./pages/NotFound"));
+
+// Finance module (heavy — always lazy)
+const FinanceHub       = lazy(() => import("./pages/finance/FinanceHub"));
+const ProfitLoss       = lazy(() => import("./pages/finance/ProfitLoss"));
+const ExpenseManager   = lazy(() => import("./pages/finance/ExpenseManager"));
+const GeneralLedger    = lazy(() => import("./pages/finance/GeneralLedger"));
+const CheckRegister    = lazy(() => import("./pages/finance/CheckRegister"));
+const LoanManager      = lazy(() => import("./pages/finance/LoanManager"));
+const ChartOfAccounts  = lazy(() => import("./pages/finance/ChartOfAccounts"));
+const ARInvoices       = lazy(() => import("./pages/finance/ARInvoices"));
+
+// AI module (lazy — rarely used)
+const AIScheduling        = lazy(() => import("./pages/AIScheduling"));
+const AIClientIntelligence = lazy(() => import("./pages/AIClientIntelligence"));
+const AIInventory         = lazy(() => import("./pages/AIInventory"));
+
+// Admin panel (lazy — owner only, different user type)
+const AdminDashboard      = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminTenants        = lazy(() => import("./pages/admin/AdminTenants"));
+const AdminSubscriptions  = lazy(() => import("./pages/admin/AdminSubscriptions"));
+const AdminAnalytics      = lazy(() => import("./pages/admin/AdminAnalytics"));
+const AdminLogin          = lazy(() => import("./pages/admin/AdminLogin"));
+const AdminFinance        = lazy(() => import("./pages/admin/AdminFinance"));
+const AdminAccounts       = lazy(() => import("./pages/admin/AdminAccounts"));
+
+// ── Page loading fallback ─────────────────────────────────────
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="flex flex-col items-center gap-3">
+      <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      <p className="text-xs text-muted-foreground font-medium tracking-wider uppercase">Loading</p>
+    </div>
+  </div>
+);
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime:  30_000,       // data fresh for 30s — stops refetch on every mount
+      gcTime:     5 * 60_000,   // keep in cache 5 min after last subscriber
+      retry:      1,            // only retry once on failure (default 3 = slow UX)
+      refetchOnWindowFocus: false, // stop re-fetching when user tabs back in
+    },
+    mutations: {
+      retry: 0,                 // never retry mutations (prevent duplicate inserts)
+    },
+  },
+});
 
 // Bug 6 fix: ComingSoon must be defined BEFORE App so it is in scope when routes render
 const ComingSoon = ({ title }: { title: string }) => (
@@ -75,6 +109,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Landing />} />
@@ -174,6 +209,7 @@ const App = () => (
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </LanguageProvider>

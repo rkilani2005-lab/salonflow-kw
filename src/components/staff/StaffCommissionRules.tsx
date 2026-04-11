@@ -57,7 +57,7 @@ export function StaffCommissionRules({ staffId, staffName, currency = 'KWD' }: {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('staff_commission_rules')
-        .select('*')
+        .select('id, staff_id, service_id, commission_type, commission_value, tenant_id')
         .eq('staff_id', staffId)
         .order('service_category', { ascending: true, nullsFirst: true });
       if (error) throw error;

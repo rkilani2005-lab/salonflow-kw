@@ -137,7 +137,7 @@ export function useSessionHistory() {
     queryFn: async () => {
       let q = supabase
         .from('cash_sessions')
-        .select('*')
+        .select('id, tenant_id, branch_id, opened_by, opened_at, closed_by, closed_at, opening_balance, closing_balance, status, notes')
         .eq('tenant_id', tenant!.id)
         .order('session_date', { ascending: false })
         .limit(30);

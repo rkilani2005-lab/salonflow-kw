@@ -84,7 +84,7 @@ export function ServicePriceSchedules({ serviceId, basePrice, currency = 'KWD' }
     queryFn: async () => {
       const { data, error } = await supabase
         .from('service_price_schedules')
-        .select('*')
+        .select('id, service_id, name, price, valid_from, valid_until, days_of_week, is_active, tenant_id')
         .eq('service_id', serviceId)
         .order('valid_from', { ascending: false });
       if (error) throw error;

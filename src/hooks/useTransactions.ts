@@ -230,7 +230,7 @@ export const useCreateTransaction = () => {
         // Look up commission rule (category-specific first, then default)
         const { data: rules } = await supabase
           .from('staff_commission_rules')
-          .select('*')
+          .select('id, tenant_id, booking_id, client_id, type, amount, payment_method, status, reference, notes, created_at')
           .eq('staff_id', staffId)
           .eq('is_active', true)
           .or(`service_category.eq.${category},service_category.is.null`)

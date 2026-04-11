@@ -195,7 +195,7 @@ export const useChartOfAccounts = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('chart_of_accounts')
-        .select('*')
+        .select('id, code, name, name_ar, type, normal_balance, is_active, parent_id, tenant_id')
         .eq('tenant_id', tenant!.id)
         .eq('is_active', true)
         .order('code');
@@ -303,7 +303,7 @@ export const useTrialBalance = (from?: string, to?: string) => {
     queryFn: async () => {
       const { data: accounts } = await supabase
         .from('chart_of_accounts')
-        .select('*')
+        .select('id, code, name, name_ar, type, normal_balance, is_active, parent_id, tenant_id')
         .eq('tenant_id', tenant!.id)
         .eq('is_active', true)
         .order('code');
@@ -581,7 +581,7 @@ export const useChecks = () => {
     queryKey: ['checks', tenant?.id],
     queryFn: async () => {
       const { data, error } = await supabase.from('checks')
-        .select('*').eq('tenant_id', tenant!.id)
+        .select('id, check_number, payee, amount, bank_name, check_date, due_date, status, notes, tenant_id, created_at').eq('tenant_id', tenant!.id)
         .order('check_date', { ascending: false });
       if (error) throw error;
       return (data || []) as Check[];
@@ -631,7 +631,7 @@ export const useCampaigns = () => {
     queryKey: ['campaigns', tenant?.id],
     queryFn: async () => {
       const { data, error } = await supabase.from('campaigns')
-        .select('*').eq('tenant_id', tenant!.id)
+        .select('id, name, type, status, budget, start_date, end_date, target_audience, message_template, sent_count, tenant_id, created_at').eq('tenant_id', tenant!.id)
         .order('start_date', { ascending: false });
       if (error) throw error;
       return (data || []) as Campaign[];

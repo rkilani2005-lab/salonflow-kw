@@ -27,7 +27,7 @@ export const useSuppliers = (searchQuery?: string) => {
     queryFn: async () => {
       let query = supabase
         .from('suppliers')
-        .select('*')
+        .select('id, name, name_ar, contact_person, email, whatsapp_number, payment_terms, tenant_id, is_active')
         .order('name', { ascending: true });
 
       if (searchQuery?.trim()) {

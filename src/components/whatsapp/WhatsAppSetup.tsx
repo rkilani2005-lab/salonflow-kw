@@ -92,7 +92,7 @@ export function WhatsAppSetup() {
   // Load existing config
   useEffect(() => {
     if (!tenant?.id) return;
-    supabase.from('whatsapp_config').select('*').eq('tenant_id', tenant.id).maybeSingle()
+    supabase.from('whatsapp_config').select('id, tenant_id, phone_number_id, waba_id, access_token, webhook_verify_token, is_active, business_name').eq('tenant_id', tenant.id).maybeSingle()
       .then(({ data }) => {
         if (!data) return;
         setConfigId(data.id);
@@ -106,7 +106,7 @@ export function WhatsAppSetup() {
       });
   }, [tenant?.id]);
 
-  const webhookUrl = `https://hrvuywkravhrptjxboss.supabase.co/functions/v1/whatsapp-webhook`;
+  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text);

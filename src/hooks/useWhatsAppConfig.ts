@@ -25,7 +25,7 @@ export function useWhatsAppConfig() {
       // Get the config
       const { data, error } = await supabase
         .from('whatsapp_config')
-        .select('*')
+        .select('id, tenant_id, phone_number_id, waba_id, is_active, business_name')
         .eq('tenant_id', profile.tenant_id)
         .single();
 

@@ -147,7 +147,7 @@ export const StockTakeSessionView = ({ sessionId, onBack }: Props) => {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3 flex-wrap">
-        <Button variant="ghost" size="icon" onClick={onBack}>
+        <Button variant="ghost" size="icon" aria-label="Go back" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">

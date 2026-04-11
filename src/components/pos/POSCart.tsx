@@ -143,18 +143,18 @@ export function POSCart({
                 <p className="text-xs text-muted-foreground">{item.unit_price.toFixed(3)} KWD each</p>
               </div>
               <div className="flex items-center gap-1">
-                <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => updateQuantity(index, -1)}>
+                <Button variant="outline" size="icon" aria-label="Decrease quantity" className="h-9 w-9" onClick={() => updateQuantity(index, -1)}>
                   <Minus className="h-3 w-3" />
                 </Button>
                 <span className="w-8 text-center font-medium text-foreground">{item.quantity}</span>
-                <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => updateQuantity(index, 1)}>
+                <Button variant="outline" size="icon" aria-label="Increase quantity" className="h-9 w-9" onClick={() => updateQuantity(index, 1)}>
                   <Plus className="h-3 w-3" />
                 </Button>
               </div>
               <p className="text-sm font-semibold text-foreground w-20 text-right">
                 {item.total_price.toFixed(3)}
               </p>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeItem(index)}>
+              <Button variant="ghost" size="icon" aria-label="Remove item" className="h-8 w-8 shrink-0" onClick={() => removeItem(index)}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>

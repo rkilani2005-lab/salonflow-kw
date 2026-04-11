@@ -68,7 +68,7 @@ export function WhatsAppTemplates() {
     setLoading(true);
     const { data } = await (supabase as any)
       .from('whatsapp_templates')
-      .select('*')
+      .select('id, name, category, language, status, components, tenant_id')
       .eq('tenant_id', tenant!.id)
       .order('trigger_event');
     setTemplates((data || []) as Template[]);

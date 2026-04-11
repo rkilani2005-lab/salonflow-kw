@@ -56,7 +56,7 @@ export const useLoyaltyConfig = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from('loyalty_config')
-        .select('*')
+        .select('id, tenant_id, points_per_kwd, redemption_rate, min_redemption, tier_vip_threshold, tier_vvip_threshold, is_active')
         .eq('tenant_id', tenant!.id)
         .maybeSingle();
       return data as LoyaltyConfig | null;
@@ -97,7 +97,7 @@ export const useClientLoyalty = (clientId: string | null) => {
     queryFn: async () => {
       const { data } = await supabase
         .from('loyalty_transactions')
-        .select('*')
+        .select('id, client_id, type, points, balance_after, note, booking_id, created_at')
         .eq('client_id', clientId!)
         .order('created_at', { ascending: false })
         .limit(30);
@@ -114,7 +114,7 @@ export const useGiftCards = () => {
     queryKey: ['gift-cards', tenant?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('gift_cards').select('*')
+        .from('gift_cards').select('id, code, initial_balance, current_balance, recipient_name, recipient_phone, status, expires_at, created_at, tenant_id')
         .eq('tenant_id', tenant!.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -157,7 +157,7 @@ export const useCreateGiftCard = () => {
 export const validateGiftCard = async (tenantId: string, code: string) => {
   const { data } = await supabase
     .from('gift_cards')
-    .select('*')
+    .select('id, tenant_id, points_per_kwd, vip_threshold, vvip_threshold, redemption_rate, is_active, tiers')
     .eq('tenant_id', tenantId)
     .eq('code', code.toUpperCase())
     .eq('status', 'active')
@@ -172,7 +172,7 @@ export const usePromoCodes = () => {
     queryKey: ['promo-codes', tenant?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('promo_codes').select('*')
+        .from('promo_codes').select('id, code, name, discount_type, discount_value, min_purchase, max_uses, used_count, is_active, expires_at, created_at, tenant_id')
         .eq('tenant_id', tenant!.id)
         .order('created_at', { ascending: false });
       if (error) throw error;

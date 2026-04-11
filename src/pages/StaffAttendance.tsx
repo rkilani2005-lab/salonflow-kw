@@ -53,7 +53,7 @@ function useAttendance(tenantId: string | undefined, year: number, month: number
       const to   = format(new Date(year, month, 0),     'yyyy-MM-dd');
       const { data, error } = await supabase
         .from('staff_attendance')
-        .select('*')
+        .select('id, staff_id, tenant_id, check_in, check_out, date, notes, late_minutes, early_leave_minutes')
         .eq('tenant_id', tenantId!)
         .gte('work_date', from)
         .lte('work_date', to);

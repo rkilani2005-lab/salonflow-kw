@@ -194,7 +194,7 @@ export const CreatePODialog = ({ open, onOpenChange }: CreatePODialogProps) => {
                         {(item.quantity_ordered * item.unit_cost).toFixed(3)}
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(index)}>
+                        <Button variant="ghost" size="icon" aria-label="Remove item" className="h-7 w-7" onClick={() => removeItem(index)}>
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         </Button>
                       </TableCell>

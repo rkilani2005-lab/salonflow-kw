@@ -64,7 +64,7 @@ export const useStockTakeSessions = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stock_take_sessions')
-        .select('*')
+        .select('id, tenant_id, branch_id, name, status, created_by, started_at, completed_at, notes')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as StockTakeSession[];
@@ -80,7 +80,7 @@ export const useStockTakeSession = (sessionId: string | null) => {
       if (!sessionId) return null;
       const { data, error } = await supabase
         .from('stock_take_sessions')
-        .select('*')
+        .select('id, stocktake_id, product_id, expected_qty, counted_qty, variance, cost_price, notes')
         .eq('id', sessionId)
         .single();
       if (error) throw error;
@@ -258,7 +258,7 @@ export const useCommitStockTake = () => {
       // Fetch all accepted entries
       const { data: entries, error: fetchError } = await supabase
         .from('stock_take_entries')
-        .select('*')
+        .select('id, stocktake_id, product_id, expected_qty, counted_qty, variance, cost_price, notes')
         .eq('session_id', sessionId)
         .eq('status', 'accepted');
       if (fetchError) throw fetchError;

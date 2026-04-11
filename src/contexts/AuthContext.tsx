@@ -71,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, user_id, tenant_id, branch_id, full_name, avatar_url, phone')
         .eq('user_id', userId)
         .single();
 
@@ -91,8 +91,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (profileData?.tenant_id) {
         // Fetch tenant, branches, and roles in parallel
         const [tenantResult, branchesResult, rolesResult] = await Promise.all([
-          supabase.from('tenants').select('*').eq('id', profileData.tenant_id).single(),
-          supabase.from('branches').select('*').eq('tenant_id', profileData.tenant_id).eq('is_active', true),
+          supabase.from('tenants').select('id, name, logo_url, onboarding_completed, is_trial, trial_ends_at, subscription_plan, default_tax_rate, currency, notification_prefs').eq('id', profileData.tenant_id).single(),
+          supabase.from('branches').select('id, name, name_ar, address, phone, opening_time, closing_time, is_active, working_days').eq('tenant_id', profileData.tenant_id).eq('is_active', true),
           supabase.from('user_roles').select('role').eq('user_id', userId).eq('tenant_id', profileData.tenant_id),
         ]);
 

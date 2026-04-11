@@ -19,7 +19,7 @@
      queryFn: async () => {
        let query = supabase
          .from('staff')
-         .select('*')
+         .select('id, name, name_ar, email, phone, role, color, avatar_url, is_active, working_hours_start, working_hours_end, break_start, break_end, tenant_id')
          .order('name', { ascending: true });
  
        if (searchQuery && searchQuery.trim()) {
@@ -42,7 +42,7 @@
  
        const { data: staff, error: staffError } = await supabase
          .from('staff')
-         .select('*')
+         .select('id, name, name_ar, email, phone, role, color, avatar_url, is_active, working_hours_start, working_hours_end, break_start, break_end, tenant_id')
          .eq('id', staffId)
          .single();
  
@@ -61,7 +61,7 @@
        if (serviceIds.length > 0) {
          const { data: servicesData, error: servicesError } = await supabase
            .from('services')
-           .select('*')
+           .select('id, name, name_ar, category, duration, price, color, is_active, deposit_required, deposit_amount')
            .in('id', serviceIds);
  
          if (servicesError) throw servicesError;
@@ -82,7 +82,7 @@
      queryFn: async () => {
        const { data, error } = await supabase
          .from('services')
-         .select('*')
+         .select('id, name, name_ar, category, duration, price, color, is_active, deposit_required, deposit_amount')
          .order('name');
  
        if (error) throw error;

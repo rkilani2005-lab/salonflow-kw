@@ -116,7 +116,7 @@ export default function POS() {
   const loadBooking = async (id: string) => {
     const { data: booking } = await supabase
       .from('bookings')
-      .select('*')
+      .select('id, client_id, client_name, client_phone, staff_id, service_id, service_name, service_category, booking_date, start_time, end_time, duration, status, price, deposit_amount, deposit_status, is_online_booking, notes')
       .eq('id', id)
       .single();
 
@@ -128,7 +128,7 @@ export default function POS() {
       // Still show client name so reception knows whose ticket this is
       if (booking.client_id) {
         const { data: client } = await supabase
-          .from('clients').select('*').eq('id', booking.client_id).single();
+          .from('clients').select('id, name, phone, email, tier, loyalty_points, tenant_id').eq('id', booking.client_id).single();
         if (client) setSelectedClient(client as Client);
       }
       // Fetch linked transaction so the Refund button works
@@ -152,7 +152,7 @@ export default function POS() {
       setPaidTxnId(existingTxn.id);
       if (booking.client_id) {
         const { data: client } = await supabase
-          .from('clients').select('*').eq('id', booking.client_id).single();
+          .from('clients').select('id, name, phone, email, tier, loyalty_points, tenant_id').eq('id', booking.client_id).single();
         if (client) setSelectedClient(client as Client);
       }
       return; // payment already recorded — do NOT load cart
@@ -161,7 +161,7 @@ export default function POS() {
     // ── Safe to load — booking not yet paid ──────────────────
     if (booking.client_id) {
       const { data: client } = await supabase
-        .from('clients').select('*').eq('id', booking.client_id).single();
+        .from('clients').select('id, name, phone, email, tier, loyalty_points, tenant_id').eq('id', booking.client_id).single();
       if (client) setSelectedClient(client as Client);
     } else {
       setIsGuest(true);
@@ -578,7 +578,7 @@ function useServicesQuery(search: string) {
   return useQuery({
     queryKey: ['services', tenant?.id, search],
     queryFn: async () => {
-      let query = supabase.from('services').select('*').eq('is_active', true).order('name');
+      let query = supabase.from('services').select('id, name, name_ar, category, duration, price, color, is_active, deposit_required, deposit_amount').eq('is_active', true).order('name');
       if (search?.trim()) {
         query = query.or(`name.ilike.%${search}%,name_ar.ilike.%${search}%`);
       }

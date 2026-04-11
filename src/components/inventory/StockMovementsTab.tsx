@@ -33,7 +33,7 @@ export const StockMovementsTab = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('inventory_transactions')
-        .select('*')
+        .select('id, product_id, transaction_type, quantity, unit_cost, reference, notes, created_at, tenant_id')
         .order('created_at', { ascending: false })
         .limit(100);
       if (error) throw error;

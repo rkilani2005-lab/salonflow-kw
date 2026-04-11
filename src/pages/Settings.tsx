@@ -74,6 +74,7 @@ export default function Settings() {
 
   // ── Load from context ────────────────────────────────────────
   useEffect(() => {
+    const init = async () => {
     if (tenant) {
       setBusinessName(tenant.name || '');
       setLogoUrl(tenant.logo_url || null);
@@ -90,22 +91,45 @@ export default function Settings() {
       setOpenTime(currentBranch.opening_time?.slice(0, 5) || '09:00');
       setCloseTime(currentBranch.closing_time?.slice(0, 5) || '21:00');
     }
-    // Load notification prefs from localStorage
+    // Load notification prefs from DB (fallback to localStorage for backward compat)
+    if (tenant?.id) {
     try {
-      const stored = localStorage.getItem(`notif_prefs_${tenant?.id}`);
-      if (stored) {
-        const prefs = JSON.parse(stored);
+      const { data: tenantRow } = await supabase
+        .from('tenants').select('notification_prefs').eq('id', tenant.id).single();
+      const prefs = tenantRow?.notification_prefs as any;
+      if (prefs) {
         setEmailNotif(prefs.emailNotif   ?? true);
         setSmsNotif(prefs.smsNotif       ?? true);
         setBookingReminders(prefs.bookingReminders ?? true);
         setMarketingEmails(prefs.marketingEmails   ?? false);
+      } else {
+        // fallback: read from localStorage if DB has no prefs yet
+        const stored = localStorage.getItem(`notif_prefs_${tenant?.id}`);
+        if (stored) {
+          const p = JSON.parse(stored);
+          setEmailNotif(p.emailNotif ?? true);
+          setSmsNotif(p.smsNotif ?? true);
+          setBookingReminders(p.bookingReminders ?? true);
+          setMarketingEmails(p.marketingEmails ?? false);
+        }
       }
     } catch { /* ignore */ }
-    // Load working days from localStorage (branch-specific)
+    } // end if tenant
+    // Load working days from DB (fallback to localStorage)
+    if (currentBranch?.id) {
     try {
-      const storedDays = localStorage.getItem(`working_days_${currentBranch?.id}`);
-      if (storedDays) setWorkingDays(JSON.parse(storedDays));
+      const { data: branchRow } = await supabase
+        .from('branches').select('working_days').eq('id', currentBranch.id).single();
+      if (branchRow?.working_days) {
+        setWorkingDays(branchRow.working_days as number[]);
+      } else {
+        const storedDays = localStorage.getItem(`working_days_${currentBranch?.id}`);
+        if (storedDays) setWorkingDays(JSON.parse(storedDays));
+      }
     } catch { /* ignore */ }
+    } // end if currentBranch
+    }; // end async init
+    init();
   }, [tenant, profile, currentBranch]);
 
   // ── Logo upload ──────────────────────────────────────────────
@@ -239,8 +263,11 @@ export default function Settings() {
         .eq('id', currentBranch.id);
       if (error) throw error;
 
-      // Persist working days to localStorage (branch-specific)
-      localStorage.setItem(`working_days_${currentBranch.id}`, JSON.stringify(workingDays));
+      // Persist working days to DB (not localStorage — device-independent)
+      await supabase
+        .from('branches')
+        .update({ working_days: workingDays } as any)
+        .eq('id', currentBranch.id);
 
       await refreshProfile();
       showSaved('hours');
@@ -252,12 +279,13 @@ export default function Settings() {
     }
   };
 
-  // ── Save notification preferences ───────────────────────────
-  const handleSaveNotifications = () => {
+  // ── Save notification preferences (to DB) ───────────────────
+  const handleSaveNotifications = async () => {
+    if (!tenant?.id) return;
     try {
-      localStorage.setItem(`notif_prefs_${tenant?.id}`, JSON.stringify({
-        emailNotif, smsNotif, bookingReminders, marketingEmails,
-      }));
+      await supabase.from('tenants')
+        .update({ notification_prefs: { emailNotif, smsNotif, bookingReminders, marketingEmails } } as any)
+        .eq('id', tenant.id);
       showSaved('notifications');
     } catch {
       toast({ title: ar ? 'فشل الحفظ' : 'Save failed', variant: 'destructive' });
@@ -645,7 +673,7 @@ function OnlineBookingConfig({ ar, tenantId }: { ar: boolean; tenantId?: string 
   const { data: config, isLoading } = useQuery({
     queryKey: ['booking-config', tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from('booking_config').select('*').eq('tenant_id', tenantId!).maybeSingle();
+      const { data } = await supabase.from('booking_config').select('id, tenant_id, slug, header_title, header_title_ar, welcome_msg, welcome_msg_ar, show_prices, show_staff, advance_booking_days, min_notice_hours, primary_color').eq('tenant_id', tenantId!).maybeSingle();
       return data as any;
     },
     enabled: !!tenantId,

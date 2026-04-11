@@ -26,7 +26,7 @@ function useBookings(date: Date) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .select('*')
+        .select('id, client_id, client_name, client_phone, staff_id, service_id, service_name, service_category, booking_date, start_time, end_time, duration, status, notes, price, group_id, is_online_booking')
         .gte('booking_date', format(date, 'yyyy-MM-01'))
         .lte('booking_date', format(date, 'yyyy-MM-31'))
         .order('start_time');

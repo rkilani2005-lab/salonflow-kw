@@ -32,7 +32,7 @@ export function CalendarHeader({
   return (
     <div className="flex items-center justify-between px-4 py-2.5 border-b bg-card gap-2">
       <div className="flex items-center gap-1.5">
-        <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="h-8 w-8">
+        <Button variant="ghost" size="icon" aria-label="Toggle sidebar" onClick={onToggleSidebar} className="h-8 w-8">
           {sidebarCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
         </Button>
 
@@ -41,10 +41,10 @@ export function CalendarHeader({
         </Button>
 
         <div className="flex items-center">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrevious}>
+          <Button variant="ghost" size="icon" aria-label="Previous" className="h-8 w-8" onClick={handlePrevious}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNext}>
+          <Button variant="ghost" size="icon" aria-label="Next" className="h-8 w-8" onClick={handleNext}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>

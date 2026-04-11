@@ -31,7 +31,7 @@
      queryFn: async () => {
        let query = supabase
          .from('clients')
-         .select('*')
+         .select('id, name, phone, email, tier, loyalty_points, notes, created_at, tenant_id')
          .order('created_at', { ascending: false });
  
        if (searchQuery && searchQuery.trim()) {
@@ -55,7 +55,7 @@
        // Fetch client
        const { data: client, error: clientError } = await supabase
          .from('clients')
-         .select('*')
+         .select('id, name, phone, email, tier, loyalty_points, notes, created_at, tenant_id')
          .eq('id', clientId)
          .single();
        
@@ -64,7 +64,7 @@
        // Fetch bookings for this client
        const { data: bookings, error: bookingsError } = await supabase
          .from('bookings')
-         .select('*')
+         .select('id, service_name, service_category, booking_date, start_time, end_time, status, price, notes, staff_id, created_at')
          .eq('client_id', clientId)
          .order('booking_date', { ascending: false });
  

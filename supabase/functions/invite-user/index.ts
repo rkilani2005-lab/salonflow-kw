@@ -16,10 +16,12 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const ALLOWED_ORIGINS = ['https://zaina.app','https://app.lovable.dev','http://localhost:8080','http://localhost:3000'];
+function cors(req: Request) {
+  const o = req.headers.get('origin') || '';
+  const allowed = ALLOWED_ORIGINS.some(a => o.startsWith(a)) ? o : ALLOWED_ORIGINS[0];
+  return { 'Access-Control-Allow-Origin': allowed, 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
+}
 
 const ROLE_LABELS: Record<string, string> = {
   manager:        'Manager',
@@ -32,7 +34,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
+  if (req.method === 'OPTIONS') return new Response(null, { headers: cors(req) });
 
   const SUPABASE_URL             = Deno.env.get('SUPABASE_URL')!;
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -172,6 +174,6 @@ serve(async (req) => {
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...cors, 'Content-Type': 'application/json' },
+    headers: { ...cors(req), 'Content-Type': 'application/json' },
   });
 }

@@ -77,7 +77,7 @@ export default function AdminAccounts() {
       // These are stored with a special platform tenant_id
       const { data, error } = await supabase
         .from('chart_of_accounts')
-        .select('*')
+        .select('id, tenant_id, name, account_type, code, balance, is_active, parent_account_id')
         .eq('tenant_id', PLATFORM_TENANT_ID)
         .order('code');
 

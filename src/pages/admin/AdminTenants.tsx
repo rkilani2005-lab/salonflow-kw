@@ -54,7 +54,7 @@ const AdminTenants = () => {
     try {
       const { data: tenantsData, error } = await supabase
         .from('tenants')
-        .select('*')
+        .select('id, name, owner_email, owner_name, logo_url, is_active, is_trial, trial_ends_at, subscription_plan, currency, created_at')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
