@@ -124,6 +124,7 @@ export type Database = {
           phone: string | null
           tenant_id: string
           updated_at: string | null
+          working_days: Json | null
         }
         Insert: {
           address?: string | null
@@ -137,6 +138,7 @@ export type Database = {
           phone?: string | null
           tenant_id: string
           updated_at?: string | null
+          working_days?: Json | null
         }
         Update: {
           address?: string | null
@@ -150,10 +152,53 @@ export type Database = {
           phone?: string | null
           tenant_id?: string
           updated_at?: string | null
+          working_days?: Json | null
         }
         Relationships: [
           {
             foreignKeyName: "branches_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_portal_tokens: {
+        Row: {
+          client_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          tenant_id: string
+          token: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          tenant_id: string
+          token?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          tenant_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_tokens_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_tokens_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -390,6 +435,69 @@ export type Database = {
           },
           {
             foreignKeyName: "inventory_transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      online_booking_requests: {
+        Row: {
+          admin_note: string | null
+          booking_date: string
+          booking_id: string
+          client_name: string
+          client_phone: string
+          created_at: string
+          id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          service_name: string
+          start_time: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          booking_date: string
+          booking_id: string
+          client_name: string
+          client_phone: string
+          created_at?: string
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          service_name: string
+          start_time: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          booking_date?: string
+          booking_id?: string
+          client_name?: string
+          client_phone?: string
+          created_at?: string
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          service_name?: string
+          start_time?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "online_booking_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "online_booking_requests_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1189,6 +1297,7 @@ export type Database = {
           is_trial: boolean | null
           logo_url: string | null
           name: string
+          notification_prefs: Json | null
           onboarding_completed: boolean | null
           subscription_plan:
             | Database["public"]["Enums"]["subscription_plan"]
@@ -1205,6 +1314,7 @@ export type Database = {
           is_trial?: boolean | null
           logo_url?: string | null
           name: string
+          notification_prefs?: Json | null
           onboarding_completed?: boolean | null
           subscription_plan?:
             | Database["public"]["Enums"]["subscription_plan"]
@@ -1221,6 +1331,7 @@ export type Database = {
           is_trial?: boolean | null
           logo_url?: string | null
           name?: string
+          notification_prefs?: Json | null
           onboarding_completed?: boolean | null
           subscription_plan?:
             | Database["public"]["Enums"]["subscription_plan"]
@@ -1566,41 +1677,65 @@ export type Database = {
       }
       whatsapp_config: {
         Row: {
+          access_token: string | null
+          business_name: string | null
+          connection_status: string | null
           created_at: string
+          display_phone_number: string | null
           id: string
           is_enabled: boolean
+          last_connected_at: string | null
           max_retry_attempts: number
           owner_phone_numbers: string[] | null
+          phone_number_id: string | null
           staff_phone_numbers: string[] | null
           tenant_id: string
           updated_at: string
           voice_enabled: boolean
+          waba_id: string | null
+          webhook_verify_token: string | null
           welcome_message_ar: string | null
           welcome_message_en: string | null
         }
         Insert: {
+          access_token?: string | null
+          business_name?: string | null
+          connection_status?: string | null
           created_at?: string
+          display_phone_number?: string | null
           id?: string
           is_enabled?: boolean
+          last_connected_at?: string | null
           max_retry_attempts?: number
           owner_phone_numbers?: string[] | null
+          phone_number_id?: string | null
           staff_phone_numbers?: string[] | null
           tenant_id: string
           updated_at?: string
           voice_enabled?: boolean
+          waba_id?: string | null
+          webhook_verify_token?: string | null
           welcome_message_ar?: string | null
           welcome_message_en?: string | null
         }
         Update: {
+          access_token?: string | null
+          business_name?: string | null
+          connection_status?: string | null
           created_at?: string
+          display_phone_number?: string | null
           id?: string
           is_enabled?: boolean
+          last_connected_at?: string | null
           max_retry_attempts?: number
           owner_phone_numbers?: string[] | null
+          phone_number_id?: string | null
           staff_phone_numbers?: string[] | null
           tenant_id?: string
           updated_at?: string
           voice_enabled?: boolean
+          waba_id?: string | null
+          webhook_verify_token?: string | null
           welcome_message_ar?: string | null
           welcome_message_en?: string | null
         }
@@ -1707,6 +1842,131 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_templates: {
+        Row: {
+          body_ar: string | null
+          body_en: string
+          buttons: Json | null
+          category: string
+          created_at: string
+          footer_text: string | null
+          header_content: string | null
+          header_type: string | null
+          id: string
+          is_active: boolean
+          meta_status: string | null
+          meta_template_id: string | null
+          name: string
+          template_name: string | null
+          tenant_id: string
+          trigger_event: string
+          updated_at: string
+          variables: string[] | null
+        }
+        Insert: {
+          body_ar?: string | null
+          body_en: string
+          buttons?: Json | null
+          category?: string
+          created_at?: string
+          footer_text?: string | null
+          header_content?: string | null
+          header_type?: string | null
+          id?: string
+          is_active?: boolean
+          meta_status?: string | null
+          meta_template_id?: string | null
+          name: string
+          template_name?: string | null
+          tenant_id: string
+          trigger_event: string
+          updated_at?: string
+          variables?: string[] | null
+        }
+        Update: {
+          body_ar?: string | null
+          body_en?: string
+          buttons?: Json | null
+          category?: string
+          created_at?: string
+          footer_text?: string | null
+          header_content?: string | null
+          header_type?: string | null
+          id?: string
+          is_active?: boolean
+          meta_status?: string | null
+          meta_template_id?: string | null
+          name?: string
+          template_name?: string | null
+          tenant_id?: string
+          trigger_event?: string
+          updated_at?: string
+          variables?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_triggers: {
+        Row: {
+          conditions: Json | null
+          created_at: string
+          delay_minutes: number
+          event: string
+          id: string
+          is_enabled: boolean
+          target_audience: string
+          template_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          conditions?: Json | null
+          created_at?: string
+          delay_minutes?: number
+          event: string
+          id?: string
+          is_enabled?: boolean
+          target_audience?: string
+          template_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          conditions?: Json | null
+          created_at?: string
+          delay_minutes?: number
+          event?: string
+          id?: string
+          is_enabled?: boolean
+          target_audience?: string
+          template_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_triggers_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_triggers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
