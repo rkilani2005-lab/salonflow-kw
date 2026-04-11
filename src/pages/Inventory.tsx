@@ -50,10 +50,6 @@ const Inventory = () => {
               <ClipboardList className="h-4 w-4" />
               <span className="hidden sm:inline">POs</span>
             </TabsTrigger>
-            <TabsTrigger value="approval-workflow" className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4" />
-              <span className="hidden sm:inline">Approval</span>
-            </TabsTrigger>
             <TabsTrigger value="goods-receipts" className="flex items-center gap-2">
               <PackageCheck className="h-4 w-4" />
               <span className="hidden sm:inline">Receipts</span>
@@ -69,6 +65,10 @@ const Inventory = () => {
             <TabsTrigger value="stock-take" className="flex items-center gap-2">
               <ClipboardCheck className="h-4 w-4" />
               <span className="hidden sm:inline">Stock Take</span>
+            </TabsTrigger>
+            <TabsTrigger value="approval-workflow" className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              <span className="hidden sm:inline">PO Approval</span>
             </TabsTrigger>
           </TabsList>
           <ScrollBar orientation="horizontal" />
