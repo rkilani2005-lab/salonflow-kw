@@ -64,7 +64,7 @@ export const useStockTakeSessions = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stock_take_sessions')
-        .select('id, tenant_id, branch_id, name, status, created_by, started_at, completed_at, notes')
+        .select('id, tenant_id, session_name, scope, scope_filter_id, status, created_by, assigned_staff_ids, started_at, completed_at, completed_by, notes, total_variance_value, created_at, updated_at')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as StockTakeSession[];
@@ -80,7 +80,7 @@ export const useStockTakeSession = (sessionId: string | null) => {
       if (!sessionId) return null;
       const { data, error } = await supabase
         .from('stock_take_sessions')
-        .select('id, stocktake_id, product_id, expected_qty, counted_qty, variance, cost_price, notes')
+        .select('id, tenant_id, session_name, scope, scope_filter_id, status, created_by, assigned_staff_ids, started_at, completed_at, completed_by, notes, total_variance_value, created_at, updated_at')
         .eq('id', sessionId)
         .single();
       if (error) throw error;
@@ -258,7 +258,7 @@ export const useCommitStockTake = () => {
       // Fetch all accepted entries
       const { data: entries, error: fetchError } = await supabase
         .from('stock_take_entries')
-        .select('id, stocktake_id, product_id, expected_qty, counted_qty, variance, cost_price, notes')
+        .select('id, session_id, product_id, system_quantity, counted_quantity, variance, unit_cost, variance_reason, variance_value, status, counted_by, counted_at, reviewed_by, reviewed_at, reviewer_notes, created_at')
         .eq('session_id', sessionId)
         .eq('status', 'accepted');
       if (fetchError) throw fetchError;

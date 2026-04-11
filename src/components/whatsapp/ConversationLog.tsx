@@ -24,7 +24,7 @@ export function ConversationLog() {
 
       const { data, error } = await supabase
         .from('whatsapp_conversations')
-        .select('id, tenant_id, client_id, client_name, client_phone, last_message_at, status, unread_count')
+        .select('id, tenant_id, phone_number, conversation_type, last_message_at, needs_human_intervention, intervention_reason, created_at, conversation_state')
         .eq('tenant_id', profile.tenant_id)
         .order('last_message_at', { ascending: false })
         .limit(50);

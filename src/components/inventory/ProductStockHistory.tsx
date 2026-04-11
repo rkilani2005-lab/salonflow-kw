@@ -25,7 +25,7 @@ export const ProductStockHistory = ({ productId, tenantId }: Props) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('inventory_transactions')
-        .select('id, product_id, transaction_type, quantity, unit_cost, reference, notes, created_at, tenant_id')
+        .select('id, product_id, transaction_type, quantity_change, reference_type, reference_id, notes, created_at, tenant_id')
         .eq('product_id', productId)
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })

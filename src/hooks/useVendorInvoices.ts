@@ -90,7 +90,7 @@ export const useVendorPayments = (invoiceId: string | null) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vendor_payments')
-        .select('id, tenant_id, supplier_id, invoice_number, invoice_date, due_date, total_amount, paid_amount, status, notes')
+        .select('id, tenant_id, vendor_invoice_id, amount, payment_date, payment_method, reference_number, notes, created_by, created_at')
         .eq('vendor_invoice_id', invoiceId!)
         .order('payment_date', { ascending: false });
 

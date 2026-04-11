@@ -36,6 +36,12 @@ const ROLE_LABELS: Record<string, string> = {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors(req) });
 
+  function json(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { ...cors(req), 'Content-Type': 'application/json' },
+    });
+  }
   const SUPABASE_URL             = Deno.env.get('SUPABASE_URL')!;
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -170,10 +176,3 @@ serve(async (req) => {
     return json({ error: msg }, 500);
   }
 });
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...cors(req), 'Content-Type': 'application/json' },
-  });
-}
