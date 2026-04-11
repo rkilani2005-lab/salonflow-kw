@@ -19,7 +19,7 @@
      queryFn: async () => {
        let query = supabase
          .from('staff')
-         .select('id, name, name_ar, email, phone, role, color, avatar_url, is_active, working_hours_start, working_hours_end, break_start, break_end, tenant_id')
+          .select('id, name, name_ar, email, phone, color, avatar_url, is_active, working_hours_start, working_hours_end, break_start, break_end, tenant_id, created_at, updated_at')
          .order('name', { ascending: true });
  
        if (searchQuery && searchQuery.trim()) {
@@ -42,8 +42,8 @@
  
        const { data: staff, error: staffError } = await supabase
          .from('staff')
-         .select('id, name, name_ar, email, phone, role, color, avatar_url, is_active, working_hours_start, working_hours_end, break_start, break_end, tenant_id')
-         .eq('id', staffId)
+          .select('id, name, name_ar, email, phone, color, avatar_url, is_active, working_hours_start, working_hours_end, break_start, break_end, tenant_id, created_at, updated_at')
+          .eq('id', staffId)
          .single();
  
        if (staffError) throw staffError;
@@ -61,7 +61,7 @@
        if (serviceIds.length > 0) {
          const { data: servicesData, error: servicesError } = await supabase
            .from('services')
-           .select('id, name, name_ar, category, duration, price, color, is_active, deposit_required, deposit_amount')
+            .select('id, name, name_ar, category, duration, price, color, is_active, deposit_required, deposit_amount, created_at, updated_at, tenant_id')
            .in('id', serviceIds);
  
          if (servicesError) throw servicesError;
@@ -82,8 +82,8 @@
      queryFn: async () => {
        const { data, error } = await supabase
          .from('services')
-         .select('id, name, name_ar, category, duration, price, color, is_active, deposit_required, deposit_amount')
-         .order('name');
+          .select('id, name, name_ar, category, duration, price, color, is_active, deposit_required, deposit_amount, created_at, updated_at, tenant_id')
+          .order('name');
  
        if (error) throw error;
        return data as Service[];

@@ -31,7 +31,7 @@
      queryFn: async () => {
        let query = supabase
          .from('clients')
-         .select('id, name, phone, email, tier, loyalty_points, notes, created_at, tenant_id')
+          .select('id, name, phone, email, tier, notes, created_at, updated_at, tenant_id')
          .order('created_at', { ascending: false });
  
        if (searchQuery && searchQuery.trim()) {
@@ -55,8 +55,8 @@
        // Fetch client
        const { data: client, error: clientError } = await supabase
          .from('clients')
-         .select('id, name, phone, email, tier, loyalty_points, notes, created_at, tenant_id')
-         .eq('id', clientId)
+          .select('id, name, phone, email, tier, notes, created_at, updated_at, tenant_id')
+          .eq('id', clientId)
          .single();
        
        if (clientError) throw clientError;

@@ -53,7 +53,7 @@ export const useProducts = (searchQuery?: string, typeFilter?: string) => {
     queryFn: async () => {
       let query = supabase
         .from('products')
-        .select('id, name, name_ar, sku, barcode, category, current_stock, reorder_level, cost_price, selling_price, unit, is_active, image_url, supplier_id, tenant_id, product_type')
+        .select('id, name, name_ar, sku, barcode, category_id, current_stock, reorder_point, reorder_quantity, cost_price, retail_price, purchase_unit, purchase_unit_quantity, usage_unit, is_active, image_url, tenant_id, product_type, batch_number, expiry_date, description, created_at, updated_at')
         .order('name', { ascending: true });
 
       if (searchQuery?.trim()) {
@@ -80,7 +80,7 @@ export const useProductCategories = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('product_categories')
-        .select('id, name, name_ar, color, sort_order, tenant_id')
+        .select('id, name, name_ar, sort_order, tenant_id, parent_id, created_at')
         .order('sort_order', { ascending: true });
 
       if (error) throw error;
