@@ -176,5 +176,3 @@ serve(async (req) => {
     return json({ error: msg }, 500);
   }
 });
-
-});
