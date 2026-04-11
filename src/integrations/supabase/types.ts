@@ -1616,6 +1616,65 @@ export type Database = {
           },
         ]
       }
+      po_approval_rules: {
+        Row: {
+          allowed_roles: string[]
+          created_at: string
+          description: string | null
+          four_eyes_enforced: boolean
+          id: string
+          is_active: boolean
+          max_amount: number | null
+          min_amount: number
+          name: string
+          require_two_approvers: boolean
+          sort_order: number
+          specific_approvers: string[] | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_roles?: string[]
+          created_at?: string
+          description?: string | null
+          four_eyes_enforced?: boolean
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          min_amount?: number
+          name: string
+          require_two_approvers?: boolean
+          sort_order?: number
+          specific_approvers?: string[] | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_roles?: string[]
+          created_at?: string
+          description?: string | null
+          four_eyes_enforced?: boolean
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          min_amount?: number
+          name?: string
+          require_two_approvers?: boolean
+          sort_order?: number
+          specific_approvers?: string[] | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "po_approval_rules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_categories: {
         Row: {
           created_at: string
