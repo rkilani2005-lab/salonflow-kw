@@ -291,7 +291,7 @@ function RuleForm({ open, onClose, existing }: RuleFormProps) {
 // ── Main workflow builder ────────────────────────────────────
 export function POApprovalWorkflow() {
   const { hasRole } = useAuth();
-  const { data: rules = [], isLoading } = usePOApprovalRules();
+  const { data: rules = [], isLoading, isError } = usePOApprovalRules();
   const { data: approverOptions = [] } = useApproverOptions();
   const deleteRule = useDeletePORule();
   const updateRule = useUpdatePORule();
@@ -311,6 +311,21 @@ export function POApprovalWorkflow() {
   if (isLoading) return (
     <div className="space-y-3">
       {[1,2].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
+    </div>
+  );
+
+  if (isError) return (
+    <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-6 text-center space-y-3">
+      <Shield className="h-8 w-8 text-amber-500 mx-auto" />
+      <div>
+        <p className="font-semibold text-amber-800 dark:text-amber-300">Approval workflow table not set up yet</p>
+        <p className="text-xs text-amber-700/80 dark:text-amber-400/70 mt-1 max-w-md mx-auto">
+          The <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">po_approval_rules</code> table
+          needs to be created by running the pending migration{' '}
+          <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">20260411200001_po_approval_workflow.sql</code>{' '}
+          in your Supabase database.
+        </p>
+      </div>
     </div>
   );
 
