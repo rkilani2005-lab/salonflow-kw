@@ -164,7 +164,7 @@ export const useUpdatePOStatus = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, status, notes }: { id: string; status: POStatus; notes?: string }) => {
+    mutationFn: async ({ id, status, notes }: { id: string; status: POStatus | 'draft'; notes?: string }) => {
       const updateData: Record<string, unknown> = { status };
 
       if (status === 'approved') {
@@ -173,13 +173,17 @@ export const useUpdatePOStatus = () => {
       }
 
       if (status === 'sent') {
-        updateData.sent_at = new Date().toISOString();
+        updateData.sent_at  = new Date().toISOString();
         updateData.sent_via = 'manual' as POSentVia;
       }
 
-      if (notes !== undefined) {
-        updateData.notes = notes;
+      if (status === 'draft') {
+        // Reject → reset approval fields
+        updateData.approved_by = null;
+        updateData.approved_at = null;
       }
+
+      if (notes !== undefined) updateData.notes = notes;
 
       const { data, error } = await supabase
         .from('purchase_orders')
