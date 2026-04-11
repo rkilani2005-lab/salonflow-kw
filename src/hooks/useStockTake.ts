@@ -258,7 +258,7 @@ export const useCommitStockTake = () => {
       // Fetch all accepted entries
       const { data: entries, error: fetchError } = await supabase
         .from('stock_take_entries')
-        .select('id, session_id, product_id, system_quantity, counted_quantity, variance, unit_cost, variance_reason, variance_value, status, notes, counted_by, counted_at, reviewed_by, reviewed_at, reviewer_notes, created_at')
+        .select('id, session_id, product_id, system_quantity, counted_quantity, variance, unit_cost, variance_reason, variance_value, status, counted_by, counted_at, reviewed_by, reviewed_at, reviewer_notes, created_at')
         .eq('session_id', sessionId)
         .eq('status', 'accepted');
       if (fetchError) throw fetchError;
