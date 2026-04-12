@@ -90,7 +90,6 @@ function mapBookingToAppointment(b: any): Appointment {
     notes: b.notes,
     price: Number(b.price),
   };
-  };
 }
 
 // ── Main component ──────────────────────────────────────────────
