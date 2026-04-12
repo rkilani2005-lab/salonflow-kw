@@ -89,7 +89,7 @@ function mapBookingToAppointment(b: any): Appointment {
     status: b.status,
     notes: b.notes,
     price: Number(b.price),
-    groupId: b.group_id,
+  };
   };
 }
 
