@@ -309,6 +309,61 @@ export default function POS() {
       setCompletedPayments(payments);
       setShowPayment(false);
       setShowReceipt(true);
+
+      // ── Auto-post journal entry to GL ─────────────────────
+      // Fire-and-forget: doesn't block checkout if it fails
+      try {
+        const { data: glMaps } = await (supabase as any)
+          .from('gl_mappings')
+          .select('*')
+          .eq('tenant_id', tenant!.id)
+          .eq('is_active', true);
+
+        if (glMaps && glMaps.length > 0) {
+          const year = new Date().getFullYear();
+          const { data: existing } = await (supabase as any)
+            .from('journal_entries').select('entry_number')
+            .eq('tenant_id', tenant!.id)
+            .like('entry_number', `POS-${year}-%`)
+            .order('entry_number', { ascending: false }).limit(1);
+          const lastNum = existing?.[0]?.entry_number?.split('-')[2] || '0000';
+          const nextNum = String(parseInt(lastNum) + 1).padStart(4, '0');
+
+          const { data: je } = await (supabase as any).from('journal_entries').insert({
+            tenant_id: tenant!.id,
+            entry_number: `POS-${year}-${nextNum}`,
+            entry_date: new Date().toISOString().split('T')[0],
+            source: 'pos',
+            source_ref_id: txn.id,
+            source_ref_type: 'transaction',
+            description: `POS Sale — ${txn.id.slice(0,8)}`,
+            is_posted: true,
+          }).select().single();
+
+          if (je) {
+            const jeLines: any[] = [];
+            // Revenue lines — one per service category in the sale
+            for (const item of items) {
+              const catKey = item.category || 'other';
+              const revMap = glMaps.find((m: any) => m.mapping_type === 'revenue_service' && m.source_key === catKey)
+                          || glMaps.find((m: any) => m.mapping_type === 'revenue_service' && m.source_key === 'other');
+              if (revMap?.credit_account_id) {
+                jeLines.push({ journal_entry_id: je.id, account_id: revMap.credit_account_id, debit: 0, credit: item.total_price || item.price, description: item.name });
+              }
+            }
+            // Payment (debit) lines — one per payment method
+            for (const pmt of payments) {
+              const pmtMap = glMaps.find((m: any) => m.mapping_type === 'payment_method' && m.source_key === pmt.payment_method);
+              if (pmtMap?.debit_account_id) {
+                jeLines.push({ journal_entry_id: je.id, account_id: pmtMap.debit_account_id, debit: pmt.amount, credit: 0, description: pmt.payment_method });
+              }
+            }
+            if (jeLines.length > 0) {
+              await (supabase as any).from('journal_lines').insert(jeLines);
+            }
+          }
+        }
+      } catch { /* silent — GL posting is best-effort */ }
     } catch (err) { /* handled by mutation */ }
   };
 

@@ -343,6 +343,7 @@ export const useProfitLoss = (from: string, to: string) => {
   return useQuery({
     queryKey: ['pnl', tenant?.id, from, to],
     queryFn: async () => {
+      // ── Step 1: Try journal_lines (double-entry, most accurate) ──
       const { data: accounts } = await supabase
         .from('chart_of_accounts')
         .select('id,code,name,name_ar,account_type,account_subtype')
@@ -351,35 +352,86 @@ export const useProfitLoss = (from: string, to: string) => {
 
       const { data: lines } = await supabase
         .from('journal_lines')
-        .select('account_id, debit, credit, journal_entry:journal_entry_id(is_posted, entry_date)')
-        .eq('journal_entry.is_posted', true);
+        .select('account_id, debit, credit, journal_entry:journal_entry_id(is_posted, entry_date, tenant_id)')
+        .eq('journal_entry.is_posted', true)
+        .eq('journal_entry.tenant_id', tenant!.id);
 
       const balances: Record<string, number> = {};
+      let hasJournalData = false;
       (lines || []).forEach((l: any) => {
         const je = l.journal_entry;
         if (!je?.is_posted || je.entry_date < from || je.entry_date > to) return;
         if (!balances[l.account_id]) balances[l.account_id] = 0;
         const acc = (accounts || []).find((a: any) => a.id === l.account_id);
         if (!acc) return;
+        hasJournalData = true;
         balances[l.account_id] += acc.account_type === 'revenue'
           ? Number(l.credit) - Number(l.debit)
           : Number(l.debit)  - Number(l.credit);
       });
 
-      const revenue = (accounts || []).filter((a: any) => a.account_type === 'revenue')
-        .map((a: any) => ({ ...a, amount: balances[a.id] || 0 }));
-      const cogs = (accounts || []).filter((a: any) => a.account_type === 'expense' && a.account_subtype === 'cogs')
-        .map((a: any) => ({ ...a, amount: balances[a.id] || 0 }));
-      const opex = (accounts || []).filter((a: any) => a.account_type === 'expense' && a.account_subtype !== 'cogs')
-        .map((a: any) => ({ ...a, amount: balances[a.id] || 0 }));
+      if (hasJournalData) {
+        // Journal entries exist → use them (accurate double-entry P&L)
+        const revenue = (accounts || []).filter((a: any) => a.account_type === 'revenue')
+          .map((a: any) => ({ ...a, amount: balances[a.id] || 0 })).filter(a => a.amount !== 0);
+        const cogs = (accounts || []).filter((a: any) => a.account_type === 'expense' && a.account_subtype === 'cogs')
+          .map((a: any) => ({ ...a, amount: balances[a.id] || 0 })).filter(a => a.amount !== 0);
+        const opex = (accounts || []).filter((a: any) => a.account_type === 'expense' && a.account_subtype !== 'cogs')
+          .map((a: any) => ({ ...a, amount: balances[a.id] || 0 })).filter(a => a.amount !== 0);
+        const totalRevenue = revenue.reduce((s, a) => s + a.amount, 0);
+        const totalCogs    = cogs.reduce((s, a) => s + a.amount, 0);
+        const grossProfit  = totalRevenue - totalCogs;
+        const totalOpex    = opex.reduce((s, a) => s + a.amount, 0);
+        return { revenue, cogs, opex, totalRevenue, totalCogs, grossProfit, totalOpex, netIncome: grossProfit - totalOpex, source: 'journal' };
+      }
+
+      // ── Step 2: Fallback — read directly from transactions + expenses ──
+      // This ensures P&L is never empty even without manual journal entries
+      const [txnsRes, expensesRes] = await Promise.all([
+        supabase.from('transactions')
+          .select('grand_total, service_category, service_name, created_at')
+          .eq('tenant_id', tenant!.id)
+          .eq('status', 'completed')
+          .gte('created_at', from + 'T00:00:00')
+          .lte('created_at', to   + 'T23:59:59'),
+        supabase.from('expense_entries')
+          .select('total_amount, category, cost_type, description')
+          .eq('tenant_id', tenant!.id)
+          .in('status', ['approved','paid'])
+          .gte('expense_date', from)
+          .lte('expense_date', to),
+      ]);
+
+      // Group revenue by service category
+      const revByCategory: Record<string, number> = {};
+      (txnsRes.data || []).forEach((t: any) => {
+        const key = t.service_category || 'other';
+        revByCategory[key] = (revByCategory[key] || 0) + Number(t.grand_total);
+      });
+      const revenue = Object.entries(revByCategory).map(([cat, amount]) => ({
+        id: cat, code: cat, name: cat.charAt(0).toUpperCase() + cat.slice(1) + ' Revenue',
+        name_ar: null, account_type: 'revenue', account_subtype: 'service_revenue', amount,
+      }));
+
+      // Group expenses by cost_type
+      const cogsArr: any[] = [];
+      const opexArr: any[] = [];
+      const expByCategory: Record<string, { amount: number; is_cogs: boolean }> = {};
+      (expensesRes.data || []).forEach((e: any) => {
+        const key = e.category || 'general';
+        if (!expByCategory[key]) expByCategory[key] = { amount: 0, is_cogs: e.cost_type === 'direct' };
+        expByCategory[key].amount += Number(e.total_amount);
+      });
+      Object.entries(expByCategory).forEach(([cat, { amount, is_cogs }]) => {
+        const row = { id: cat, code: cat, name: cat.charAt(0).toUpperCase() + cat.slice(1), name_ar: null, account_type: 'expense', account_subtype: is_cogs ? 'cogs' : 'operating_expense', amount };
+        is_cogs ? cogsArr.push(row) : opexArr.push(row);
+      });
 
       const totalRevenue = revenue.reduce((s, a) => s + a.amount, 0);
-      const totalCogs    = cogs.reduce((s, a) => s + a.amount, 0);
+      const totalCogs    = cogsArr.reduce((s, a) => s + a.amount, 0);
       const grossProfit  = totalRevenue - totalCogs;
-      const totalOpex    = opex.reduce((s, a) => s + a.amount, 0);
-      const netIncome    = grossProfit - totalOpex;
-
-      return { revenue, cogs, opex, totalRevenue, totalCogs, grossProfit, totalOpex, netIncome };
+      const totalOpex    = opexArr.reduce((s, a) => s + a.amount, 0);
+      return { revenue, cogs: cogsArr, opex: opexArr, totalRevenue, totalCogs, grossProfit, totalOpex, netIncome: grossProfit - totalOpex, source: 'transactions' };
     },
     enabled: !!tenant?.id && !!from && !!to,
   });
@@ -705,5 +757,146 @@ export const useFinanceKPIs = () => {
     },
     enabled: !!tenant?.id,
     refetchInterval: 60_000,
+  });
+};
+
+// ── Cost Centers ───────────────────────────────────────────────
+
+export interface CostCenter {
+  id: string; tenant_id: string; code: string; name: string;
+  name_ar: string | null; description: string | null; is_active: boolean; created_at: string;
+}
+
+export const useCostCenters = () => {
+  const { tenant } = useAuth();
+  return useQuery({
+    queryKey: ['cost-centers', tenant?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('cost_centers')
+        .select('*').eq('tenant_id', tenant!.id).order('code');
+      if (error) throw error;
+      return (data || []) as CostCenter[];
+    },
+    enabled: !!tenant?.id,
+  });
+};
+
+export const useUpsertCostCenter = () => {
+  const { tenant } = useAuth();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (d: Partial<CostCenter> & { code: string; name: string }) => {
+      const payload = { ...d, tenant_id: tenant!.id };
+      const { error } = d.id
+        ? await supabase.from('cost_centers').update(payload).eq('id', d.id)
+        : await supabase.from('cost_centers').insert(payload);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['cost-centers'] }); toast({ title: 'Cost center saved' }); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+};
+
+export const useDeleteCostCenter = () => {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('cost_centers').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['cost-centers'] }); toast({ title: 'Deleted' }); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+};
+
+// ── Profit Centers ─────────────────────────────────────────────
+
+export interface ProfitCenter {
+  id: string; tenant_id: string; code: string; name: string;
+  name_ar: string | null; description: string | null; is_active: boolean; created_at: string;
+}
+
+export const useProfitCenters = () => {
+  const { tenant } = useAuth();
+  return useQuery({
+    queryKey: ['profit-centers', tenant?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('profit_centers')
+        .select('*').eq('tenant_id', tenant!.id).order('code');
+      if (error) throw error;
+      return (data || []) as ProfitCenter[];
+    },
+    enabled: !!tenant?.id,
+  });
+};
+
+export const useUpsertProfitCenter = () => {
+  const { tenant } = useAuth();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (d: Partial<ProfitCenter> & { code: string; name: string }) => {
+      const payload = { ...d, tenant_id: tenant!.id };
+      const { error } = d.id
+        ? await supabase.from('profit_centers').update(payload).eq('id', d.id)
+        : await supabase.from('profit_centers').insert(payload);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['profit-centers'] }); toast({ title: 'Profit center saved' }); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+};
+
+export const useDeleteProfitCenter = () => {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('profit_centers').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['profit-centers'] }); toast({ title: 'Deleted' }); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+};
+
+// ── GL Mappings ────────────────────────────────────────────────
+
+export interface GLMapping {
+  id: string; tenant_id: string; mapping_type: string; source_key: string;
+  label: string | null; debit_account_id: string | null; credit_account_id: string | null;
+  cost_center_id: string | null; profit_center_id: string | null;
+  is_active: boolean; created_at: string; updated_at: string;
+}
+
+export const useGLMappings = () => {
+  const { tenant } = useAuth();
+  return useQuery({
+    queryKey: ['gl-mappings', tenant?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('gl_mappings')
+        .select('*').eq('tenant_id', tenant!.id).order('mapping_type').order('source_key');
+      if (error) throw error;
+      return (data || []) as GLMapping[];
+    },
+    enabled: !!tenant?.id,
+  });
+};
+
+export const useUpsertGLMapping = () => {
+  const { tenant } = useAuth();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (d: Partial<GLMapping> & { mapping_type: string; source_key: string }) => {
+      const payload = { ...d, tenant_id: tenant!.id, updated_at: new Date().toISOString() };
+      const { error } = await supabase.from('gl_mappings')
+        .upsert(payload, { onConflict: 'tenant_id,mapping_type,source_key' });
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['gl-mappings'] }); toast({ title: 'GL mapping saved' }); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 };

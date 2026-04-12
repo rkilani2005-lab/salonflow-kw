@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   DollarSign, TrendingUp, TrendingDown, AlertCircle, BookOpen,
   Receipt, FileText, CreditCard, BarChart3, PiggyBank,
-  Megaphone, ArrowUpRight, ArrowDownRight, Calculator, Landmark,
+  Megaphone, ArrowUpRight, ArrowDownRight, Calculator, Landmark, GitBranch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -47,6 +47,7 @@ const FINANCE_MODULES = [
   { title: { en: 'Loans & Financing', ar: 'القروض والتمويل' }, desc: { en: 'Loans, repayments, interest', ar: 'القروض والأقساط والفوائد' }, icon: Landmark, route: '/finance/loans', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
   { title: { en: 'Campaigns & Offers', ar: 'الحملات والعروض' }, desc: { en: 'Budget tracking, ROI, spend', ar: 'تتبع الميزانية والعائد على الاستثمار' }, icon: Megaphone, route: '/finance/campaigns', color: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300' },
   { title: { en: 'Chart of Accounts', ar: 'دليل الحسابات' }, desc: { en: 'Manage your account structure', ar: 'إدارة هيكل الحسابات' }, icon: Calculator, route: '/finance/accounts', color: 'bg-muted text-foreground' },
+  { title: { en: 'GL & Cost Centers', ar: 'إعداد الحسابات' }, desc: { en: 'GL mappings, cost & profit centers', ar: 'ربط الحسابات ومراكز التكلفة والربح' }, icon: GitBranch, route: '/finance/gl-config', color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300' },
 ];
 
 export default function FinanceHub() {

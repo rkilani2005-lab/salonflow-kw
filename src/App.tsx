@@ -51,6 +51,7 @@ const CheckRegister    = lazy(() => import("./pages/finance/CheckRegister"));
 const LoanManager      = lazy(() => import("./pages/finance/LoanManager"));
 const ChartOfAccounts  = lazy(() => import("./pages/finance/ChartOfAccounts"));
 const ARInvoices       = lazy(() => import("./pages/finance/ARInvoices"));
+const GLConfig         = lazy(() => import("./pages/finance/GLConfig"));
 
 // AI module (lazy — rarely used)
 const AIScheduling        = lazy(() => import("./pages/AIScheduling"));
@@ -178,6 +179,7 @@ const App = () => (
               <Route path="/finance/loans" element={<LoanManager />} />
               <Route path="/finance/accounts" element={<ChartOfAccounts />} />
               <Route path="/finance/invoices" element={<ARInvoices />} />
+              <Route path="/finance/gl-config" element={<GLConfig />} />
               </Route>
 
               {/* Super Admin routes — all under /zaina-admin/ */}

@@ -62,7 +62,20 @@ export default function ProfitLoss() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-1">{ar?'قائمة المركز المالي':'Financial Statement'}</p>
           <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>{ar?'قائمة الدخل':'Profit & Loss'}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{label}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-sm text-muted-foreground">{label}</p>
+            {data && (
+              <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded border',
+                (data as any).source === 'journal'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400'
+                  : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400'
+              )}>
+                {(data as any).source === 'journal'
+                  ? (ar ? '✓ من القيود' : '✓ Journal Entries')
+                  : (ar ? '⚡ من المعاملات' : '⚡ Direct from POS')}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Select value={period} onValueChange={v => setPeriod(v as Period)}>
