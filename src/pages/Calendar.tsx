@@ -25,11 +25,13 @@ function useBookings(date: Date) {
   return useQuery({
     queryKey: ['bookings-calendar', format(date, 'yyyy-MM')],
     queryFn: async () => {
+      const startOfMonth = format(date, 'yyyy-MM-01');
+      const endOfMonth = format(new Date(date.getFullYear(), date.getMonth() + 1, 0), 'yyyy-MM-dd');
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, client_id, client_name, client_phone, staff_id, service_id, service_name, service_category, booking_date, start_time, end_time, duration, status, notes, price, group_id, is_online_booking')
-        .gte('booking_date', format(date, 'yyyy-MM-01'))
-        .lte('booking_date', format(date, 'yyyy-MM-31'))
+        .select('id, client_id, client_name, client_phone, staff_id, service_id, service_name, service_category, booking_date, start_time, end_time, duration, status, notes, price, is_online_booking')
+        .gte('booking_date', startOfMonth)
+        .lte('booking_date', endOfMonth)
         .order('start_time');
       if (error) throw error;
       return data || [];
