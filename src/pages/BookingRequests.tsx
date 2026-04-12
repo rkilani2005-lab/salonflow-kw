@@ -4,6 +4,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useStaff } from '@/hooks/useStaff';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   Calendar, Clock, Phone, Scissors, CheckCircle2, XCircle,
-  RefreshCw, User, Inbox, Loader2, AlertCircle,
+  RefreshCw, User, Inbox, Loader2, AlertCircle, UserCheck,
 } from 'lucide-react';
 import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,7 @@ interface OnlineBooking {
   status: string;
   notes: string | null;
   created_at: string;
+  staff_id: string | null;       // ← ADDED: needed to show in calendar
   // from request log if available
   admin_note?: string | null;
   request_id?: string;
@@ -54,6 +56,7 @@ function useOnlineBookings(tenantId?: string, statusFilter = 'pending') {
           notes,
           created_at,
           service_id,
+          staff_id,
           services!inner(tenant_id)
         `)
         .eq('is_online_booking', true)
@@ -94,6 +97,9 @@ export default function BookingRequests() {
   const [actionType,   setActionType]   = useState<'approve' | 'decline'>('approve');
   const [adminNote,    setAdminNote]    = useState('');
   const [saving,       setSaving]       = useState(false);
+  const [assignedStaffId, setAssignedStaffId] = useState<string>('');  // ← NEW
+
+  const { data: staffList = [] } = useStaff();  // ← NEW: load staff for picker
 
   const { data: requests = [], isLoading, refetch, error: queryError } = useOnlineBookings(tenant?.id, statusFilter);
 
@@ -116,11 +122,17 @@ export default function BookingRequests() {
     setActionTarget(req);
     setActionType(type);
     setAdminNote('');
+    setAssignedStaffId(req.staff_id || '');  // ← pre-fill if already chosen
     setActionOpen(true);
   };
 
   const handleAction = async () => {
     if (!actionTarget) return;
+    // Require a stylist assignment when confirming
+    if (actionType === 'approve' && !assignedStaffId) {
+      toast({ title: ar ? 'يرجى اختيار موظفة' : 'Please assign a stylist', variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     try {
       const newBookingStatus = actionType === 'approve' ? 'confirmed' : 'cancelled';
@@ -128,15 +140,20 @@ export default function BookingRequests() {
         ? `✅ Confirmed by ${profile?.full_name || 'staff'}`
         : `❌ Declined by ${profile?.full_name || 'staff'}`;
 
-      // Update the booking status directly
+      // Build the update — include staff_id when confirming so it appears in calendar
+      const updatePayload: Record<string, any> = {
+        status: newBookingStatus as any,
+        notes: adminNote
+          ? `${notePrefix} — ${adminNote}`
+          : notePrefix,
+      };
+      if (actionType === 'approve' && assignedStaffId) {
+        updatePayload.staff_id = assignedStaffId;  // ← THE KEY FIX
+      }
+
       const { error: updErr } = await supabase
         .from('bookings')
-        .update({
-          status: newBookingStatus as any,
-          notes: adminNote
-            ? `${notePrefix} — ${adminNote}`
-            : notePrefix,
-        })
+        .update(updatePayload)
         .eq('id', actionTarget.id);
 
       if (updErr) throw updErr;
@@ -310,6 +327,17 @@ export default function BookingRequests() {
                     <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
                       <span className="flex items-center gap-1"><Phone className="h-3 w-3"/>{req.client_phone}</span>
                       <span className="flex items-center gap-1"><Scissors className="h-3 w-3"/>{req.service_name}</span>
+                      {req.staff_id && (() => {
+                        const stylist = staffList.find(s => s.id === req.staff_id);
+                        return stylist ? (
+                          <span className="flex items-center gap-1">
+                            <UserCheck className="h-3 w-3 text-primary"/>
+                            <span className="font-medium text-foreground">
+                              {ar && stylist.name_ar ? stylist.name_ar : stylist.name}
+                            </span>
+                          </span>
+                        ) : null;
+                      })()}
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3"/>
                         {format(parseISO(req.booking_date), 'EEE, MMM d yyyy')}
@@ -384,6 +412,36 @@ export default function BookingRequests() {
                   ? (ar ? 'سيتم تأكيد الحجز وإضافته للتقويم.' : 'The booking will be confirmed and added to the calendar.')
                   : (ar ? 'سيتم إلغاء الحجز.' : 'The booking will be cancelled.')}
               </div>
+
+              {/* ── Stylist picker — required when confirming ── */}
+              {actionType === 'approve' && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                    <UserCheck className="h-3 w-3"/>
+                    {ar ? 'تعيين الموظفة *' : 'Assign Stylist *'}
+                  </label>
+                  <select
+                    value={assignedStaffId}
+                    onChange={e => setAssignedStaffId(e.target.value)}
+                    className={cn(
+                      'w-full h-9 px-3 rounded-md border bg-background text-sm',
+                      !assignedStaffId ? 'border-amber-400 ring-1 ring-amber-300' : 'border-input'
+                    )}
+                  >
+                    <option value="">{ar ? '— اختاري موظفة —' : '— Select a stylist —'}</option>
+                    {staffList.filter(s => s.is_active).map(s => (
+                      <option key={s.id} value={s.id}>
+                        {ar && s.name_ar ? s.name_ar : s.name}
+                      </option>
+                    ))}
+                  </select>
+                  {!assignedStaffId && (
+                    <p className="text-[10px] text-amber-600">
+                      {ar ? 'مطلوب لإظهار الموعد في تقويم الموظفة' : 'Required so the appointment appears in the stylist\'s calendar'}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">
