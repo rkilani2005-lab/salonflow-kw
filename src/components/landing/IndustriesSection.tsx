@@ -28,7 +28,7 @@ const IndustriesSection = () => {
       <div className="container mx-auto px-6">
         <div className="text-center mb-12">
           <p className="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-3">{ar ? 'لكل صالون' : 'For Every Salon'}</p>
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             {ar ? 'مصمم لجميع أنواع الصالونات' : 'Built for all salon types'}
           </h2>
         </div>

@@ -338,7 +338,7 @@ export default function Settings() {
   return (
     <div className="p-6 space-y-6 max-w-3xl mx-auto" dir={ar ? 'rtl' : 'ltr'}>
       <div>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
+        <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
           {ar ? 'الإعدادات' : 'Settings'}
         </h1>
         <p className="text-muted-foreground text-sm mt-1">

@@ -96,7 +96,7 @@ export default function ExpenseManager() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-1">{ar?'المالية':'Finance'}</p>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>{ar?'إدارة المصروفات':'Expense Management'}</h1>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>{ar?'إدارة المصروفات':'Expense Management'}</h1>
           <p className="text-sm text-muted-foreground mt-1">{ar?'التكاليف المباشرة وغير المباشرة والاستحقاقات':'Direct & indirect costs, accruals'}</p>
         </div>
         <div className="flex gap-2">

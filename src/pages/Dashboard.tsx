@@ -146,7 +146,7 @@ export default function Dashboard() {
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/50 mb-1 select-none">
             {format(today, 'EEEE, MMMM d')}
           </p>
-          <h1 className="text-3xl leading-none font-black" style={{ fontFamily: 'Syne, sans-serif', letterSpacing: '-0.04em' }}>
+          <h1 className="text-3xl leading-none font-black" style={{ fontFamily: 'Bricolage Grotesque, sans-serif', letterSpacing: '-0.04em' }}>
             {currentBranch?.name || (ar ? 'لوحة التحكم' : 'Dashboard')}
           </h1>
         </div>
@@ -205,7 +205,7 @@ export default function Dashboard() {
         <div className="lg:col-span-2 bg-card border border-border rounded-lg overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/60">
             <div>
-              <h3 className="text-sm font-semibold" style={{ fontFamily: 'Syne, sans-serif' }}>
+              <h3 className="text-sm font-semibold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                 {ar ? 'جدول اليوم' : "Today's Schedule"}
               </h3>
               <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -300,7 +300,7 @@ export default function Dashboard() {
           {/* Status breakdown — tight list, no card-per-item */}
           <div className="bg-card border border-border rounded-lg overflow-hidden">
             <div className="px-4 py-3 border-b border-border/60">
-              <h3 className="text-xs font-semibold" style={{ fontFamily: 'Syne, sans-serif' }}>
+              <h3 className="text-xs font-semibold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                 {ar ? 'ملخص اليوم' : "Today's Status"}
               </h3>
             </div>
@@ -328,7 +328,7 @@ export default function Dashboard() {
           {/* Quick actions — compact text links, not buttons */}
           <div className="bg-card border border-border rounded-lg overflow-hidden">
             <div className="px-4 py-3 border-b border-border/60">
-              <h3 className="text-xs font-semibold" style={{ fontFamily: 'Syne, sans-serif' }}>
+              <h3 className="text-xs font-semibold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                 {ar ? 'روابط سريعة' : 'Quick links'}
               </h3>
             </div>

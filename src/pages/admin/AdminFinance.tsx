@@ -181,7 +181,7 @@ export default function AdminFinance() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-red-500/70 mb-1">Platform Finance</p>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-100" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-100" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             Finance & Accounts
           </h1>
           <p className="text-sm text-zinc-500 mt-1">Platform-wide financial overview across all tenants</p>

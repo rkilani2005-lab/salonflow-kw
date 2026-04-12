@@ -34,7 +34,7 @@ const ResourcesSection = () => {
           <p className="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-3">
             {ar ? 'الموارد' : 'Free Resources'}
           </p>
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             <span className="text-gradient">{ar ? 'طوّري مستواك' : 'Level up your game'}</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
@@ -52,7 +52,7 @@ const ResourcesSection = () => {
                   <Icon className="h-6 w-6" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-base mb-2" style={{ fontFamily: 'Syne, sans-serif' }}>{content.title}</h3>
+                  <h3 className="font-bold text-base mb-2" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>{content.title}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">{content.desc}</p>
                 </div>
                 <Button variant="outline" size="sm" className="gap-2 w-fit border-primary/30 text-primary hover:bg-primary/5">

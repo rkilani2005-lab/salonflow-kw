@@ -69,7 +69,7 @@ const Subscription = () => {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-1">{ar ? 'الاشتراك' : 'Subscription'}</p>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             {ar ? 'خطتك الحالية' : 'Your Plan'}
           </h1>
         </div>
@@ -145,7 +145,7 @@ const Subscription = () => {
                 )}>
                   <Icon className="h-4.5 w-4.5" />
                 </div>
-                <h3 className="font-bold text-base" style={{ fontFamily: 'Syne, sans-serif' }}>
+                <h3 className="font-bold text-base" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                   {ar ? plan.name.ar : plan.name.en}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">{ar ? plan.desc.ar : plan.desc.en}</p>
@@ -193,7 +193,7 @@ const Subscription = () => {
       {/* FAQ */}
       <Card className="border">
         <CardContent className="p-5 space-y-3">
-          <h3 className="font-bold text-sm" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h3 className="font-bold text-sm" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             {ar ? 'أسئلة شائعة' : 'Frequently Asked Questions'}
           </h3>
           {[

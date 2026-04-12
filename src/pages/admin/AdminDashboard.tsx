@@ -127,7 +127,7 @@ export default function AdminDashboard() {
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-black" style={{ fontFamily: 'Syne,sans-serif', letterSpacing: '-0.03em' }}>
+        <h1 className="text-3xl font-black" style={{ fontFamily: 'Bricolage Grotesque, sans-serif', letterSpacing: '-0.03em' }}>
           Platform Dashboard
         </h1>
         <p className="text-muted-foreground text-sm mt-1">SaaS business metrics · ZAINA Salon Management</p>

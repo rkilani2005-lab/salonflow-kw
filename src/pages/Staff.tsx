@@ -107,7 +107,7 @@ const Staff = () => {
           <p className="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-1">
             {ar ? 'إدارة الفريق' : 'Team Management'}
           </p>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             {ar ? 'الموظفات' : 'Staff'}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">

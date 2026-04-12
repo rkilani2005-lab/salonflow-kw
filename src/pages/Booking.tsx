@@ -283,7 +283,7 @@ export default function BookingPage() {
         <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
           <Scissors className="h-8 w-8 text-primary"/>
         </div>
-        <h1 className="text-2xl font-bold mb-3" style={{ fontFamily: 'Syne, sans-serif' }}>Online Booking</h1>
+        <h1 className="text-2xl font-bold mb-3" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>Online Booking</h1>
         <p className="text-muted-foreground text-sm mb-6">
           Use the booking link provided by your salon. It looks like:
           <code className="block bg-muted px-2 py-1 rounded text-xs mt-2">/book?tenant=SALON_ID</code>
@@ -311,7 +311,7 @@ export default function BookingPage() {
               </div>
               <Sparkles className="absolute -top-1 -right-1 h-6 w-6 text-primary animate-pulse"/>
             </div>
-            <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'Syne, sans-serif' }}>
+            <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
               {ar ? 'تم استلام طلبك! 🎉' : 'Request Received! 🎉'}
             </h1>
             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -437,7 +437,7 @@ export default function BookingPage() {
             <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center">
               <Scissors className="h-4 w-4 text-primary-foreground"/>
             </div>
-            <span className="font-bold text-sm" style={{ fontFamily: 'Syne, sans-serif' }}>
+            <span className="font-bold text-sm" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
               {ar ? 'احجزي موعدك' : 'Book Appointment'}
             </span>
           </div>
@@ -474,7 +474,7 @@ export default function BookingPage() {
               <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <Phone className="h-8 w-8 text-primary"/>
               </div>
-              <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'Syne, sans-serif' }}>
+              <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                 {ar ? 'أهلاً! ما رقمك؟' : 'Welcome! What\'s your number?'}
               </h2>
               <p className="text-sm text-muted-foreground">
@@ -665,7 +665,7 @@ export default function BookingPage() {
                   className="h-8 w-8 rounded-full border border-border flex items-center justify-center hover:bg-muted transition-colors flex-shrink-0">
                   <ArrowLeft className={`h-4 w-4 ${ar ? 'rotate-180' : ''}`}/>
                 </button>
-                <h2 className="text-2xl font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>
+                <h2 className="text-2xl font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                   {ar ? 'اختاري الخدمة' : 'Choose a Service'}
                 </h2>
               </div>
@@ -779,7 +779,7 @@ export default function BookingPage() {
                 <ArrowLeft className={`h-4 w-4 ${ar ? 'rotate-180' : ''}`}/>
               </button>
               <div>
-                <h2 className="text-2xl font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>
+                <h2 className="text-2xl font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                   {ar ? 'اختاري الموعد' : 'Pick a Date & Time'}
                 </h2>
                 <p className="text-xs text-muted-foreground">{selectedService?.name}</p>
@@ -855,7 +855,7 @@ export default function BookingPage() {
                 <ArrowLeft className={`h-4 w-4 ${ar ? 'rotate-180' : ''}`}/>
               </button>
               <div>
-                <h2 className="text-2xl font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>
+                <h2 className="text-2xl font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                   {ar ? 'تأكيد الحجز' : 'Confirm Booking'}
                 </h2>
                 <p className="text-xs text-muted-foreground">{ar ? 'خطوة أخيرة!' : 'Almost done!'}</p>

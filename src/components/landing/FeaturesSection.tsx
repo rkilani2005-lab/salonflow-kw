@@ -39,7 +39,7 @@ const FeaturesSection = () => {
           <Badge variant="outline" className="mb-4 px-3 py-1.5 text-xs font-semibold border-primary/30 bg-primary/8 text-primary">
             {ar ? 'المميزات' : 'Features'}
           </Badge>
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             {ar ? 'كل ما تحتاجينه في مكان واحد' : 'Everything your salon needs'}
           </h2>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
@@ -56,7 +56,7 @@ const FeaturesSection = () => {
                   <Icon className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm mb-1" style={{ fontFamily: 'Syne, sans-serif' }}>{content.title}</h3>
+                  <h3 className="font-semibold text-sm mb-1" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>{content.title}</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">{content.desc}</p>
                 </div>
               </div>

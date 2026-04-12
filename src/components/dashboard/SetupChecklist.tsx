@@ -130,7 +130,7 @@ export function SetupChecklist({ alwaysShow = false }: Props) {
           <Sparkles className={cn('h-4 w-4', allDone ? 'text-emerald-600' : 'text-primary')} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <p className="font-semibold text-sm" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             {allDone
               ? (ar ? '🎉 صالونك جاهز تماماً!' : '🎉 Your salon is fully set up!')
               : (ar ? 'إعداد صالونك' : 'Complete your salon setup')}

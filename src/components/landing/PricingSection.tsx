@@ -57,7 +57,7 @@ const PricingSection = () => {
           <Badge variant="outline" className="mb-4 px-3 py-1.5 text-xs font-semibold border-primary/30 bg-primary/8 text-primary">
             {ar ? 'الأسعار' : 'Pricing'}
           </Badge>
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             {ar ? 'اختاري خطتك' : 'Pick your plan'}
           </h2>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
@@ -96,7 +96,7 @@ const PricingSection = () => {
                   )}>
                     <Icon className="h-5 w-5" />
                   </div>
-                  <h3 className="text-lg font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>
+                  <h3 className="text-lg font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                     {ar ? plan.name.ar : plan.name.en}
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1">{ar ? plan.desc.ar : plan.desc.en}</p>

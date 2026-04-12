@@ -106,7 +106,7 @@ const AppSidebar = () => {
               >
                 <span
                   className="text-primary-foreground font-black leading-none select-none"
-                  style={{ fontFamily: 'Syne, sans-serif', fontSize: '15px', letterSpacing: '-0.05em' }}
+                  style={{ fontFamily: 'Bricolage Grotesque, sans-serif', fontSize: '15px', letterSpacing: '-0.05em' }}
                 >
                   {tenant?.name?.[0]?.toUpperCase() || 'Z'}
                 </span>
@@ -117,7 +117,7 @@ const AppSidebar = () => {
             <div className="flex flex-col min-w-0">
               <span
                 className="font-bold text-[13px] text-sidebar-foreground leading-tight"
-                style={{ fontFamily: 'Syne, sans-serif', letterSpacing: '-0.02em' }}
+                style={{ fontFamily: 'Bricolage Grotesque, sans-serif', letterSpacing: '-0.02em' }}
               >
                 {tenant?.name || 'ZAINA'}
               </span>

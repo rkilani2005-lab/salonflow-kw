@@ -50,7 +50,7 @@ const AdminLogin = () => {
           <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-red-500/10 border border-red-500/20 mb-5">
             <Shield className="h-8 w-8 text-red-400" />
           </div>
-          <h1 className="text-2xl font-bold text-zinc-100" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h1 className="text-2xl font-bold text-zinc-100" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             ZAINA Admin
           </h1>
           <p className="text-sm text-zinc-500 mt-1">Restricted access — authorized personnel only</p>

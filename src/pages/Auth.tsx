@@ -57,12 +57,12 @@ const Auth = () => {
           <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center shadow-sm">
             <Scissors className="h-4.5 w-4.5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>ZAINA</span>
+          <span className="text-lg font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>ZAINA</span>
         </Link>
 
         {/* Heading */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight mb-2" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h1 className="text-3xl font-bold tracking-tight mb-2" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             {mode === 'signin' ? 'Welcome back' : 'Start your free trial'}
           </h1>
           <p className="text-muted-foreground">
@@ -164,7 +164,7 @@ const Auth = () => {
             <Sparkles className="h-4 w-4" />
             AI-Powered Salon Management
           </div>
-          <h2 className="text-4xl font-bold mb-4" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h2 className="text-4xl font-bold mb-4" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             The smarter way to run your salon
           </h2>
           <p className="text-white/75 text-lg mb-10 leading-relaxed">

@@ -44,7 +44,7 @@ export default function WhatsAppAgent() {
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-base font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>
+            <h1 className="text-base font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
               {ar ? 'واتساب الذكي' : 'WhatsApp Business'}
             </h1>
             {isConnected ? (
@@ -91,7 +91,7 @@ export default function WhatsAppAgent() {
             {/* Setup wizard */}
             <TabsContent value="setup" className="mt-0 p-6">
               <div className="mb-5">
-                <h2 className="text-lg font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>
+                <h2 className="text-lg font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                   {ar ? 'إعداد WhatsApp Business API' : 'WhatsApp Business API Setup'}
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -106,7 +106,7 @@ export default function WhatsAppAgent() {
             {/* Triggers */}
             <TabsContent value="triggers" className="mt-0 p-6">
               <div className="mb-5">
-                <h2 className="text-lg font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>
+                <h2 className="text-lg font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                   {ar ? 'الرسائل التلقائية' : 'Automated Triggers'}
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -121,7 +121,7 @@ export default function WhatsAppAgent() {
             {/* Templates */}
             <TabsContent value="templates" className="mt-0 p-6">
               <div className="mb-5">
-                <h2 className="text-lg font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>
+                <h2 className="text-lg font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                   {ar ? 'قوالب الرسائل' : 'Message Templates'}
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -137,7 +137,7 @@ export default function WhatsAppAgent() {
             <TabsContent value="simulator" className="mt-0">
               <div className="max-w-4xl mx-auto p-6 space-y-4">
                 <div>
-                  <h2 className="text-lg font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>
+                  <h2 className="text-lg font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                     {ar ? 'اختبار وكيل الذكاء الاصطناعي' : 'Test AI Agent'}
                   </h2>
                   <p className="text-sm text-muted-foreground mt-1">
@@ -151,7 +151,7 @@ export default function WhatsAppAgent() {
             {/* Conversations */}
             <TabsContent value="conversations" className="mt-0 p-6">
               <div className="mb-5">
-                <h2 className="text-lg font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>
+                <h2 className="text-lg font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                   {ar ? 'سجل المحادثات' : 'Conversation Log'}
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">

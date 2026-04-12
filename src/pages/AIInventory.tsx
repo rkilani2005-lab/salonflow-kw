@@ -124,7 +124,7 @@ export default function AIInventory() {
             <p className="text-xs font-semibold uppercase tracking-widest text-primary/70">{ar ? 'مساعد المخزون الذكي' : 'AI Inventory Assistant'}</p>
             <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/25 rounded-full"><Sparkles className="h-2.5 w-2.5 mr-0.5" />Claude</Badge>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight" style={{fontFamily:'Syne,sans-serif'}}>{ar ? 'مساعد المخزون' : 'AI Inventory'}</h1>
+          <h1 className="text-3xl font-bold tracking-tight" style={{fontFamily:'Bricolage Grotesque,sans-serif'}}>{ar ? 'مساعد المخزون' : 'AI Inventory'}</h1>
           <p className="text-sm text-muted-foreground mt-1">{ar ? 'توقع النقص وأنشئ طلبات الشراء تلقائياً' : 'Predict shortages and auto-generate purchase orders'}</p>
         </div>
         <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs" onClick={() => setMessages([])}><RefreshCw className="h-3.5 w-3.5" />{ar ? 'محادثة جديدة' : 'New chat'}</Button>

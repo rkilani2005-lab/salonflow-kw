@@ -68,7 +68,7 @@ export default function FinanceHub() {
           <p className="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-1">
             {ar ? 'المحاسبة والمالية' : 'Accounting & Finance'}
           </p>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             {ar ? 'لوحة التحكم المالية' : 'Finance Hub'}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -115,7 +115,7 @@ export default function FinanceHub() {
                   <Icon className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-sm group-hover:text-primary transition-colors" style={{ fontFamily: 'Syne, sans-serif' }}>
+                  <p className="font-semibold text-sm group-hover:text-primary transition-colors" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                     {ar ? m.title.ar : m.title.en}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">{ar ? m.desc.ar : m.desc.en}</p>

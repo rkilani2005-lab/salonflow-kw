@@ -173,7 +173,7 @@ export default function StaffAttendance() {
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/50 mb-1 select-none">
             {ar ? 'الفريق' : 'Staff'}
           </p>
-          <h1 className="text-3xl font-black leading-none" style={{ fontFamily: 'Syne,sans-serif', letterSpacing: '-0.04em' }}>
+          <h1 className="text-3xl font-black leading-none" style={{ fontFamily: 'Bricolage Grotesque, sans-serif', letterSpacing: '-0.04em' }}>
             {ar ? 'سجل الحضور' : 'Attendance'}
           </h1>
           <p className="text-sm text-muted-foreground mt-1.5">

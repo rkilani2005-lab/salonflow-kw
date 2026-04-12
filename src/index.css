@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=Noto+Kufi+Arabic:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -114,37 +114,37 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     font-feature-settings: 'cv02','cv03','cv04','cv11';
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   :lang(ar), [dir="rtl"] {
-    font-family: 'Noto Kufi Arabic', system-ui, sans-serif;
+    font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif;
   }
 
-  /* Display — Syne carries authority. Letter-spacing tight. */
+  /* Display — Bricolage Grotesque: editorial, geometric, commanding */
   h1 {
-    font-family: 'Syne', system-ui, sans-serif;
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
     letter-spacing: -0.04em;
     font-weight: 800;
     line-height: 1.05;
   }
   h2 {
-    font-family: 'Syne', system-ui, sans-serif;
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
     letter-spacing: -0.03em;
     font-weight: 700;
   }
   h3 {
-    font-family: 'Syne', system-ui, sans-serif;
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
     letter-spacing: -0.02em;
     font-weight: 600;
   }
 
   :lang(ar) h1, :lang(ar) h2, :lang(ar) h3,
   [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3 {
-    font-family: 'Noto Kufi Arabic', system-ui, sans-serif;
+    font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif;
     letter-spacing: 0;
     font-weight: 700;
   }
@@ -200,7 +200,7 @@
 
 /* ── Stat numbers — numbers do the heavy lifting ── */
 .stat-number {
-  font-family: 'Syne', system-ui, sans-serif;
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: 'tnum','lnum';
   font-weight: 800;
@@ -295,7 +295,7 @@ select:focus-visible {
 
 /* ── Button font ── */
 button, [role="button"] {
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
 /* ── Skeleton shimmer ── */
@@ -384,5 +384,5 @@ button, [role="button"] {
   border-radius: 3px;
   font-size: 0.625rem;
   font-weight: 800;
-  font-family: 'Syne', system-ui, sans-serif;
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
 }

@@ -122,7 +122,7 @@ const Onboarding = () => {
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
             <Scissors className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="font-bold text-sm" style={{ fontFamily: 'Syne, sans-serif' }}>ZAINA Setup</span>
+          <span className="font-bold text-sm" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>ZAINA Setup</span>
         </div>
         <div className="ml-auto text-xs text-muted-foreground font-medium">Step {step} of {STEPS.length}</div>
       </header>
@@ -167,7 +167,7 @@ const Onboarding = () => {
                   {(() => { const Icon = STEPS[step-1].icon; return <Icon className="h-5 w-5 text-primary" />; })()}
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>{STEPS[step-1].title}</h2>
+                  <h2 className="text-lg font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>{STEPS[step-1].title}</h2>
                   <p className="text-sm text-muted-foreground">{STEPS[step-1].desc}</p>
                 </div>
               </div>

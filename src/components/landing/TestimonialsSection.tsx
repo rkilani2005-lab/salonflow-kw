@@ -19,7 +19,7 @@ const TestimonialsSection = () => {
       <div className="container mx-auto px-6">
         <div className="text-center mb-14">
           <p className="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-3">{ar ? 'آراء العملاء' : 'Testimonials'}</p>
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             {ar ? 'ماذا يقول أصحاب الصالونات' : 'Salon owners love ZAINA'}
           </h2>
         </div>

@@ -81,7 +81,7 @@ export default function GeneralLedger() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-1">{ar?'المحاسبة':'Accounting'}</p>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>{ar?'دفتر الأستاذ العام':'General Ledger'}</h1>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>{ar?'دفتر الأستاذ العام':'General Ledger'}</h1>
           <p className="text-sm text-muted-foreground mt-1">{ar?'القيود اليومية وميزان المراجعة':'Journal entries & trial balance'}</p>
         </div>
         <Button size="sm" onClick={() => setShowJE(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5"/>{ar?'قيد يومي جديد':'New Journal Entry'}</Button>

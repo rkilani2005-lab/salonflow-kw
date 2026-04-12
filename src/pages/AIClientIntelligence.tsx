@@ -149,7 +149,7 @@ export default function AIClientIntelligence() {
               <Sparkles className="h-2.5 w-2.5 mr-0.5" />Claude
             </Badge>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             {ar ? 'ذكاء العميلات' : 'Client Intelligence'}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">

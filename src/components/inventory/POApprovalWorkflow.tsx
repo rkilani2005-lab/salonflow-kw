@@ -335,7 +335,7 @@ export function POApprovalWorkflow() {
       <div className="flex items-end justify-between">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-1">Inventory</p>
-          <h2 className="text-2xl font-black leading-none" style={{ fontFamily: 'Syne, sans-serif', letterSpacing: '-0.03em' }}>
+          <h2 className="text-2xl font-black leading-none" style={{ fontFamily: 'Bricolage Grotesque, sans-serif', letterSpacing: '-0.03em' }}>
             PO Approval Workflow
           </h2>
           <p className="text-sm text-muted-foreground mt-1.5">

@@ -79,7 +79,7 @@ function OpenDayForm({ currency }: { currency: string }) {
           <div className="h-16 w-16 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center mx-auto mb-4">
             <DoorOpen className="h-8 w-8 text-emerald-600" />
           </div>
-          <h2 className="text-2xl font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h2 className="text-2xl font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             {ar ? 'فتح يوم العمل' : 'Open Day'}
           </h2>
           <p className="text-muted-foreground text-sm mt-1">
@@ -246,7 +246,7 @@ function LiveSessionDashboard({
               {ar ? 'اليوم مفتوح' : 'Day Open'}
             </p>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             {format(new Date(session!.session_date), 'EEEE, MMMM d, yyyy')}
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -516,7 +516,7 @@ function ClosedSessionView({ session, currency }: { session: CashSession; curren
               {ar ? 'اليوم مغلق' : 'Day Closed'}
             </p>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             {format(new Date(session.session_date), 'EEEE, MMMM d, yyyy')}
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -568,7 +568,7 @@ function SessionHistoryView({ currency }: { currency: string }) {
 
   return (
     <div className="p-6 space-y-4 max-w-4xl mx-auto">
-      <h2 className="text-lg font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>
+      <h2 className="text-lg font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
         {ar ? 'سجل الجلسات (آخر 30 يوم)' : 'Session History (Last 30 days)'}
       </h2>
       {(!history || history.length === 0) ? (
@@ -631,7 +631,7 @@ export default function DaySession() {
             <Calculator className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h1 className="text-base font-bold" style={{ fontFamily: 'Syne, sans-serif' }}>
+            <h1 className="text-base font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
               {ar ? 'إدارة يوم العمل' : 'Day Session'}
             </h1>
             <p className="text-[11px] text-muted-foreground">{format(new Date(), 'EEEE, MMMM d')}</p>

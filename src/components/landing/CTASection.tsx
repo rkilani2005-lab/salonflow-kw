@@ -18,7 +18,7 @@ const CTASection = () => {
               <Zap className="h-4 w-4" />
               <span className="text-sm font-semibold">{ar ? 'مدعوم بالذكاء الاصطناعي' : 'AI-Powered Platform'}</span>
             </div>
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4" style={{ fontFamily: 'Syne, sans-serif' }}>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
               {ar ? 'توقفي عن الإدارة.' : 'Stop managing.'}
               <br />
               {ar ? 'ابدأي بالنمو.' : 'Start growing.'}

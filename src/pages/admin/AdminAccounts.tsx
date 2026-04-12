@@ -191,7 +191,7 @@ export default function AdminAccounts() {
           <p className="text-[11px] font-semibold uppercase tracking-widest text-red-500/70 mb-1">
             Platform Accounting
           </p>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-100" style={{ fontFamily: 'Syne, sans-serif' }}>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-100" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
             ZAINA Chart of Accounts
           </h1>
           <p className="text-sm text-zinc-500 mt-1">

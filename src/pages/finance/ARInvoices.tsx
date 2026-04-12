@@ -139,7 +139,7 @@ export default function ARInvoices() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/50 mb-1 select-none">Finance</p>
-          <h1 className="text-3xl font-black leading-none" style={{ fontFamily:'Syne,sans-serif', letterSpacing:'-0.04em' }}>
+          <h1 className="text-3xl font-black leading-none" style={{ fontFamily:'Bricolage Grotesque,sans-serif', letterSpacing:'-0.04em' }}>
             {ar ? 'فواتير العملاء' : 'Client Invoices'}
           </h1>
           <p className="text-sm text-muted-foreground mt-1.5">{ar ? 'الذمم المدينة، الدفعات الجزئية' : 'Accounts receivable, partial payments, aging'}</p>

@@ -33,7 +33,7 @@ const HeroSection = () => {
               {ar ? 'مدعوم بالذكاء الاصطناعي • الكويت والخليج' : 'AI-Powered • Kuwait & GCC'}
             </Badge>
 
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.05] mb-6 tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.05] mb-6 tracking-tight" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
               <span className="text-gradient">
                 {ar ? 'أدِيري صالونك' : 'Run your salon'}
               </span>

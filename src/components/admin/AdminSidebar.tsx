@@ -81,7 +81,7 @@ const AdminSidebar = () => {
           </div>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="font-bold text-sm text-zinc-100" style={{ fontFamily: 'Syne, sans-serif' }}>
+              <span className="font-bold text-sm text-zinc-100" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
                 ZAINA Admin
               </span>
               <span className="text-[10px] text-zinc-500">Platform Control</span>
