@@ -344,11 +344,11 @@ export default function POS() {
             const jeLines: any[] = [];
             // Revenue lines — one per service category in the sale
             for (const item of items) {
-              const catKey = item.category || 'other';
+              const catKey = item.item_type || 'other';
               const revMap = glMaps.find((m: any) => m.mapping_type === 'revenue_service' && m.source_key === catKey)
                           || glMaps.find((m: any) => m.mapping_type === 'revenue_service' && m.source_key === 'other');
               if (revMap?.credit_account_id) {
-                jeLines.push({ journal_entry_id: je.id, account_id: revMap.credit_account_id, debit: 0, credit: item.total_price || item.price, description: item.name });
+                jeLines.push({ journal_entry_id: je.id, account_id: revMap.credit_account_id, debit: 0, credit: item.total_price || item.unit_price, description: item.item_name });
               }
             }
             // Payment (debit) lines — one per payment method
