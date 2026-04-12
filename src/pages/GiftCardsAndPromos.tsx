@@ -196,7 +196,7 @@ function GiftCardsTab({ currency, ar }: { currency: string; ar: boolean }) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold">{active.length} {ar ? 'بطاقات نشطة' : 'active gift cards'}</p>
-          <p className="text-xs text-muted-foreground">{cards.reduce((s,c)=>s+Number(c.balance),0).toFixed(3)} {currency} total balance outstanding</p>
+          <p className="text-xs text-muted-foreground">{cards.reduce((s,c)=>s+Number(c.current_balance),0).toFixed(3)} {currency} total balance outstanding</p>
         </div>
         <Button size="sm" onClick={openNew} className="gap-1.5 h-9">
           <Plus className="h-3.5 w-3.5"/>{ar ? 'بطاقة جديدة' : 'New Gift Card'}
@@ -211,8 +211,8 @@ function GiftCardsTab({ currency, ar }: { currency: string; ar: boolean }) {
       ) : (
         <div className="border rounded-md overflow-hidden divide-y divide-border">
           {cards.map(card => {
-            const pctUsed = card.initial_amount > 0
-              ? Math.round(((card.initial_amount - card.balance) / card.initial_amount) * 100) : 0;
+            const pctUsed = card.initial_balance > 0
+              ? Math.round(((card.initial_balance - card.current_balance) / card.initial_balance) * 100) : 0;
             const isExpired = card.expires_at && isPast(parseISO(card.expires_at));
             return (
               <div key={card.id} className={cn('flex items-center gap-4 px-5 py-4 bg-card', card.status !== 'active' && 'opacity-50')}>
@@ -232,7 +232,7 @@ function GiftCardsTab({ currency, ar }: { currency: string; ar: boolean }) {
                       {isExpired ? 'Expired' : card.status}
                     </Badge>
                   </div>
-                  {card.issued_to_name && <p className="text-[11px] text-muted-foreground">{card.issued_to_name} {card.issued_to_phone ? `· ${card.issued_to_phone}` : ''}</p>}
+                  {card.recipient_name && <p className="text-[11px] text-muted-foreground">{card.recipient_name} {card.recipient_phone ? `· ${card.recipient_phone}` : ''}</p>}
                   <div className="flex items-center gap-2 mt-1.5">
                     <div className="h-1 w-24 bg-muted rounded-full overflow-hidden">
                       <div className="h-full bg-amber-400 rounded-full" style={{ width: `${pctUsed}%` }}/>
@@ -241,8 +241,8 @@ function GiftCardsTab({ currency, ar }: { currency: string; ar: boolean }) {
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="stat-number text-base font-black">{Number(card.balance).toFixed(3)} {currency}</p>
-                  <p className="text-[10px] text-muted-foreground">of {Number(card.initial_amount).toFixed(3)}</p>
+                  <p className="stat-number text-base font-black">{Number(card.current_balance).toFixed(3)} {currency}</p>
+                  <p className="text-[10px] text-muted-foreground">of {Number(card.initial_balance).toFixed(3)}</p>
                 </div>
               </div>
             );

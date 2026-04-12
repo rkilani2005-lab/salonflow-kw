@@ -21,10 +21,10 @@ export interface GiftCard {
   id: string;
   tenant_id: string;
   code: string;
-  initial_amount: number;
-  balance: number;
-  issued_to_name: string | null;
-  issued_to_phone: string | null;
+  initial_balance: number;   // DB column: initial_balance
+  current_balance: number;   // DB column: current_balance
+  recipient_name: string | null;
+  recipient_phone: string | null;
   status: string;
   expires_at: string | null;
   created_at: string;
@@ -134,14 +134,14 @@ export const useCreateGiftCard = () => {
       issued_to_phone?: string; expires_at?: string | null;
     }) => {
       const { error } = await supabase.from('gift_cards').insert({
-        tenant_id:      tenant!.id,
-        code:           input.code.toUpperCase(),
-        initial_amount: input.amount,
-        balance:        input.amount,
-        issued_to_name: input.issued_to_name || null,
-        issued_to_phone:input.issued_to_phone || null,
-        expires_at:     input.expires_at || null,
-        status:         'active',
+        tenant_id:       tenant!.id,
+        code:            input.code.toUpperCase(),
+        initial_balance: input.amount,   // correct DB column
+        current_balance: input.amount,   // correct DB column
+        recipient_name:  input.issued_to_name  || null,
+        recipient_phone: input.issued_to_phone || null,
+        expires_at:      input.expires_at || null,
+        status:          'active',
       });
       if (error) throw error;
     },

@@ -102,6 +102,24 @@ serve(async (req: Request) => {
       return json({ staff: staff || [] });
     }
 
+    // ── get-availability ──────────────────────────────────────
+    // Returns booked time ranges for a staff member on a given date
+    // so the booking page can grey out unavailable slots
+    if (body.action === 'get-availability') {
+      const { staffId, bookingDate, tenantId: tid } = body;
+      if (!staffId || !bookingDate || !tid) return json({ bookedSlots: [] });
+
+      const { data: existing } = await supabase
+        .from('bookings')
+        .select('start_time, end_time, duration')
+        .eq('staff_id', staffId)
+        .eq('booking_date', bookingDate)
+        .in('status', ['planned', 'confirmed', 'checked_in', 'in_service']);
+
+      // Return all booked ranges so the UI can block overlapping slots
+      return json({ bookedSlots: existing || [] });
+    }
+
     // ── lookup-client ─────────────────────────────────────────
     if (body.action === 'lookup-client') {
       const rawPhone = body.clientPhone?.trim() || '';
@@ -401,6 +419,24 @@ serve(async (req: Request) => {
         }
         clientId = newClient.id;
         isNewClient = true;
+      }
+
+      // ── Conflict check: prevent double-booking a stylist ─────
+      if (staffId) {
+        const { data: conflicts } = await supabase
+          .from('bookings')
+          .select('id, start_time, end_time')
+          .eq('staff_id', staffId)
+          .eq('booking_date', bookingDate)
+          .in('status', ['planned', 'confirmed', 'checked_in', 'in_service'])
+          .lt('start_time', endTime)   // existing booking starts before our end
+          .gt('end_time',  startTime); // existing booking ends after our start
+
+        if (conflicts && conflicts.length > 0) {
+          return json({
+            error: 'This stylist is not available at the selected time. Please choose a different time or stylist.',
+          }, 409);
+        }
       }
 
       // Insert booking — status: 'planned' (awaits admin confirmation)

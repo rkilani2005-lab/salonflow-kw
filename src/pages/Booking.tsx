@@ -85,6 +85,24 @@ export default function BookingPage() {
   const [selectedDate,     setSelectedDate]     = useState<Date | undefined>(addDays(new Date(), 1));
   const [selectedTime,     setSelectedTime]     = useState('');
 
+  // Availability — booked ranges for selected staff+date
+  const [bookedSlots, setBookedSlots] = useState<{ start_time: string; end_time: string; duration: number }[]>([]);
+
+  // Fetch busy slots whenever staff or date changes
+  useEffect(() => {
+    if (!selectedStaff || !selectedDate || !tenantId) {
+      setBookedSlots([]);
+      return;
+    }
+    setSelectedTime(''); // reset time when staff/date changes
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    supabase.functions.invoke('create-public-booking', {
+      body: { action: 'get-availability', tenantId, staffId: selectedStaff.id, bookingDate: dateStr },
+    }).then(({ data }) => {
+      setBookedSlots(data?.bookedSlots || []);
+    });
+  }, [selectedStaff?.id, selectedDate]);
+
   // Client details (pre-filled for returning clients)
   const [clientName,  setClientName]  = useState('');
   const [clientPhone, setClientPhone] = useState('');
@@ -171,6 +189,21 @@ export default function BookingPage() {
       slots.push(`${h.toString().padStart(2, '0')}:30`);
     }
     return slots;
+  };
+
+  // Returns true if a slot start time overlaps with any existing booking
+  const isSlotBusy = (slotTime: string): boolean => {
+    if (!selectedService || bookedSlots.length === 0) return false;
+    const [sh, sm] = slotTime.split(':').map(Number);
+    const slotStart = sh * 60 + sm;
+    const slotEnd   = slotStart + selectedService.duration;
+    return bookedSlots.some(b => {
+      const [bsh, bsm] = b.start_time.slice(0, 5).split(':').map(Number);
+      const [beh, bem] = b.end_time.slice(0, 5).split(':').map(Number);
+      const bookedStart = bsh * 60 + bsm;
+      const bookedEnd   = beh * 60 + bem;
+      return slotStart < bookedEnd && slotEnd > bookedStart;
+    });
   };
 
   const handleSubmit = async () => {
@@ -767,18 +800,35 @@ export default function BookingPage() {
               <div>
                 <p className="text-sm font-semibold mb-3">{ar ? 'الأوقات المتاحة' : 'Available Times'}</p>
                 <div className="grid grid-cols-4 gap-2">
-                  {generateTimeSlots().map(slot => (
-                    <button key={slot} onClick={() => setSelectedTime(slot)}
-                      className={cn(
-                        'py-2.5 rounded-xl text-sm font-medium border transition-all',
-                        selectedTime === slot
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-card border-border hover:border-primary/40'
-                      )}>
-                      {slot}
-                    </button>
-                  ))}
+                  {generateTimeSlots().map(slot => {
+                    const busy = isSlotBusy(slot);
+                    return (
+                      <button key={slot}
+                        onClick={() => !busy && setSelectedTime(slot)}
+                        disabled={busy}
+                        title={busy ? (ar ? 'هذا الوقت محجوز' : 'Already booked') : undefined}
+                        className={cn(
+                          'py-2.5 rounded-xl text-sm font-medium border transition-all relative',
+                          busy
+                            ? 'bg-muted/40 border-border text-muted-foreground/40 cursor-not-allowed line-through'
+                            : selectedTime === slot
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-card border-border hover:border-primary/40'
+                        )}>
+                        {slot}
+                        {busy && (
+                          <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-400 border border-background"/>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
+                {selectedStaff && bookedSlots.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
+                    <span className="inline-block h-2 w-2 rounded-full bg-red-400"/>
+                    {ar ? 'الأوقات المشطوبة محجوزة مسبقاً' : 'Strikethrough slots are already booked'}
+                  </p>
+                )}
               </div>
             )}
 
