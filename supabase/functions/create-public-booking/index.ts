@@ -497,7 +497,7 @@ serve(async (req: Request) => {
                 currency:         'KWD',
                 status:           'pending',
                 raw_response:     pr,
-              }).then(() => {}).catch(() => {});
+              });
 
               return json({
                 success:         true,
