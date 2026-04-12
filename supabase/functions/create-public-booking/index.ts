@@ -13,7 +13,7 @@ function json(body: unknown, status = 200) {
 }
 
 interface BookingRequest {
-  action: 'get-services' | 'get-staff' | 'lookup-client' | 'create-booking' | 'get-portal';
+  action: 'get-services' | 'get-staff' | 'get-availability' | 'lookup-client' | 'create-booking' | 'get-portal';
   tenantId: string;
   serviceId?: string;
   staffId?: string | null;
