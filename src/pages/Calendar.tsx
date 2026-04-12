@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import { StaffRosterSidebar } from '@/components/calendar/StaffRosterSidebar';
 import { CalendarGrid } from '@/components/calendar/CalendarGrid';
@@ -98,6 +99,21 @@ export default function CalendarPage() {
   const { tenant } = useAuth();
 
   const [date,             setDate]             = useState(new Date());
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // If navigated here from BookingRequests after confirming, jump to that date
+  useEffect(() => {
+    const dateParam = searchParams.get('date');
+    if (dateParam) {
+      const parsed = new Date(dateParam + 'T00:00:00');
+      if (!isNaN(parsed.getTime())) {
+        setDate(parsed);
+        setView('day');
+      }
+      // Remove the param so refreshing doesn't re-jump
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
   const [view,             setView]             = useState<'day' | 'week' | 'month'>('day');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [listMode,         setListMode]         = useState(false);

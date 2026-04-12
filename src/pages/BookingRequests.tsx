@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -89,6 +90,7 @@ export default function BookingRequests() {
   const { language } = useLanguage();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const ar = language === 'ar';
 
   const [statusFilter, setStatusFilter] = useState('pending');
@@ -174,12 +176,23 @@ export default function BookingRequests() {
       qc.invalidateQueries({ queryKey: ['online-bookings-pending-count'] });
       qc.invalidateQueries({ queryKey: ['bookings-calendar'] });
 
-      toast({
-        title: actionType === 'approve'
-          ? `✅ Confirmed — ${actionTarget.client_name}`
-          : `❌ Declined — ${actionTarget.client_name}`,
-      });
-      setActionOpen(false);
+      if (actionType === 'approve') {
+        // Navigate to the calendar at the exact booking date so the admin can see it immediately
+        toast({
+          title: `✅ Confirmed — ${actionTarget.client_name}`,
+          description: ar
+            ? `${actionTarget.booking_date} — اضغط لعرض في التقويم`
+            : `${actionTarget.booking_date} · Opening calendar…`,
+        });
+        setActionOpen(false);
+        // Small delay so the toast is visible before navigating
+        setTimeout(() => {
+          navigate(`/calendar?date=${actionTarget.booking_date}`);
+        }, 800);
+      } else {
+        toast({ title: `❌ Declined — ${actionTarget.client_name}` });
+        setActionOpen(false);
+      }
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
