@@ -3,6 +3,63 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+/**
+ * Atomic-ish GRN stock + WAC update with optimistic concurrency.
+ *
+ * Previous code read (current_stock, cost_price) then wrote back computed
+ * values — races under any concurrent sale or GRN clobber data.  Same
+ * pattern as the B.8 fix in useTransactions.ts but for the receive
+ * direction (stock up, WAC blended).
+ *
+ * Returns success + new values so the audit row can log them accurately.
+ */
+interface GRNApplyResult {
+  ok: boolean;
+  newStock?: number;
+  newWAC?: number;
+}
+
+async function safeApplyGRN(
+  productId: string,
+  receivedQty: number,
+  receivedCost: number,
+  MAX_RETRIES = 4,
+): Promise<GRNApplyResult> {
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const { data: product, error } = await supabase
+      .from('products')
+      .select('current_stock, cost_price')
+      .eq('id', productId)
+      .single();
+    if (error || !product) return { ok: false };
+
+    const oldStock = Number(product.current_stock || 0);
+    const oldCost  = Number(product.cost_price || 0);
+    const newStock = oldStock + receivedQty;
+    // WAC — weighted-average cost: (existing value + received value) / total qty
+    const newWAC = newStock > 0
+      ? ((oldStock * oldCost) + (receivedQty * receivedCost)) / newStock
+      : receivedCost;
+    const roundedWAC = Math.round(newWAC * 1000) / 1000;
+
+    const { error: updErr, count } = await supabase
+      .from('products')
+      .update({
+        current_stock: newStock,
+        cost_price:    roundedWAC,
+      } as any)
+      .eq('id', productId)
+      .eq('current_stock', oldStock) // optimistic guard
+      .select('*', { count: 'exact', head: true });
+
+    if (!updErr && (count ?? 1) > 0) {
+      return { ok: true, newStock, newWAC: roundedWAC };
+    }
+    // lost the race — loop and retry
+  }
+  return { ok: false };
+}
+
 export interface GoodsReceipt {
   id: string;
   grn_number: string;
@@ -126,62 +183,71 @@ export const useCreateGoodsReceipt = () => {
         .insert(grItems);
       if (itemsError) throw itemsError;
 
-      // 3. For each item: WAC recalculation + stock update + inventory transaction + PO item qty update
+      // Collected warnings surfaced to the clerk after the GRN closes.
+      const grnWarnings: string[] = [];
+
+      // 3. For each item: atomic stock+WAC update + inventory transaction + PO item qty update
       for (const item of data.items) {
-        // Fetch current product data
-        const { data: product } = await supabase
-          .from('products')
-          .select('current_stock, cost_price')
-          .eq('id', item.product_id)
-          .single();
+        // 3a. Apply stock + WAC atomically with retries.
+        const applied = await safeApplyGRN(
+          item.product_id,
+          item.quantity_received,
+          item.unit_cost,
+        );
 
-        if (product) {
-          const existingStock = product.current_stock || 0;
-          const existingCost = product.cost_price || 0;
-          const receivedQty = item.quantity_received;
-          const receivedCost = item.unit_cost;
-
-          // WAC calculation
-          const totalStock = existingStock + receivedQty;
-          const newWAC = totalStock > 0
-            ? ((existingStock * existingCost) + (receivedQty * receivedCost)) / totalStock
-            : receivedCost;
-
-          // Update product stock and cost
-          await supabase
-            .from('products')
-            .update({
-              current_stock: totalStock,
-              cost_price: Math.round(newWAC * 1000) / 1000, // 3 decimal precision
-            } as any)
-            .eq('id', item.product_id);
-
-          // Log inventory transaction
+        if (!applied.ok) {
+          grnWarnings.push(
+            `Stock update failed for product ${item.product_id} — inventory may be out of sync. Manager review needed.`
+          );
+          // Still record the intent in the audit log so the failure is traceable.
           await supabase
             .from('inventory_transactions')
             .insert({
               tenant_id: tenant!.id,
               product_id: item.product_id,
               transaction_type: 'purchase_receipt' as any,
-              quantity_change: receivedQty,
+              quantity_change: item.quantity_received,
               reference_type: 'goods_receipt',
               reference_id: gr.id,
-              notes: `GR against PO. Unit cost: ${receivedCost}, New WAC: ${newWAC.toFixed(3)}`,
+              notes: `GRN but stock update failed — needs reconciliation. Unit cost: ${item.unit_cost}`,
+              created_by: user?.id || null,
+            } as any);
+        } else {
+          await supabase
+            .from('inventory_transactions')
+            .insert({
+              tenant_id: tenant!.id,
+              product_id: item.product_id,
+              transaction_type: 'purchase_receipt' as any,
+              quantity_change: item.quantity_received,
+              reference_type: 'goods_receipt',
+              reference_id: gr.id,
+              notes: `GR against PO. Unit cost: ${item.unit_cost}, New WAC: ${applied.newWAC!.toFixed(3)}`,
               created_by: user?.id || null,
             } as any);
         }
 
-        // Update PO item quantity_received
+        // 3b. Update PO item quantity_received.  Warn on over-receive —
+        //     accept it (salons sometimes get extra or wrong quantities
+        //     in the box), but flag so the buyer knows to call the
+        //     supplier or reconcile.
         if (item.po_item_id) {
           const { data: poItem } = await supabase
             .from('purchase_order_items')
-            .select('quantity_received')
+            .select('quantity_ordered, quantity_received, product_id')
             .eq('id', item.po_item_id)
             .single();
           if (poItem) {
+            const newReceived = (poItem.quantity_received || 0) + item.quantity_received;
+            if (poItem.quantity_ordered && newReceived > poItem.quantity_ordered) {
+              const over = newReceived - poItem.quantity_ordered;
+              grnWarnings.push(
+                `Over-receive: line exceeds PO by ${over}. Verify packing slip vs PO.`
+              );
+            }
             await supabase
               .from('purchase_order_items')
-              .update({ quantity_received: (poItem.quantity_received || 0) + item.quantity_received })
+              .update({ quantity_received: newReceived })
               .eq('id', item.po_item_id);
           }
         }
@@ -205,15 +271,26 @@ export const useCreateGoodsReceipt = () => {
         }
       }
 
+      // Attach warnings so onSuccess can surface them.
+      (gr as any).__grnWarnings = grnWarnings;
       return gr;
     },
-    onSuccess: () => {
+    onSuccess: (gr: any) => {
       queryClient.invalidateQueries({ queryKey: ['goods_receipts'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_order_items'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['inventory_transactions'] });
       toast({ title: 'Goods received & stock updated with WAC recalculation' });
+
+      const warnings: string[] = gr?.__grnWarnings || [];
+      if (warnings.length) {
+        toast({
+          title: 'GRN warnings',
+          description: warnings.slice(0, 3).join('\n') + (warnings.length > 3 ? `\n…and ${warnings.length - 3} more` : ''),
+          variant: 'destructive',
+        });
+      }
     },
     onError: (error) => {
       toast({ title: 'Failed to receive goods', description: error.message, variant: 'destructive' });

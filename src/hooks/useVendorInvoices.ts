@@ -160,6 +160,35 @@ export const useRecordPayment = () => {
       invoice_total: number;
       invoice_paid: number;
     }) => {
+      // Re-read the invoice at payment time.  The client-supplied
+      // invoice_paid value can be stale (another terminal may have
+      // posted a payment meanwhile), so two concurrent payments
+      // previously both wrote the same newPaidAmount, double-crediting.
+      const { data: fresh, error: freshErr } = await supabase
+        .from('vendor_invoices')
+        .select('paid_amount, total_amount, status')
+        .eq('id', data.vendor_invoice_id)
+        .single();
+      if (freshErr || !fresh) throw freshErr || new Error('Invoice not found');
+
+      const currentPaid  = Number(fresh.paid_amount || 0);
+      const invoiceTotal = Number(fresh.total_amount || data.invoice_total);
+      const newPaidAmount = currentPaid + data.amount;
+
+      // Over-payment guard.  Silent acceptance would mask data-entry
+      // errors and corrupt AP reports.  Reject rather than flip status
+      // to 'paid' for an amount > what was owed.  A legitimate credit
+      // scenario should use a dedicated vendor-credit flow.
+      if (data.amount <= 0) {
+        throw new Error('Payment amount must be greater than zero.');
+      }
+      if (newPaidAmount > invoiceTotal + 0.001) {
+        const over = (newPaidAmount - invoiceTotal).toFixed(3);
+        throw new Error(
+          `Payment would overpay invoice by ${over}. Expected: ${invoiceTotal.toFixed(3)}, already paid: ${currentPaid.toFixed(3)}.`
+        );
+      }
+
       // Insert payment
       const { error: paymentError } = await supabase
         .from('vendor_payments')
@@ -176,9 +205,8 @@ export const useRecordPayment = () => {
 
       if (paymentError) throw paymentError;
 
-      // Update invoice paid_amount and status
-      const newPaidAmount = data.invoice_paid + data.amount;
-      const newStatus: InvoiceStatus = newPaidAmount >= data.invoice_total ? 'paid' : 'partially_paid';
+      // Update invoice paid_amount and status with freshly-read currentPaid.
+      const newStatus: InvoiceStatus = newPaidAmount >= invoiceTotal - 0.001 ? 'paid' : 'partially_paid';
 
       const { error: updateError } = await supabase
         .from('vendor_invoices')
