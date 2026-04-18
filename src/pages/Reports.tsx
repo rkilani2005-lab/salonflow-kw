@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AsyncSection } from '@/components/ui/state-primitives';
 import { Badge } from '@/components/ui/badge';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -693,11 +694,19 @@ export default function Reports() {
                 <CardDescription className="text-xs">{t('By revenue in selected period','حسب الإيرادات في الفترة المحددة')}</CardDescription>
               </CardHeader>
               <CardContent>
-                {svcL ? (
-                  <div className="space-y-2">{[...Array(5)].map((_,i)=><Skeleton key={i} className="h-10 w-full"/>)}</div>
-                ) : services?.length ? (
+                <AsyncSection
+                  loading={svcL}
+                  empty={!services?.length}
+                  loadingVariant="rows"
+                  loadingRows={5}
+                  emptyState={{
+                    icon: TrendingUp,
+                    title: t('No service data', 'لا توجد بيانات'),
+                    size: 'compact',
+                  }}
+                >
                   <div className="space-y-2">
-                    {services.map((s,i) => {
+                    {services?.map((s,i) => {
                       const maxRev = services[0].revenue || 1;
                       return (
                         <div key={s.name} className="group">
@@ -716,9 +725,7 @@ export default function Reports() {
                       );
                     })}
                   </div>
-                ) : (
-                  <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">{t('No service data','لا توجد بيانات')}</div>
-                )}
+                </AsyncSection>
               </CardContent>
             </Card>
 
@@ -775,9 +782,17 @@ export default function Reports() {
               <CardDescription className="text-xs">{t('Revenue, tips and transactions per staff member','الإيرادات والإكراميات والمعاملات لكل موظفة')}</CardDescription>
             </CardHeader>
             <CardContent>
-              {staffL ? (
-                <div className="space-y-3">{[...Array(4)].map((_,i)=><Skeleton key={i} className="h-14 w-full"/>)}</div>
-              ) : staff?.length ? (
+              <AsyncSection
+                loading={staffL}
+                empty={!staff?.length}
+                loadingVariant="rows"
+                loadingRows={4}
+                emptyState={{
+                  icon: Users,
+                  title: t('No staff data', 'لا توجد بيانات'),
+                  size: 'compact',
+                }}
+              >
                 <>
                   {/* Bar chart */}
                   <ResponsiveContainer width="100%" height={220}>
@@ -836,9 +851,7 @@ export default function Reports() {
                     </table>
                   </div>
                 </>
-              ) : (
-                <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">{t('No staff data','لا توجد بيانات')}</div>
-              )}
+              </AsyncSection>
             </CardContent>
           </Card>
         </TabsContent>

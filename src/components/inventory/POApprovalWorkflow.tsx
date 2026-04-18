@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingState } from '@/components/ui/state-primitives';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -308,11 +309,7 @@ export function POApprovalWorkflow() {
   const getUserName = (uid: string) =>
     approverOptions.find(m => m.user_id === uid)?.full_name ?? 'Unknown';
 
-  if (isLoading) return (
-    <div className="space-y-3">
-      {[1,2].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
-    </div>
-  );
+  if (isLoading) return <LoadingState variant="rows" rows={2} />;
 
   if (isError) return (
     <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-6 text-center space-y-3">

@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AsyncSection } from '@/components/ui/state-primitives';
 import { useToast } from '@/hooks/use-toast';
 import {
   Settings2, Plus, Pencil, Trash2, Building2, Target,
@@ -272,11 +273,16 @@ function CenterTable({ type, ar }: { type: 'cost' | 'profit'; ar: boolean }) {
         </Button>
       </div>
 
-      {isLoading ? <Skeleton className="h-24 w-full" /> : centers.length === 0 ? (
-        <div className="border border-dashed rounded-lg p-8 text-center text-muted-foreground text-sm">
-          {ar ? 'لا توجد مراكز بعد' : 'No centers yet — add one above'}
-        </div>
-      ) : (
+      <AsyncSection
+        loading={isLoading}
+        empty={centers.length === 0}
+        loadingVariant="rows"
+        loadingRows={3}
+        emptyState={{
+          title: ar ? 'لا توجد مراكز بعد' : 'No centers yet — add one above',
+          size: 'compact',
+        }}
+      >
         <div className="border rounded-lg overflow-hidden divide-y divide-border">
           <div className="grid grid-cols-12 gap-3 px-4 py-2 bg-muted/30 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             <div className="col-span-2">{ar ? 'الرمز' : 'Code'}</div>
@@ -304,7 +310,7 @@ function CenterTable({ type, ar }: { type: 'cost' | 'profit'; ar: boolean }) {
             </div>
           ))}
         </div>
-      )}
+      </AsyncSection>
 
       <CenterDialog open={dialogOpen} onClose={() => setDialogOpen(false)} initial={editing} type={type} upsert={upsert} ar={ar} />
     </div>
