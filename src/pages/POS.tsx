@@ -288,19 +288,24 @@ export default function POS() {
         });
       }
 
-      // Deduct gift card balance if used
-      if (giftCardResult) {
-        const gcPayment = payments.find(p => p.payment_method === 'gift_card');
-        if (gcPayment) {
-          const newBal = Math.max(0, Number(giftCardResult.balance) - gcPayment.amount);
-          await supabase.from('gift_cards').update({
-            balance: newBal, status: newBal <= 0 ? 'depleted' : 'active',
-          }).eq('id', giftCardResult.id);
-          await supabase.from('gift_card_transactions').insert({
-            gift_card_id: giftCardResult.id, transaction_id: txn.id,
-            type: 'redeemed', amount: -gcPayment.amount, balance_after: newBal,
-          });
-        }
+      // Deduct gift card balance — sum ALL gift_card payment rows, not
+      // just the first one (a split could reasonably contain more than
+      // one).  Also, only deduct if we actually have a validated card
+      // in scope; the PaymentDialog's maxByMethod already prevents a
+      // gift_card payment from being added without one, but we guard
+      // here as defence-in-depth against prop bypass.
+      const giftCardPayments = payments.filter(p => p.payment_method === 'gift_card');
+      const giftCardTotal = giftCardPayments.reduce((s, p) => s + p.amount, 0);
+      if (giftCardResult && giftCardTotal > 0) {
+        const prevBal = Number(giftCardResult.balance);
+        const newBal  = Math.max(0, prevBal - giftCardTotal);
+        await supabase.from('gift_cards').update({
+          balance: newBal, status: newBal <= 0 ? 'depleted' : 'active',
+        }).eq('id', giftCardResult.id);
+        await supabase.from('gift_card_transactions').insert({
+          gift_card_id: giftCardResult.id, transaction_id: txn.id,
+          type: 'redeemed', amount: -giftCardTotal, balance_after: newBal,
+        });
       }
 
       setCompletedTxnId(txn.id);
@@ -554,6 +559,12 @@ export default function POS() {
         grandTotal={grandTotal}
         onConfirm={handlePaymentConfirm}
         loading={createTransaction.isPending}
+        currency={tenant?.currency || 'KWD'}
+        maxByMethod={{
+          // Cap gift-card payment to the validated card's remaining balance.
+          // 0 = no gift card linked → button disabled with "No gift card linked".
+          gift_card: Number(giftCardResult?.balance ?? 0),
+        }}
       />
 
       {/* Receipt dialog */}
