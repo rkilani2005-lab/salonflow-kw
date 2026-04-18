@@ -10,8 +10,8 @@ Small, reviewable commits. Zero business-logic changes.
 
 | # | Task | Status |
 |---|---|---|
-| A.1 | Shared UI state primitives: `<EmptyState/>`, `<LoadingSkeleton/>`, `<ErrorState/>` | 🟡 started |
-| A.2 | Wire primitives into all 30 pages (currently 11/30 have explicit empty states) | ⬜ |
+| A.1 | Shared UI state primitives: `<EmptyState/>`, `<LoadingSkeleton/>`, `<ErrorState/>` | ✅ done (`e96c707`) |
+| A.2 | Wire primitives into all 30 pages (currently 11/30 have explicit empty states) | 🟡 6 inventory tabs done (`c01092c`); ~12 pages remaining |
 | A.3 | Replace scattered chart color hex values with centralized `chart-colors.ts` | ⬜ |
 | A.4 | RTL parity sweep — convert directional utilities (ml/mr/pl/pr) to logical (ms/me/ps/pe) where RTL shows bugs | ⬜ |
 | A.5 | Typography scale audit — Bricolage / Plus Jakarta / IBM Plex Arabic consistency | ⬜ |
@@ -27,7 +27,7 @@ End-to-end scenarios. Each produces either a ✅ or a bug fix.
 
 | # | Scenario | Status |
 |---|---|---|
-| B.1 | **Appointment → Checkout → Invoice state machine** — decouple `booking.status === 'completed'` from payment state. **Known bug: marking appointment complete from Calendar dropdown skips payment entirely, then UI shows "Invoice fully paid".** | 🔴 confirmed bug |
+| B.1 | **Appointment → Checkout → Invoice state machine** — decouple `booking.status === 'completed'` from payment state. **Known bug: marking appointment complete from Calendar dropdown skips payment entirely, then UI shows "Invoice fully paid".** | ✅ fixed (`1847140`) |
 | B.2 | Refund paths — full/partial, inventory reversal, GL posting symmetry | ⬜ |
 | B.3 | Discount approval workflow | ⬜ |
 | B.4 | Day session open/close + Z-report variance accuracy | ⬜ |
