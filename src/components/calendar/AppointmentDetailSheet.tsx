@@ -114,17 +114,21 @@ export function AppointmentDetailSheet({
   const [retailItems, setRetailItems] = useState<RetailItem[]>([]);
   const [notes, setNotes] = useState('');
 
-  // Sync state when appointment changes
-  const apt = editedAppointment?.id === appointment?.id ? editedAppointment : appointment;
-
-  if (!appointment || !apt) return null;
-
   // ── BOOKING vs PAYMENT: two independent states ─────────────────────────
   // booking.status === 'completed'  ⇒ the SERVICE was delivered.
   // transaction.status === 'completed' ⇒ money was collected.
   // Historically the UI conflated these, causing an unpaid completed booking
   // to display as "fully paid / checked out".  Never use booking status alone.
-  const { data: payment } = useBookingPayment(appointment.id);
+  // IMPORTANT: this hook MUST be called before any early-return to keep hook
+  // order stable across renders (otherwise React throws "Rendered more hooks
+  // than during the previous render" and the sheet fails to mount).
+  const { data: payment } = useBookingPayment(appointment?.id);
+
+  // Sync state when appointment changes
+  const apt = editedAppointment?.id === appointment?.id ? editedAppointment : appointment;
+
+  if (!appointment || !apt) return null;
+
   const isServiceDone    = appointment.status === 'completed';
   const isPaid           = !!payment?.isPaid;
   const isCheckedOut     = isServiceDone && isPaid;       // service done AND paid
