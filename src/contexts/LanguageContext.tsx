@@ -103,20 +103,40 @@ const translations: Record<string, Record<Language, string>> = {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
+const LANG_STORAGE_KEY = 'zaina_language';
+
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  const [language, setLanguage] = useState<Language>('en');
-  
+  // Initialise from localStorage synchronously on mount to avoid a
+  // flash of wrong-language content.  Capacitor Preferences is async
+  // and would force a 1-frame flash on reload; localStorage is sync,
+  // works the same on native web views, and the language choice isn't
+  // sensitive enough to warrant keystore protection.
+  const [language, setLanguageState] = useState<Language>(() => {
+    if (typeof window === 'undefined') return 'en';
+    const saved = window.localStorage.getItem(LANG_STORAGE_KEY);
+    return saved === 'ar' || saved === 'en' ? (saved as Language) : 'en';
+  });
+
+  // Wrap setLanguage so every flip persists.  Previously language was
+  // 'en' on every reload regardless of what the user had selected —
+  // users who picked Arabic would land back on English after any
+  // refresh, restart, or app close.
+  const setLanguage = (lang: Language) => {
+    setLanguageState(lang);
+    try { window.localStorage.setItem(LANG_STORAGE_KEY, lang); } catch { /* quota or private mode */ }
+  };
+
   useEffect(() => {
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = language;
   }, [language]);
-  
+
   const t = (key: string): string => {
     return translations[key]?.[language] || key;
   };
-  
+
   const isRTL = language === 'ar';
-  
+
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t, isRTL }}>
       {children}

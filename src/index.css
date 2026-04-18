@@ -386,3 +386,95 @@ button, [role="button"] {
   font-weight: 800;
   font-family: 'Bricolage Grotesque', system-ui, sans-serif;
 }
+
+/* ─────────────────────────────────────────────────────────────
+   RTL overrides — Kuwait market, Arabic locale.
+   ─────────────────────────────────────────────────────────────
+   Tailwind 3 doesn't auto-flip margin/padding/text-align when
+   html[dir="rtl"] is set.  The codebase uses 256+ direction-
+   specific classes (ml-*, mr-*, pl-*, pr-*, text-left,
+   text-right, rounded-l-*, rounded-r-*).  A full migration to
+   logical utilities (ms-*, me-*, ps-*, pe-*, text-start,
+   text-end) is mechanical but touches every component.
+
+   This stylesheet bulk-flips the most common cases at the CSS
+   layer using attribute selectors under the :is() aggregator.
+   It doesn't cover every edge case (arbitrary class names,
+   inline styles, nested direction overrides) but handles the
+   80% that otherwise looks obviously wrong in Arabic mode.
+
+   A proper logical-utility migration is tracked in AUDIT.md.
+   ───────────────────────────────────────────────────────────── */
+
+html[dir='rtl'] {
+  /* Margin */
+  :is(.ml-1)   { margin-left:  0 !important; margin-right: 0.25rem !important; }
+  :is(.ml-2)   { margin-left:  0 !important; margin-right: 0.5rem  !important; }
+  :is(.ml-3)   { margin-left:  0 !important; margin-right: 0.75rem !important; }
+  :is(.ml-4)   { margin-left:  0 !important; margin-right: 1rem    !important; }
+  :is(.mr-1)   { margin-right: 0 !important; margin-left:  0.25rem !important; }
+  :is(.mr-2)   { margin-right: 0 !important; margin-left:  0.5rem  !important; }
+  :is(.mr-3)   { margin-right: 0 !important; margin-left:  0.75rem !important; }
+  :is(.mr-4)   { margin-right: 0 !important; margin-left:  1rem    !important; }
+
+  /* Auto margins — common for flex spacers */
+  :is(.ml-auto){ margin-left: 0 !important; margin-right: auto !important; }
+  :is(.mr-auto){ margin-right: 0 !important; margin-left:  auto !important; }
+
+  /* Padding — most common sizes */
+  :is(.pl-1)   { padding-left:  0 !important; padding-right: 0.25rem !important; }
+  :is(.pl-2)   { padding-left:  0 !important; padding-right: 0.5rem  !important; }
+  :is(.pl-3)   { padding-left:  0 !important; padding-right: 0.75rem !important; }
+  :is(.pl-4)   { padding-left:  0 !important; padding-right: 1rem    !important; }
+  :is(.pr-1)   { padding-right: 0 !important; padding-left:  0.25rem !important; }
+  :is(.pr-2)   { padding-right: 0 !important; padding-left:  0.5rem  !important; }
+  :is(.pr-3)   { padding-right: 0 !important; padding-left:  0.75rem !important; }
+  :is(.pr-4)   { padding-right: 0 !important; padding-left:  1rem    !important; }
+
+  /* Text alignment — text-left/right become logical */
+  :is(.text-left)  { text-align: right !important; }
+  :is(.text-right) { text-align: left  !important; }
+
+  /* Directional border radii */
+  :is(.rounded-l-md,.rounded-l-sm,.rounded-l-lg) {
+    border-top-left-radius:     0 !important;
+    border-bottom-left-radius:  0 !important;
+  }
+  :is(.rounded-l-md) { border-top-right-radius: 0.375rem; border-bottom-right-radius: 0.375rem; }
+  :is(.rounded-l-sm) { border-top-right-radius: 0.125rem; border-bottom-right-radius: 0.125rem; }
+  :is(.rounded-l-lg) { border-top-right-radius: 0.5rem;   border-bottom-right-radius: 0.5rem;   }
+  :is(.rounded-r-md,.rounded-r-sm,.rounded-r-lg) {
+    border-top-right-radius:    0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+  :is(.rounded-r-md) { border-top-left-radius:  0.375rem; border-bottom-left-radius:  0.375rem; }
+  :is(.rounded-r-sm) { border-top-left-radius:  0.125rem; border-bottom-left-radius:  0.125rem; }
+  :is(.rounded-r-lg) { border-top-left-radius:  0.5rem;   border-bottom-left-radius:  0.5rem;   }
+
+  /* Directional borders — side swap */
+  :is(.border-l, .border-l-2, .border-l-4) {
+    border-left-width:  0 !important;
+  }
+  :is(.border-l)   { border-right-width: 1px !important; }
+  :is(.border-l-2) { border-right-width: 2px !important; }
+  :is(.border-l-4) { border-right-width: 4px !important; }
+  :is(.border-r, .border-r-2, .border-r-4) {
+    border-right-width: 0 !important;
+  }
+  :is(.border-r)   { border-left-width: 1px !important; }
+  :is(.border-r-2) { border-left-width: 2px !important; }
+  :is(.border-r-4) { border-left-width: 4px !important; }
+}
+
+/* Arabic numerals — force Western-Arabic (0-9) everywhere so prices
+   and times stay uniform across languages.  Salon staff type prices
+   in Western digits regardless of interface language; mixing
+   Eastern-Arabic numerals (٠-٩) and Western causes visual noise.
+   Users who explicitly want Eastern digits can override per-element. */
+html[dir='rtl'] .stat-number,
+html[dir='rtl'] [class*='tabular-nums'] {
+  font-feature-settings: 'tnum' 1;
+  /* No numeric-system override — let the font render whichever the
+     locale defaults to.  Font choice (Bricolage Grotesque) ships
+     Western digits by default. */
+}

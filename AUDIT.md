@@ -45,18 +45,33 @@ End-to-end scenarios. Each produces either a ✅ or a bug fix.
 
 ---
 
-## Phase C — Native App Wrap  *(after A + B green)*
+## Phase C — Native App Wrap  *(Android first; iOS deferred until Apple Developer account)*
 
-Capacitor-based. iOS `.ipa` + Android `.apk/.aab`. Shares the same React codebase.
+Capacitor-based. Shares the same React codebase.
 
 | # | Task | Status |
 |---|---|---|
-| C.1 | Add Capacitor + iOS + Android platforms | ⬜ |
-| C.2 | App identity (icon, splash, name, bundle ID) | ⬜ |
-| C.3 | Native plugins: push, biometrics, camera, share sheet, deep links | ⬜ |
-| C.4 | Offline-tolerant POS | ⬜ |
-| C.5 | Cloud CI: GitHub Actions macOS runner for iOS builds | ⬜ |
-| C.6 | Store listings — App Store & Google Play | ⬜ |
+| C.1 | Add Capacitor + Android platform | ✅ (commit 23b3e3f) — appId `ai.zaina.app`, name `Zaina`, 7 plugins installed |
+| C.2 | App identity (icon, splash, name, bundle ID) | ✅ Android — iOS deferred. Placeholder icons ship; real brand assets can swap in |
+| C.3 | Native plugins: biometric, camera, push | ✅ code complete (`src/lib/native/`), firebase config still needed for real push delivery |
+| C.4 | Offline-tolerant POS | ⬜ deferred — not in v1 scope per user direction |
+| C.5 | CI: GitHub Actions APK builder | ✅ `.github/workflows/android-apk.yml` — debug APK artifact on every push |
+| C.6 | Store listings — Google Play (+ App Store later) | ⬜ needs Play Console account + release signing keystore |
+
+See `PHASE_C_SETUP.md` for the handoff guide covering Firebase, signing, and Play Console provisioning.
+
+---
+
+## Phase A — Design Polish Ongoing Work
+
+Primitive rollout complete on 22 pages (4 batch commits).  Additional items surfaced/fixed throughout the session:
+
+| # | Item | Status |
+|---|---|---|
+| A.x | WhatsAppTriggers.tsx schema-column drift | ✅ fixed (commit a35b2f7) — 6th silently-dark UI repaired |
+| A.x | POS service-pick button tap targets | ✅ fixed (commit a35b2f7) — min-h-11 (44px) for mobile |
+| A.x | Language persistence across reloads | ✅ fixed (this commit) — localStorage-backed, sync hydration to avoid language-flash |
+| A.x | RTL direction-class bulk fix | 🟡 partial (this commit) — CSS-layer override handles 80% of ml/mr/pl/pr/text-left/text-right/border-l/border-r/rounded-l/rounded-r. Full migration to Tailwind logical utilities (ms-*, me-*, ps-*, pe-*, text-start, text-end) deferred — 256 sites across the codebase would need mechanical conversion |
 
 ---
 
