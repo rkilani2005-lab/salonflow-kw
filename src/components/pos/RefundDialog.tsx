@@ -283,39 +283,67 @@ export function RefundDialog({ open, onOpenChange, transaction, onRefundComplete
           .maybeSingle();
 
         if (saleJE?.lines?.length) {
-          const year = new Date().getFullYear();
-          const { data: existing } = await (supabase as any)
-            .from('journal_entries').select('entry_number')
-            .eq('tenant_id', tenant.id)
-            .like('entry_number', `REF-${year}-%`)
-            .order('entry_number', { ascending: false }).limit(1);
-          const lastNum = existing?.[0]?.entry_number?.split('-')[2] || '0000';
-          const nextNum = String(parseInt(lastNum) + 1).padStart(4, '0');
+          // Compose reversed lines in memory first and verify balance.
+          // Because the sale JE was balanced (post-B.10 fix), the
+          // refund mirror — with debit and credit swapped — is balanced
+          // by construction.  We still verify here because a partial
+          // refund's proration can introduce a sub-fil rounding drift
+          // that accumulates across many lines.
+          const rawLines = (saleJE.lines as any[]).map((l: any) => ({
+            account_id: l.account_id,
+            debit:  Math.round(Number(l.credit || 0) * refundRatio * 1000) / 1000,
+            credit: Math.round(Number(l.debit  || 0) * refundRatio * 1000) / 1000,
+            description: `REVERSAL — ${l.description || ''}`.trim(),
+          }));
+          const totalD = rawLines.reduce((s, l) => s + l.debit,  0);
+          const totalC = rawLines.reduce((s, l) => s + l.credit, 0);
+          const drift  = Math.round((totalD - totalC) * 1000) / 1000;
 
-          const { data: refJE } = await (supabase as any).from('journal_entries').insert({
-            tenant_id: tenant.id,
-            entry_number: `REF-${year}-${nextNum}`,
-            entry_date: new Date().toISOString().split('T')[0],
-            source: 'refund',
-            source_ref_id: refundTxn?.id ?? transaction.id,
-            source_ref_type: 'transaction',
-            description: `POS Refund ${ref} — reverses ${saleJE.entry_number}`,
-            is_posted: true,
-          }).select('id').single();
+          if (rawLines.length > 0 && Math.abs(drift) <= 0.001) {
+            const year = new Date().getFullYear();
+            let inserted: { id: string } | null = null;
+            for (let attempt = 0; attempt < 3 && !inserted; attempt++) {
+              const { data: existing } = await (supabase as any)
+                .from('journal_entries').select('entry_number')
+                .eq('tenant_id', tenant.id)
+                .like('entry_number', `REF-${year}-%`)
+                .order('entry_number', { ascending: false }).limit(1);
+              const lastNum = existing?.[0]?.entry_number?.split('-')[2] || '0000';
+              const nextNum = String(parseInt(lastNum) + 1 + attempt).padStart(4, '0');
 
-          if (refJE) {
-            const refLines = saleJE.lines.map((l: any) => ({
-              journal_entry_id: refJE.id,
-              account_id:       l.account_id,
-              // Swap sides, prorated by refundRatio for partial refunds
-              debit:  Number(l.credit || 0) * refundRatio,
-              credit: Number(l.debit  || 0) * refundRatio,
-              description: `REVERSAL — ${l.description || ''}`.trim(),
-            }));
-            await (supabase as any).from('journal_lines').insert(refLines);
+              // Insert as unposted until lines land — mirrors B.10 fix.
+              const { data: refJE, error: jeErr } = await (supabase as any).from('journal_entries').insert({
+                tenant_id: tenant.id,
+                entry_number: `REF-${year}-${nextNum}`,
+                entry_date: new Date().toISOString().split('T')[0],
+                source: 'refund',
+                source_ref_id: refundTxn?.id ?? transaction.id,
+                source_ref_type: 'transaction',
+                description: `POS Refund ${ref} — reverses ${saleJE.entry_number}`,
+                is_posted: false,
+              }).select('id').single();
+              if (!jeErr && refJE) inserted = refJE;
+            }
+
+            if (inserted) {
+              const payload = rawLines.map(l => ({ ...l, journal_entry_id: inserted!.id }));
+              const { error: linesErr } = await (supabase as any).from('journal_lines').insert(payload);
+              if (!linesErr) {
+                await (supabase as any).from('journal_entries')
+                  .update({ is_posted: true })
+                  .eq('id', inserted.id);
+              } else {
+                await (supabase as any).from('journal_entries')
+                  .delete().eq('id', inserted.id);
+              }
+            }
+          } else if (rawLines.length > 0) {
+            // Proration drift > 1 fil — shouldn't happen at standard
+            // refundRatio values, but bail safely if it does.
+            console.warn('[GL] Refund reversal imbalance, skipping JE', { drift });
           }
         }
-      } catch { /* silent — GL reversal is best-effort, like the sale JE */ }
+      } catch (e) { console.warn('[GL] Refund posting error (non-fatal):', e); }
 
       // 5. Loyalty reversal.  Prorated by refundRatio so a partial
       //    refund gives back a proportional share of redeemed points

@@ -36,7 +36,7 @@ End-to-end scenarios. Each produces either a ✅ or a bug fix.
 | B.7 | Package session consumption | 🟡 partial — server-side expiry/depletion guards added, refund now reverses package sessions. **GAP**: POS has no "use package session" option at checkout (useRedeemPackageSession is only called from Packages page button). Requires a dedicated feature commit. |
 | B.8 | Inventory deduction on service completion (BOM / recipe) | ✅ fixed (this commit) — optimistic-concurrency stock decrement with 4-retry loop, negative-stock + failure surfaced as cashier-visible warnings, audit-log errors no longer swallowed |
 | B.9 | PO → GRN → stock movement → GL posting chain | 🟡 partial — GRN stock/WAC race fixed, over-receive warned, vendor payment race fixed, over-payment blocked. **GAP**: no GL posting on GRN / AP creation / vendor payment (POS posts correctly; procurement is invisible to the ledger). Requires supplier GL mappings + dedicated posting logic. |
-| B.10 | GL double-entry integrity per posting module | ⬜ |
+| B.10 | GL double-entry integrity per posting module | ✅ fixed (this commit) — balance verified in-memory before insert, discount/tax/tip lines added, header posted only after lines succeed, entry-number retry loop, refund JE balance-verified too |
 | B.11 | Staff commission calculation | ⬜ |
 | B.12 | Multi-tenant data isolation (RLS) | ⬜ |
 | B.13 | Role / permission enforcement | ⬜ |

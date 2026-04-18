@@ -338,7 +338,19 @@ export default function POS() {
       setShowReceipt(true);
 
       // ── Auto-post journal entry to GL ─────────────────────
-      // Fire-and-forget: doesn't block checkout if it fails
+      // Fire-and-forget: doesn't block checkout if it fails.
+      //
+      // Previous code produced UNBALANCED entries on every sale that had
+      // any discount, tax, or tip — revenue credits summed to subtotal,
+      // payment debits summed to grand_total, and the difference was
+      // silently left imbalanced.  Double-entry bookkeeping demands
+      // debits = credits on every entry; violating this corrupts every
+      // downstream report.
+      //
+      // The fix composes all lines in memory, verifies balance, and only
+      // then inserts the header + lines.  If required mappings are
+      // missing (so we can't produce a balanced entry), we skip posting
+      // rather than write garbage.
       try {
         const { data: glMaps } = await (supabase as any)
           .from('gl_mappings')
@@ -347,50 +359,153 @@ export default function POS() {
           .eq('is_active', true);
 
         if (glMaps && glMaps.length > 0) {
-          const year = new Date().getFullYear();
-          const { data: existing } = await (supabase as any)
-            .from('journal_entries').select('entry_number')
-            .eq('tenant_id', tenant!.id)
-            .like('entry_number', `POS-${year}-%`)
-            .order('entry_number', { ascending: false }).limit(1);
-          const lastNum = existing?.[0]?.entry_number?.split('-')[2] || '0000';
-          const nextNum = String(parseInt(lastNum) + 1).padStart(4, '0');
+          const findMap = (type: string, key?: string) =>
+            glMaps.find((m: any) => m.mapping_type === type && (!key || m.source_key === key))
+            || (type === 'revenue_service' ? glMaps.find((m: any) => m.mapping_type === type && m.source_key === 'other') : undefined);
 
-          const { data: je } = await (supabase as any).from('journal_entries').insert({
-            tenant_id: tenant!.id,
-            entry_number: `POS-${year}-${nextNum}`,
-            entry_date: new Date().toISOString().split('T')[0],
-            source: 'pos',
-            source_ref_id: txn.id,
-            source_ref_type: 'transaction',
-            description: `POS Sale — ${txn.id.slice(0,8)}`,
-            is_posted: true,
-          }).select().single();
+          // Compose lines in memory first so we can validate totals
+          // BEFORE writing anything.
+          const jeLines: { account_id: string; debit: number; credit: number; description: string }[] = [];
+          const skip: string[] = [];
 
-          if (je) {
-            const jeLines: any[] = [];
-            // Revenue lines — one per service category in the sale
-            for (const item of items) {
-              const catKey = item.item_type || 'other';
-              const revMap = glMaps.find((m: any) => m.mapping_type === 'revenue_service' && m.source_key === catKey)
-                          || glMaps.find((m: any) => m.mapping_type === 'revenue_service' && m.source_key === 'other');
-              if (revMap?.credit_account_id) {
-                jeLines.push({ journal_entry_id: je.id, account_id: revMap.credit_account_id, debit: 0, credit: item.total_price || item.unit_price, description: item.item_name });
-              }
+          // 1. Revenue (credit) — one line per cart item using pre-discount
+          //    line total.  Discount is handled as a separate debit below
+          //    so revenue accounts stay clean.
+          for (const item of items) {
+            const catKey = item.item_type || 'other';
+            const revMap = findMap('revenue_service', catKey);
+            const amount = Number(item.total_price || item.unit_price || 0);
+            if (amount <= 0) continue;
+            if (!revMap?.credit_account_id) { skip.push(`revenue_service:${catKey}`); continue; }
+            jeLines.push({
+              account_id: revMap.credit_account_id,
+              debit: 0, credit: amount,
+              description: item.item_name,
+            });
+          }
+
+          // 2. Payment (debit) — one line per payment method, sums to grand_total.
+          for (const pmt of payments) {
+            const pmtMap = findMap('payment_method', pmt.payment_method);
+            if (!pmtMap?.debit_account_id) { skip.push(`payment_method:${pmt.payment_method}`); continue; }
+            if (pmt.amount <= 0) continue;
+            jeLines.push({
+              account_id: pmtMap.debit_account_id,
+              debit: pmt.amount, credit: 0,
+              description: pmt.payment_method,
+            });
+          }
+
+          // 3. Discount (debit, contra-revenue) — reduces net revenue.
+          if (totalDiscount > 0) {
+            const dMap = findMap('sales_discount');
+            if (dMap?.debit_account_id) {
+              jeLines.push({
+                account_id: dMap.debit_account_id,
+                debit: totalDiscount, credit: 0,
+                description: 'Sales discount',
+              });
+            } else {
+              skip.push('sales_discount');
             }
-            // Payment (debit) lines — one per payment method
-            for (const pmt of payments) {
-              const pmtMap = glMaps.find((m: any) => m.mapping_type === 'payment_method' && m.source_key === pmt.payment_method);
-              if (pmtMap?.debit_account_id) {
-                jeLines.push({ journal_entry_id: je.id, account_id: pmtMap.debit_account_id, debit: pmt.amount, credit: 0, description: pmt.payment_method });
-              }
+          }
+
+          // 4. Tax (credit, liability).
+          if (taxAmount > 0) {
+            const tMap = findMap('sales_tax');
+            if (tMap?.credit_account_id) {
+              jeLines.push({
+                account_id: tMap.credit_account_id,
+                debit: 0, credit: taxAmount,
+                description: 'Sales tax',
+              });
+            } else {
+              skip.push('sales_tax');
             }
-            if (jeLines.length > 0) {
-              await (supabase as any).from('journal_lines').insert(jeLines);
+          }
+
+          // 5. Tip (credit, liability — to be paid out to staff).
+          if (tipAmount > 0) {
+            const tipMap = findMap('tip');
+            if (tipMap?.credit_account_id) {
+              jeLines.push({
+                account_id: tipMap.credit_account_id,
+                debit: 0, credit: tipAmount,
+                description: 'Tip (staff payable)',
+              });
+            } else {
+              skip.push('tip');
+            }
+          }
+
+          // 6. Balance check.  Sum debits and credits with fil-level
+          //    tolerance (one-thousandth).  If imbalanced, refuse to
+          //    post — better to lose a journal entry than to poison the
+          //    ledger.  Mappings needed to balance will be logged for
+          //    the admin to provision.
+          const totalDebit  = jeLines.reduce((s, l) => s + Number(l.debit || 0), 0);
+          const totalCredit = jeLines.reduce((s, l) => s + Number(l.credit || 0), 0);
+          const imbalance   = Math.round((totalDebit - totalCredit) * 1000) / 1000;
+
+          if (jeLines.length === 0 || Math.abs(imbalance) > 0.001 || skip.length > 0) {
+            // Do not write an unbalanced or empty entry.  Noisy in dev,
+            // invisible in prod (fire-and-forget try/catch swallows).
+            console.warn('[GL] Skipping POS journal entry — ', {
+              imbalance, totalDebit, totalCredit, missingMappings: skip,
+            });
+          } else {
+            // 7. Entry number with light retry for the inherent race on
+            //    max()+1.  If the unique constraint rejects our number,
+            //    re-read and try the next one.  Three attempts is enough
+            //    for practical contention.
+            const year = new Date().getFullYear();
+            let inserted: { id: string } | null = null;
+            for (let attempt = 0; attempt < 3 && !inserted; attempt++) {
+              const { data: existing } = await (supabase as any)
+                .from('journal_entries').select('entry_number')
+                .eq('tenant_id', tenant!.id)
+                .like('entry_number', `POS-${year}-%`)
+                .order('entry_number', { ascending: false }).limit(1);
+              const lastNum = existing?.[0]?.entry_number?.split('-')[2] || '0000';
+              const nextNum = String(parseInt(lastNum) + 1 + attempt).padStart(4, '0');
+
+              // 8. Insert header as NOT posted until lines succeed.  An
+              //    orphan unposted header is harmless — an orphan posted
+              //    header corrupts reports.
+              const { data: je, error: jeErr } = await (supabase as any).from('journal_entries').insert({
+                tenant_id: tenant!.id,
+                entry_number: `POS-${year}-${nextNum}`,
+                entry_date: new Date().toISOString().split('T')[0],
+                source: 'pos',
+                source_ref_id: txn.id,
+                source_ref_type: 'transaction',
+                description: `POS Sale — ${txn.id.slice(0,8)}`,
+                is_posted: false,
+              }).select('id').single();
+
+              if (!jeErr && je) inserted = je;
+              // otherwise retry with next number
+            }
+
+            if (inserted) {
+              const payload = jeLines.map(l => ({ ...l, journal_entry_id: inserted!.id }));
+              const { error: linesErr } = await (supabase as any).from('journal_lines').insert(payload);
+              if (!linesErr) {
+                // Only now mark the header as posted.
+                await (supabase as any).from('journal_entries')
+                  .update({ is_posted: true })
+                  .eq('id', inserted.id);
+              } else {
+                // Roll back the header if lines failed so we don't
+                // leave an unposted skeleton behind.
+                await (supabase as any).from('journal_entries')
+                  .delete().eq('id', inserted.id);
+                console.warn('[GL] Lines insert failed, JE rolled back', linesErr);
+              }
             }
           }
         }
-      } catch { /* silent — GL posting is best-effort */ }
+      } catch (e) { console.warn('[GL] POS posting error (non-fatal):', e); }
     } catch (err) { /* handled by mutation */ }
   };
 
