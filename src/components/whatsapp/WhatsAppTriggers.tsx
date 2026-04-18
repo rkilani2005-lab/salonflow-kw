@@ -10,10 +10,14 @@ import { cn } from '@/lib/utils';
 
 interface Trigger {
   id: string;
-  event_type: string;
-  is_active: boolean;
+  /** Current schema column: 'event' (was 'event_type' in an earlier
+   *  migration that was superseded). */
+  event: string;
+  /** Current schema column: 'is_enabled' (was 'is_active'). */
+  is_enabled: boolean;
   delay_minutes: number;
-  send_to: string;
+  /** Current schema column: 'target_audience' (was 'send_to'). */
+  target_audience: string;
   template?: { name: string; body_en: string };
 }
 
@@ -99,9 +103,9 @@ export function WhatsAppTriggers() {
     setSaving(trigger.id);
     try {
       await (supabase as any).from('whatsapp_triggers')
-        .update({ is_active: !trigger.is_active })
+        .update({ is_enabled: !trigger.is_enabled })
         .eq('id', trigger.id);
-      setTriggers(prev => prev.map(t => t.id === trigger.id ? { ...t, is_active: !t.is_active } : t));
+      setTriggers(prev => prev.map(t => t.id === trigger.id ? { ...t, is_enabled: !t.is_enabled } : t));
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
@@ -133,7 +137,7 @@ export function WhatsAppTriggers() {
     </div>
   );
 
-  const activeCount = triggers.filter(t => t.is_active).length;
+  const activeCount = triggers.filter(t => t.is_enabled).length;
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -151,14 +155,14 @@ export function WhatsAppTriggers() {
       {/* Triggers list */}
       <div className="border rounded-md overflow-hidden divide-y divide-border">
         {Object.entries(EVENT_META).map(([eventType, meta]) => {
-          const trigger = triggers.find(t => t.event_type === eventType);
+          const trigger = triggers.find(t => t.event === eventType);
           const Icon = meta.icon;
           if (!trigger) return null;
 
           return (
             <div key={eventType} className={cn(
               'flex items-start gap-4 px-5 py-4 transition-colors',
-              trigger.is_active ? 'bg-card' : 'bg-muted/20 opacity-70'
+              trigger.is_enabled ? 'bg-card' : 'bg-muted/20 opacity-70'
             )}>
               {/* Icon */}
               <div className={cn('h-9 w-9 rounded-md bg-muted flex items-center justify-center flex-shrink-0 mt-0.5')}>
@@ -170,9 +174,9 @@ export function WhatsAppTriggers() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-semibold">{meta.label}</p>
                   <Badge variant="outline" className="text-[9px] h-4 px-1.5 rounded-sm font-bold">
-                    → {trigger.send_to}
+                    → {trigger.target_audience}
                   </Badge>
-                  {trigger.is_active && (
+                  {trigger.is_enabled && (
                     <Badge className="text-[9px] h-4 px-1.5 rounded-sm font-bold bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-800">
                       Active
                     </Badge>
@@ -190,7 +194,7 @@ export function WhatsAppTriggers() {
               <div className="flex-shrink-0 mt-1">
                 {saving === trigger.id
                   ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  : <Switch checked={trigger.is_active} onCheckedChange={() => toggleTrigger(trigger)} />}
+                  : <Switch checked={trigger.is_enabled} onCheckedChange={() => toggleTrigger(trigger)} />}
               </div>
             </div>
           );

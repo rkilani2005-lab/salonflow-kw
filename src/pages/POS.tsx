@@ -780,7 +780,10 @@ function ServiceQuickAdd({ items, onItemsChange }: { items: CartItem[]; onItemsC
               <button
                 key={service.id}
                 onClick={() => addService(service)}
-                className="w-full flex items-center justify-between p-2 rounded hover:bg-accent/10 text-left text-sm"
+                // min-h-11 (44px) meets mobile touch target guidance.
+                // Text stays single-line and density is unchanged on
+                // desktop where h is set by line-height, not min-h.
+                className="w-full flex items-center justify-between p-2 min-h-11 rounded hover:bg-accent/10 text-left text-sm"
               >
                 <span className="truncate text-foreground">{service.name}</span>
                 <span className="text-muted-foreground ml-2 shrink-0">{Number(service.price).toFixed(3)} KWD</span>
