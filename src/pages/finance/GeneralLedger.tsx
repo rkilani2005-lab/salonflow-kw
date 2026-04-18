@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AsyncSection } from '@/components/ui/state-primitives';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -98,12 +99,18 @@ export default function GeneralLedger() {
 
         {/* Journal Entries */}
         <TabsContent value="journal" className="space-y-2 mt-4">
-          {jeLoading ? [...Array(4)].map((_,i)=><Skeleton key={i} className="h-14 w-full rounded-xl"/>) :
-          !entries?.length ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <BookOpen className="h-8 w-8 mb-2 opacity-40"/><p className="text-sm">{ar?'لا توجد قيود في هذه الفترة':'No journal entries in this period'}</p>
-            </div>
-          ) : entries.map(je => (
+          <AsyncSection
+            loading={jeLoading}
+            empty={!entries?.length}
+            loadingVariant="rows"
+            loadingRows={4}
+            emptyState={{
+              icon: BookOpen,
+              title: ar ? 'لا توجد قيود في هذه الفترة' : 'No journal entries in this period',
+              size: 'compact',
+            }}
+          >
+          {entries?.map(je => (
             <Card key={je.id} className="border hover:border-primary/30 transition-colors">
               <div className="flex items-center gap-4 px-4 py-3 cursor-pointer" onClick={()=>setExpandedJE(expandedJE===je.id?null:je.id)}>
                 <div className="min-w-[90px]">
@@ -145,6 +152,7 @@ export default function GeneralLedger() {
               )}
             </Card>
           ))}
+          </AsyncSection>
         </TabsContent>
 
         {/* Trial Balance */}
@@ -152,7 +160,17 @@ export default function GeneralLedger() {
           <Card className="border">
             <CardHeader className="pb-2 border-b"><CardTitle className="text-sm">{ar?'ميزان المراجعة':'Trial Balance'} — {from} → {to}</CardTitle></CardHeader>
             <CardContent className="p-0">
-              {tbLoading ? <Skeleton className="h-64 w-full m-4"/> : (
+              <AsyncSection
+                loading={tbLoading}
+                empty={!trialBalance?.length}
+                loadingVariant="table"
+                loadingRows={6}
+                emptyState={{
+                  icon: BookOpen,
+                  title: ar ? 'لا توجد بيانات' : 'No data for this period',
+                  size: 'compact',
+                }}
+              >
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead><tr className="border-b bg-muted/40">
@@ -183,7 +201,7 @@ export default function GeneralLedger() {
                     </tr></tfoot>
                   </table>
                 </div>
-              )}
+              </AsyncSection>
             </CardContent>
           </Card>
         </TabsContent>

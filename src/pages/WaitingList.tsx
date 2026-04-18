@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AsyncSection } from '@/components/ui/state-primitives';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -196,14 +197,16 @@ export default function WaitingList() {
       </div>
 
       {/* List */}
-      {isLoading ? (
-        <div className="space-y-2">{[...Array(3)].map((_,i) => <Skeleton key={i} className="h-20 rounded-md"/>)}</div>
-      ) : filtered.length === 0 ? (
-        <div className="border border-dashed rounded-md p-12 text-center text-muted-foreground">
-          <Users className="h-8 w-8 mx-auto mb-2 opacity-30"/>
-          <p className="text-sm font-medium">{ar ? 'لا يوجد إدخالات' : 'No entries'}</p>
-        </div>
-      ) : (
+      <AsyncSection
+        loading={isLoading}
+        empty={filtered.length === 0}
+        loadingVariant="rows"
+        loadingRows={3}
+        emptyState={{
+          icon: Users,
+          title: ar ? 'لا يوجد إدخالات' : 'No entries',
+        }}
+      >
         <div className="border rounded-md overflow-hidden divide-y divide-border">
           {filtered.map(entry => {
             const cfg = STATUS_CFG[entry.status] || STATUS_CFG.waiting;
@@ -263,7 +266,7 @@ export default function WaitingList() {
             );
           })}
         </div>
-      )}
+      </AsyncSection>
 
       {/* Add dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

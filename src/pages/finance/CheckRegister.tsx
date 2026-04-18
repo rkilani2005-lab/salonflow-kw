@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AsyncSection } from '@/components/ui/state-primitives';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Printer, CheckCircle2, XCircle, CreditCard } from 'lucide-react';
@@ -123,13 +124,17 @@ export default function CheckRegister() {
 
       <Card className="border">
         <CardContent className="p-0">
-          {isLoading ? <div className="p-4 space-y-2">{[...Array(4)].map((_,i)=><Skeleton key={i} className="h-12 w-full"/>)}</div>
-          : !checks?.length ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <CreditCard className="h-8 w-8 mb-2 opacity-40"/>
-              <p className="text-sm">{ar?'لا توجد شيكات':'No checks yet'}</p>
-            </div>
-          ) : (
+          <AsyncSection
+            loading={isLoading}
+            empty={!checks?.length}
+            loadingVariant="table"
+            loadingRows={4}
+            emptyState={{
+              icon: CreditCard,
+              title: ar ? 'لا توجد شيكات' : 'No checks yet',
+              size: 'compact',
+            }}
+          >
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead><tr className="border-b bg-muted/40">
@@ -176,7 +181,7 @@ export default function CheckRegister() {
                 </tbody>
               </table>
             </div>
-          )}
+          </AsyncSection>
         </CardContent>
       </Card>
 

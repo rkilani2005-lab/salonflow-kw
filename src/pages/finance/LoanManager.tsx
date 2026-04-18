@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AsyncSection } from '@/components/ui/state-primitives';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Landmark, ChevronDown, ChevronUp } from 'lucide-react';
@@ -87,13 +88,18 @@ export default function LoanManager() {
         </CardContent></Card>
       </div>
 
-      {isLoading ? [...Array(3)].map((_,i)=><Skeleton key={i} className="h-20 w-full rounded-xl"/>) :
-      !loans?.length ? (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <Landmark className="h-8 w-8 mb-2 opacity-40"/>
-          <p className="text-sm">{ar?'لا توجد قروض مسجلة':'No loans recorded'}</p>
-        </div>
-      ) : loans.map(loan => {
+      <AsyncSection
+        loading={isLoading}
+        empty={!loans?.length}
+        loadingVariant="rows"
+        loadingRows={3}
+        emptyState={{
+          icon: Landmark,
+          title: ar ? 'لا توجد قروض مسجلة' : 'No loans recorded',
+          size: 'compact',
+        }}
+      >
+        {loans?.map(loan => {
         const paid = Number(loan.principal) - Number(loan.outstanding_balance);
         const paidPct = Number(loan.principal) > 0 ? (paid / Number(loan.principal)) * 100 : 0;
         return (
@@ -149,6 +155,7 @@ export default function LoanManager() {
           </Card>
         );
       })}
+      </AsyncSection>
 
       {/* Add Loan */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>

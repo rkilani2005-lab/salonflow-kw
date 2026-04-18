@@ -6,6 +6,7 @@ import { SetupChecklist } from '@/components/dashboard/SetupChecklist';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AsyncSection } from '@/components/ui/state-primitives';
 import {
   Calendar, Users, DollarSign, TrendingUp, Clock, ArrowRight,
   UserPlus, Scissors, CheckCircle2, AlertCircle, Zap, Activity,
@@ -221,13 +222,23 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {aptsLoading ? (
-            <div className="p-4 space-y-2">
-              {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
-          ) : appointments && appointments.length > 0 ? (
+          <AsyncSection
+            loading={aptsLoading}
+            empty={!appointments?.length}
+            loadingVariant="rows"
+            loadingRows={4}
+            emptyState={{
+              icon: Calendar,
+              size: 'compact',
+              title: ar ? 'لا توجد مواعيد اليوم' : 'No appointments today',
+              action: {
+                label: ar ? 'إضافة موعد' : '+ Add appointment',
+                onClick: () => navigate('/calendar'),
+              },
+            }}
+          >
             <div>
-              {appointments.map((apt: any) => (
+              {appointments?.map((apt: any) => (
                 <div key={apt.id} className="data-row gap-4">
                   {/* Time — tight, monospaced feel */}
                   <div className="w-10 flex-shrink-0 text-center">
@@ -258,20 +269,7 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-14 text-center">
-              <Calendar className="h-8 w-8 text-muted-foreground/25 mb-3" />
-              <p className="text-sm text-muted-foreground">
-                {ar ? 'لا توجد مواعيد اليوم' : 'No appointments today'}
-              </p>
-              <button
-                onClick={() => navigate('/calendar')}
-                className="mt-3 text-xs font-semibold text-primary hover:underline"
-              >
-                {ar ? 'إضافة موعد' : '+ Add appointment'}
-              </button>
-            </div>
-          )}
+          </AsyncSection>
         </div>
 
         {/* Right column */}
