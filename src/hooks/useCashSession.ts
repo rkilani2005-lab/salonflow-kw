@@ -86,12 +86,18 @@ async function fetchDayTotals(tenantId: string, sessionDate: string) {
     }
   }
 
-  // Refunds issued today
+  // Refunds issued today — only sum the NEGATIVE reversal rows.
+  // A refund creates two rows with status='refunded': the original
+  // transaction (positive grand_total) and a reversal row (negative
+  // grand_total).  Previously we Math.abs()'d both, double-counting
+  // every refund in the Z-report.  The money-out event IS the reversal
+  // row, so filter to grand_total < 0.
   const { data: refundTxns } = await supabase
     .from('transactions')
     .select('grand_total')
     .eq('tenant_id', tenantId)
     .eq('status', 'refunded')
+    .lt('grand_total', 0)
     .gte('created_at', dateStart)
     .lte('created_at', dateEnd);
 

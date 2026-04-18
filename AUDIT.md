@@ -28,7 +28,7 @@ End-to-end scenarios. Each produces either a ✅ or a bug fix.
 | # | Scenario | Status |
 |---|---|---|
 | B.1 | **Appointment → Checkout → Invoice state machine** — decouple `booking.status === 'completed'` from payment state. **Known bug: marking appointment complete from Calendar dropdown skips payment entirely, then UI shows "Invoice fully paid".** | ✅ fixed (`1847140`) |
-| B.2 | Refund paths — full/partial, inventory reversal, GL posting symmetry | ⬜ |
+| B.2 | Refund paths — full/partial, inventory reversal, GL posting symmetry | ✅ fixed (this commit) — GL reversal entry, service BOM reversal, double-refund guard, booking status preserved, booking_id retained on reversal row, Z-report double-count fixed |
 | B.3 | Discount approval workflow | ⬜ |
 | B.4 | Day session open/close + Z-report variance accuracy | ⬜ |
 | B.5 | Split payments — cash + card + gift card in one checkout | ⬜ |

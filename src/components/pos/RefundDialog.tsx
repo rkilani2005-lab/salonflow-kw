@@ -129,10 +129,26 @@ export function RefundDialog({ open, onOpenChange, transaction, onRefundComplete
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const isFullRefund = refundType === 'full' || refundAmount >= originalTotal;
+      const refundRatio  = originalTotal > 0 ? refundAmount / originalTotal : 0;
       const ref = `REF-${Date.now().toString(36).toUpperCase()}`;
       setRefundRef(ref);
 
-      // 1. Update transaction status
+      // ── GUARD: prevent double refund ──────────────────────────
+      // Re-read the current transaction status from the DB.  If someone
+      // already processed a full refund (status === 'refunded'), abort.
+      // Without this, a stale dialog could fire a second refund.
+      const { data: currentTxn } = await supabase
+        .from('transactions')
+        .select('status, grand_total')
+        .eq('id', transaction.id)
+        .single();
+      if (currentTxn?.status === 'refunded') {
+        toast({ title: 'Already refunded', description: 'This transaction was already fully refunded.', variant: 'destructive' });
+        setProcessing(false);
+        return;
+      }
+
+      // 1. Update original transaction status
       await supabase
         .from('transactions')
         .update({
@@ -145,13 +161,16 @@ export function RefundDialog({ open, onOpenChange, transaction, onRefundComplete
         })
         .eq('id', transaction.id);
 
-      // 2. Insert a negative/reversal transaction for proper accounting
-      await supabase
+      // 2. Insert a negative/reversal transaction for proper accounting.
+      //    Preserve booking_id for per-booking refund traceability.
+      //    Downstream queries that want "the sale" filter by
+      //    status = 'completed', so the reversal row won't confuse them.
+      const { data: refundTxn } = await supabase
         .from('transactions')
         .insert({
           tenant_id: tenant.id,
           client_id: transaction.client_id,
-          booking_id: null, // refund is not linked to booking directly
+          booking_id: transaction.booking_id, // keep link to booking
           subtotal:       -(refundAmount),
           discount_amount: 0,
           tax_amount:      0,
@@ -159,10 +178,15 @@ export function RefundDialog({ open, onOpenChange, transaction, onRefundComplete
           grand_total:    -(refundAmount),
           status:         'refunded' as any,
           notes: `REFUND ${ref} for TXN ${transaction.id.slice(0, 8).toUpperCase()}. Reason: ${reason}${reasonDetail ? ' — ' + reasonDetail : ''}`,
-        });
+        })
+        .select('id')
+        .single();
 
-      // 3. Revert inventory for product items on full refund
+      // 3. Reverse inventory — retail products AND service recipe consumption.
+      //    Partial refunds skip inventory by default (amount was refunded, but
+      //    items weren't physically returned — that's a business decision).
       if (isFullRefund) {
+        // 3a. Retail products: simple +qty back to stock
         const productItems = transaction.transaction_items?.filter(i => i.item_type === 'product') || [];
         for (const item of productItems) {
           const { data: product } = await supabase
@@ -191,18 +215,99 @@ export function RefundDialog({ open, onOpenChange, transaction, onRefundComplete
           }
         }
 
-        // 4. Revert booking status to cancelled on full refund
-        if (transaction.booking_id) {
-          await supabase
-            .from('bookings')
-            .update({ status: 'cancelled' as any })
-            .eq('id', transaction.booking_id);
+        // 3b. Service recipe consumption: reverse BOM deduction so the
+        //     professional products consumed by refunded services return
+        //     to stock.  Without this, a refunded service leaves its
+        //     shampoo/color/etc. written off from inventory.
+        const serviceItems = transaction.transaction_items?.filter(i => i.item_type === 'service') || [];
+        for (const item of serviceItems) {
+          const { data: recipes } = await supabase
+            .from('service_recipes')
+            .select('product_id, quantity_per_service, product:products(id, name, current_stock)')
+            .eq('service_id', item.item_id);
+
+          for (const recipe of recipes || []) {
+            const product: any = (recipe as any).product;
+            if (!product) continue;
+            const returnQty = Number(recipe.quantity_per_service) * item.quantity;
+            await supabase
+              .from('products')
+              .update({ current_stock: Number(product.current_stock) + returnQty })
+              .eq('id', recipe.product_id);
+            await supabase
+              .from('inventory_transactions')
+              .insert({
+                tenant_id: tenant.id,
+                product_id: recipe.product_id,
+                quantity_change: returnQty,
+                transaction_type: 'return' as any,
+                reference_id: transaction.id,
+                reference_type: 'refund',
+                notes: `Refund ${ref} — service recipe reversal (${product.name})`,
+              });
+          }
         }
+
+        // 3c. Do NOT change booking.status on refund.  The service was
+        //     delivered — that's a fact.  Previously this wrote
+        //     status='cancelled', which is semantically wrong (client did
+        //     come, service did happen).  Reports should rely on the
+        //     transaction status for revenue attribution.
       }
+
+      // 4. Post reversing journal entry.  Mirrors the sale JE created by
+      //    POS.tsx with debit/credit swapped.  Partial refunds are prorated
+      //    by refundRatio so GL matches the cash actually returned.
+      try {
+        // Find the original sale JE
+        const { data: saleJE } = await (supabase as any)
+          .from('journal_entries')
+          .select('id, entry_number, lines:journal_lines(account_id, debit, credit, description)')
+          .eq('source_ref_id', transaction.id)
+          .eq('source_ref_type', 'transaction')
+          .eq('source', 'pos')
+          .maybeSingle();
+
+        if (saleJE?.lines?.length) {
+          const year = new Date().getFullYear();
+          const { data: existing } = await (supabase as any)
+            .from('journal_entries').select('entry_number')
+            .eq('tenant_id', tenant.id)
+            .like('entry_number', `REF-${year}-%`)
+            .order('entry_number', { ascending: false }).limit(1);
+          const lastNum = existing?.[0]?.entry_number?.split('-')[2] || '0000';
+          const nextNum = String(parseInt(lastNum) + 1).padStart(4, '0');
+
+          const { data: refJE } = await (supabase as any).from('journal_entries').insert({
+            tenant_id: tenant.id,
+            entry_number: `REF-${year}-${nextNum}`,
+            entry_date: new Date().toISOString().split('T')[0],
+            source: 'refund',
+            source_ref_id: refundTxn?.id ?? transaction.id,
+            source_ref_type: 'transaction',
+            description: `POS Refund ${ref} — reverses ${saleJE.entry_number}`,
+            is_posted: true,
+          }).select('id').single();
+
+          if (refJE) {
+            const refLines = saleJE.lines.map((l: any) => ({
+              journal_entry_id: refJE.id,
+              account_id:       l.account_id,
+              // Swap sides, prorated by refundRatio for partial refunds
+              debit:  Number(l.credit || 0) * refundRatio,
+              credit: Number(l.debit  || 0) * refundRatio,
+              description: `REVERSAL — ${l.description || ''}`.trim(),
+            }));
+            await (supabase as any).from('journal_lines').insert(refLines);
+          }
+        }
+      } catch { /* silent — GL reversal is best-effort, like the sale JE */ }
 
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['bookings-calendar'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['journal_entries'] });
+      queryClient.invalidateQueries({ queryKey: ['cash-session'] });
 
       setStep('done');
       toast({
