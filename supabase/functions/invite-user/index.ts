@@ -79,6 +79,20 @@ serve(async (req) => {
     }
 
     // ── 2. Check plan user limit ─────────────────────────────
+    //
+    // Previously this block hardcoded the plan→limit mapping
+    // (starter=3, professional=10, ai=9999) AND used
+    // count_tenant_users which only counts CURRENT members in
+    // user_roles — not pending invitations.  That created a race
+    // window: a tenant at 2/3 could fire 5 invite requests in
+    // parallel, each would see currentCount=2 and pass the check,
+    // and when the invited users set their passwords the tenant
+    // would end up at 7 members, quietly over the limit.
+    //
+    // Fix: (a) source the limit from get_plan_user_limit RPC so
+    // there's one source of truth, (b) add unexpired pending
+    // invites to the count so the race closes and the check
+    // reflects the actual committed-plus-pending seat usage.
     const { data: tenant } = await adminClient
       .from('tenants')
       .select('subscription_plan, name')
@@ -86,17 +100,33 @@ serve(async (req) => {
       .single();
 
     const plan = (tenant as any)?.subscription_plan || 'starter';
-    const limit = plan === 'ai' ? 9999 : plan === 'professional' ? 10 : 3;
+
+    const { data: limitResult } = await adminClient
+      .rpc('get_plan_user_limit', { p_plan: plan });
+    const limit = (limitResult as number) ?? 3;
 
     const { data: countResult } = await adminClient
       .rpc('count_tenant_users', { p_tenant_id: tenant_id });
-    const currentCount = (countResult as number) || 0;
+    const memberCount = (countResult as number) || 0;
 
-    if (currentCount >= limit) {
+    // Count unexpired pending invitations.  Excludes revoked /
+    // expired / accepted so we don't double-count.  Accepted ones
+    // are already in user_roles and therefore in memberCount.
+    const { count: pendingInvites } = await adminClient
+      .from('tenant_invitations')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenant_id)
+      .eq('status', 'pending')
+      .gt('expires_at', new Date().toISOString());
+
+    const effectiveCount = memberCount + (pendingInvites || 0);
+
+    if (effectiveCount >= limit) {
       return json({
-        error: `Your ${plan} plan allows up to ${limit} users. Upgrade to add more team members.`,
+        error: `Your ${plan} plan allows up to ${limit} users. You currently have ${memberCount} member${memberCount === 1 ? '' : 's'}${pendingInvites ? ` plus ${pendingInvites} pending invite${pendingInvites === 1 ? '' : 's'}` : ''}. Upgrade to add more team members.`,
         limit_reached: true,
-        current: currentCount,
+        current:       memberCount,
+        pending:       pendingInvites || 0,
         limit,
       }, 400);
     }

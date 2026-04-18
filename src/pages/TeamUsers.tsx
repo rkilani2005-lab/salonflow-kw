@@ -145,7 +145,17 @@ export default function TeamUsers() {
 
   const plan        = (tenant?.subscription_plan || 'starter') as string;
   const limit       = PLAN_LIMITS[plan] ?? 3;
-  const usedSlots   = members.length;
+  // Seat usage must include BOTH current members and unexpired pending
+  // invites, matching the server-side check in the invite-user edge
+  // function.  Previously this was just members.length which let the
+  // "seats remaining" counter lie about availability (a tenant at 3
+  // members + 2 pending invites on a starter plan would show 0 used
+  // against a 3-limit, and the UI would allow further invite clicks
+  // until the server bounced them).
+  const pendingCount = invites.filter(
+    i => i.status === 'pending' && new Date(i.expires_at) > new Date()
+  ).length;
+  const usedSlots   = members.length + pendingCount;
   const canInvite   = usedSlots < limit;
   const isOwner     = userRoles.includes('owner');
   const isManager   = userRoles.includes('manager');
