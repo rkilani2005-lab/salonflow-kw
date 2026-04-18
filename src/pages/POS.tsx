@@ -22,7 +22,9 @@ import { Input } from '@/components/ui/input';
 export default function POS() {
   const [searchParams] = useSearchParams();
   const bookingId = searchParams.get('bookingId');
-  const { tenant, profile } = useAuth();
+  const { tenant, profile, hasRole } = useAuth();
+  // Money-out gate — see ReceiptView for rationale.
+  const canRefund = hasRole('owner') || hasRole('manager') || hasRole('cashier') || hasRole('inventory_clerk');
   const { data: staffList } = useStaff();
   const createTransaction = useCreateTransaction();
 
@@ -574,7 +576,7 @@ export default function POS() {
                 This appointment has already been checked out. No further payment can be taken.
               </p>
             </div>
-            {paidTransaction && (
+            {paidTransaction && canRefund && (
               <Button
                 size="sm"
                 variant="outline"

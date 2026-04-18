@@ -146,7 +146,7 @@ export const useCreateVendorInvoice = () => {
 
 export const useRecordPayment = () => {
   const queryClient = useQueryClient();
-  const { tenant, user } = useAuth();
+  const { tenant, user, hasRole } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
@@ -160,6 +160,18 @@ export const useRecordPayment = () => {
       invoice_total: number;
       invoice_paid: number;
     }) => {
+      // Role gate — paying a vendor is a money-out action affecting
+      // cash/bank balances and AP reporting.  Previously any
+      // authenticated user could record payments; any receptionist
+      // or stylist could post a 10,000 KWD payment and corrupt the
+      // books.  Restrict to accountant / manager / owner.  Like the
+      // refund gate, this is client-side; DB-level role RLS would be
+      // the proper layer but requires schema work flagged for later.
+      const canPayVendors = hasRole('owner') || hasRole('manager') || hasRole('accountant');
+      if (!canPayVendors) {
+        throw new Error('Your role cannot record vendor payments. Please ask an accountant or manager.');
+      }
+
       // Re-read the invoice at payment time.  The client-supplied
       // invoice_paid value can be stale (another terminal may have
       // posted a payment meanwhile), so two concurrent payments

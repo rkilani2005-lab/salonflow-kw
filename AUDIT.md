@@ -39,7 +39,7 @@ End-to-end scenarios. Each produces either a ✅ or a bug fix.
 | B.10 | GL double-entry integrity per posting module | ✅ fixed (this commit) — balance verified in-memory before insert, discount/tax/tip lines added, header posted only after lines succeed, entry-number retry loop, refund JE balance-verified too |
 | B.11 | Staff commission calculation | ✅ fixed (this commit) — rule lookup used nonexistent column names (feature silent since launch), migrated to get_commission_rate RPC, transaction_item_id populated, refund now voids/reduces earnings |
 | B.12 | Multi-tenant data isolation (RLS) | ✅ fixed (this commit) — 3 tables had RLS enabled but no policy → default-deny → feature dead (budgets, campaigns, fiscal_periods). Migration 20260418000001 adds tenant-scoped CRUD policies. Audit notes: user_roles INSERT privilege escalation already patched in 20260330000001. USING(true) policies on booking_config / client_portal_tokens / whatsapp_conversations are intentional public-access paths (magic-link tokens, webhook service role). |
-| B.13 | Role / permission enforcement | ⬜ |
+| B.13 | Role / permission enforcement | ✅ fixed (this commit) — refund button gated (owner/manager/cashier/inventory_clerk) in both UI paths + defense-in-depth guard at mutation entry; vendor payment gated (owner/manager/accountant) at mutation entry; flagged for later: DB-side RLS role enforcement for true server-side gating |
 | B.14 | WhatsApp trigger firing & payload correctness | ⬜ |
 | B.15 | Plan / subscription limit enforcement | ⬜ |
 

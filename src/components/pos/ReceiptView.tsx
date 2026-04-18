@@ -45,8 +45,14 @@ export function ReceiptView({
   createdAt,
 }: ReceiptViewProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
-  const { tenant } = useAuth();
+  const { tenant, hasRole } = useAuth();
   const [refundOpen, setRefundOpen] = useState(false);
+  // Roles allowed to issue refunds.  Cashiers need it for daily
+  // operations; inventory_clerks may refund product-only sales;
+  // manager/owner always.  Stylists, receptionists, accountants,
+  // readonly cannot refund — they'd need to escalate to a cashier
+  // or manager.
+  const canRefund = hasRole('owner') || hasRole('manager') || hasRole('cashier') || hasRole('inventory_clerk');
 
   // Fetch full transaction data for the refund dialog
   const { data: fullTransaction } = useTransactionById(open ? transactionId : null);
@@ -222,14 +228,21 @@ export function ReceiptView({
               <Download className="mr-2 h-4 w-4" />
               Download PDF
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => setRefundOpen(true)}
-              className="h-12 px-4 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/40"
-              title="Process refund"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
+            {/* Refunds are money-out actions.  Hide entirely for staff
+                who shouldn't issue them (stylists, receptionists,
+                readonly, accountants).  Owners / managers / cashiers
+                / inventory_clerks can initiate.  Defence-in-depth:
+                RefundDialog also checks the role on mutation entry. */}
+            {canRefund && (
+              <Button
+                variant="outline"
+                onClick={() => setRefundOpen(true)}
+                className="h-12 px-4 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                title="Process refund"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

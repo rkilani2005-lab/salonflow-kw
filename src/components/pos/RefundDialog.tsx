@@ -78,7 +78,7 @@ const REFUND_REASONS = [
 type RefundType = 'full' | 'partial';
 
 export function RefundDialog({ open, onOpenChange, transaction, onRefundComplete }: RefundDialogProps) {
-  const { tenant } = useAuth();
+  const { tenant, hasRole } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -124,6 +124,25 @@ export function RefundDialog({ open, onOpenChange, transaction, onRefundComplete
 
   const handleRefund = async () => {
     if (!canProceed || !tenant) return;
+
+    // Role gate — defense in depth.  The UI gates the refund button
+    // on roles (see ReceiptView.tsx, POS.tsx), but the Dialog can be
+    // reached through other paths (programmatic, stale state, a
+    // hand-crafted request).  A client-side check here stops the
+    // flow at the mutation entry for any role that shouldn't refund.
+    // For true defense, RLS should gate transactions.update on role
+    // too — that's a deeper schema change flagged for later.
+    const canRefund =
+      hasRole('owner') || hasRole('manager') || hasRole('cashier') || hasRole('inventory_clerk');
+    if (!canRefund) {
+      toast({
+        title: 'Not permitted',
+        description: 'Your role cannot issue refunds. Please ask a cashier or manager.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setProcessing(true);
 
     try {
