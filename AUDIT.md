@@ -34,7 +34,7 @@ End-to-end scenarios. Each produces either a ✅ or a bug fix.
 | B.5 | Split payments — cash + card + gift card in one checkout | ✅ fixed (this commit) — gift card overdraft blocked, multi-gift-card sums correctly, cash change display, currency not hardcoded, consistent 0.001 tolerance |
 | B.6 | Loyalty accrual & redemption math | ✅ fixed (this commit) — field names repaired (entire loyalty was a no-op), concurrency guard on redemption, discount-ordering cap, refund reverses points |
 | B.7 | Package session consumption | 🟡 partial — server-side expiry/depletion guards added, refund now reverses package sessions. **GAP**: POS has no "use package session" option at checkout (useRedeemPackageSession is only called from Packages page button). Requires a dedicated feature commit. |
-| B.8 | Inventory deduction on service completion (BOM / recipe) | ⬜ |
+| B.8 | Inventory deduction on service completion (BOM / recipe) | ✅ fixed (this commit) — optimistic-concurrency stock decrement with 4-retry loop, negative-stock + failure surfaced as cashier-visible warnings, audit-log errors no longer swallowed |
 | B.9 | PO → GRN → stock movement → GL posting chain | ⬜ |
 | B.10 | GL double-entry integrity per posting module | ⬜ |
 | B.11 | Staff commission calculation | ⬜ |

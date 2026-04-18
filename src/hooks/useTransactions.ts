@@ -5,6 +5,69 @@ const supabase = _supabase as any;
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+/**
+ * Atomic-ish stock decrement with optimistic concurrency.
+ *
+ * The POS mutation previously used read-then-write, which races under
+ * concurrent sales: two terminals both read stock=10, both write 10-3=7,
+ * actual stock becomes 7 when it should be 4.
+ *
+ * We emulate atomicity via conditional update (.eq on the value we just
+ * read), retrying if another writer won the race.  After MAX_RETRIES
+ * attempts we surface the failure to the caller.
+ *
+ * Returns:
+ *   - ok: update succeeded
+ *   - wentNegative: deduction was larger than available stock; we still
+ *     wrote (we don't block sales) but the product may now be negative.
+ *     Callers should surface a cashier warning.
+ *   - failed: retries exhausted — inventory is out of sync; caller
+ *     should log and alert.
+ */
+interface StockDecrementResult {
+  ok: boolean;
+  wentNegative: boolean;
+  failed: boolean;
+  productName?: string;
+}
+
+async function safeDecrementStock(
+  productId: string,
+  deductQty: number,
+  MAX_RETRIES = 4,
+): Promise<StockDecrementResult> {
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const { data: product, error: readErr } = await supabase
+      .from('products')
+      .select('current_stock, name')
+      .eq('id', productId)
+      .single();
+
+    if (readErr || !product) {
+      return { ok: false, wentNegative: false, failed: true };
+    }
+
+    const oldStock = Number(product.current_stock);
+    const newStock = oldStock - deductQty;
+    const wentNegative = newStock < 0;
+
+    const { error: updErr, count } = await supabase
+      .from('products')
+      .update({ current_stock: newStock })
+      .eq('id', productId)
+      .eq('current_stock', oldStock) // optimistic guard
+      .select('*', { count: 'exact', head: true });
+
+    // If the guarded update affected a row, we won the race.  If count is 0,
+    // another writer updated current_stock between our read and write.
+    if (!updErr && (count ?? 1) > 0) {
+      return { ok: true, wentNegative, failed: false, productName: product.name };
+    }
+    // loop and retry
+  }
+  return { ok: false, wentNegative: false, failed: true };
+}
+
 export interface CartItem {
   item_type: 'service' | 'product';
   item_id: string;
@@ -143,68 +206,93 @@ export const useCreateTransaction = () => {
 
       if (paymentsError) throw paymentsError;
 
-      // 4. Deduct product stock + log inventory transactions
+      // Collected warnings surfaced to the cashier after the sale closes,
+      // so a race / negative-stock / missing-recipe-product condition is
+      // never silent — the cashier gets a toast so they can investigate.
+      const stockWarnings: string[] = [];
+
+      // 4. Deduct product stock + log inventory transactions (atomic-ish)
       const productItems = input.items.filter(i => i.item_type === 'product');
       for (const item of productItems) {
-        const { data: product } = await supabase
-          .from('products')
-          .select('current_stock')
-          .eq('id', item.item_id)
-          .single();
-
-        if (product) {
-          await supabase
-            .from('products')
-            .update({ current_stock: product.current_stock - item.quantity })
-            .eq('id', item.item_id);
-
-          await supabase
-            .from('inventory_transactions')
-            .insert({
-              tenant_id: tenant.id,
-              product_id: item.item_id,
-              quantity_change: -item.quantity,
-              transaction_type: 'retail_sale' as const,
-              reference_id: txn.id,
-              reference_type: 'pos_transaction',
-              notes: `POS sale - ${item.item_name}`,
-            });
+        const result = await safeDecrementStock(item.item_id, item.quantity);
+        if (result.failed) {
+          stockWarnings.push(
+            `Stock update failed for ${item.item_name} — inventory may be out of sync. Manager review needed.`
+          );
+          continue;
+        }
+        if (result.wentNegative) {
+          stockWarnings.push(
+            `${item.item_name}: stock went negative. Receive more stock or investigate.`
+          );
+        }
+        const { error: invErr } = await supabase
+          .from('inventory_transactions')
+          .insert({
+            tenant_id: tenant.id,
+            product_id: item.item_id,
+            quantity_change: -item.quantity,
+            transaction_type: 'retail_sale' as const,
+            reference_id: txn.id,
+            reference_type: 'pos_transaction',
+            notes: `POS sale - ${item.item_name}`,
+          });
+        if (invErr) {
+          stockWarnings.push(`Audit log failed for ${item.item_name}.`);
         }
       }
 
-      // 5. Deduct recipe products for service items (auto-deduction)
+      // 5. Deduct recipe products for service items (BOM auto-deduction)
       const serviceItems = input.items.filter(i => i.item_type === 'service');
       for (const item of serviceItems) {
         const { data: recipes } = await supabase
           .from('service_recipes')
-          .select('*, product:products(id, name, current_stock)')
+          .select('product_id, quantity_per_service, product:products(id, name)')
           .eq('service_id', item.item_id);
 
-        if (recipes && recipes.length > 0) {
-          for (const recipe of recipes) {
-            const product = (recipe as any).product;
-            if (!product) continue;
-
-            const deductQty = recipe.quantity_per_service * item.quantity;
-            await supabase
-              .from('products')
-              .update({ current_stock: product.current_stock - deductQty })
-              .eq('id', recipe.product_id);
-
-            await supabase
-              .from('inventory_transactions')
-              .insert({
-                tenant_id: tenant.id,
-                product_id: recipe.product_id,
-                quantity_change: -deductQty,
-                transaction_type: 'service_consumption' as const,
-                reference_id: txn.id,
-                reference_type: 'pos_transaction',
-                notes: `Service recipe deduction - ${product.name}`,
-              });
+        if (!recipes?.length) continue;
+        for (const recipe of recipes) {
+          const product: any = (recipe as any).product;
+          const productName = product?.name ?? 'recipe product';
+          if (!recipe.product_id) {
+            stockWarnings.push(
+              `${item.item_name}: recipe row has no product — deduction skipped. Manager review needed.`
+            );
+            continue;
+          }
+          const deductQty = Number(recipe.quantity_per_service) * item.quantity;
+          const result = await safeDecrementStock(recipe.product_id, deductQty);
+          if (result.failed) {
+            stockWarnings.push(
+              `BOM stock update failed for ${productName} (used by ${item.item_name}) — manager review needed.`
+            );
+            continue;
+          }
+          if (result.wentNegative) {
+            stockWarnings.push(
+              `${productName} (used by ${item.item_name}): stock went negative.`
+            );
+          }
+          const { error: invErr } = await supabase
+            .from('inventory_transactions')
+            .insert({
+              tenant_id: tenant.id,
+              product_id: recipe.product_id,
+              quantity_change: -deductQty,
+              transaction_type: 'service_consumption' as const,
+              reference_id: txn.id,
+              reference_type: 'pos_transaction',
+              notes: `Service recipe deduction - ${productName}`,
+            });
+          if (invErr) {
+            stockWarnings.push(`Audit log failed for ${productName}.`);
           }
         }
       }
+
+      // Stash the warnings on the returned object so the caller's
+      // onSuccess can surface them.  The txn stays the primary return.
+      (txn as any).__stockWarnings = stockWarnings;
 
       // 6. Mark linked booking as completed
       if (input.booking_id) {
@@ -259,11 +347,23 @@ export const useCreateTransaction = () => {
 
       return txn;
     },
-    onSuccess: () => {
+    onSuccess: (txn: any) => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       toast({ title: 'Transaction completed successfully' });
+
+      // Surface any stock / BOM warnings collected during the mutation
+      // so the cashier isn't blind to silent inventory drift.  One
+      // consolidated toast so we don't spam.
+      const warnings: string[] = txn?.__stockWarnings || [];
+      if (warnings.length) {
+        toast({
+          title: 'Inventory warnings',
+          description: warnings.slice(0, 3).join('\n') + (warnings.length > 3 ? `\n…and ${warnings.length - 3} more` : ''),
+          variant: 'destructive',
+        });
+      }
     },
     onError: (error) => {
       toast({
