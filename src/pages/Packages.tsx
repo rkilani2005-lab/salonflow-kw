@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
@@ -186,13 +187,14 @@ export default function Packages() {
         {[{ value:'active', items: activePackages }, { value:'inactive', items: inactivePackages }].map(tab => (
           <TabsContent key={tab.value} value={tab.value} className="mt-4">
             {pkgLoading ? (
-              <div className="space-y-2">{[...Array(3)].map((_,i) => <Skeleton key={i} className="h-24 rounded-md"/>)}</div>
+              <LoadingState variant="rows" rows={3} />
             ) : tab.items.length === 0 ? (
-              <div className="border border-dashed rounded-md p-12 text-center text-muted-foreground">
-                <Package className="h-8 w-8 mx-auto mb-2 opacity-30"/>
-                <p className="text-sm">{tab.value==='active' ? (ar?'لا توجد باقات نشطة':'No active packages') : (ar?'لا توجد باقات غير نشطة':'No inactive packages')}</p>
-                {tab.value==='active' && <Button size="sm" variant="outline" className="mt-3 gap-1.5" onClick={openNewPkg}><Plus className="h-3.5 w-3.5"/>Create Package</Button>}
-              </div>
+              <EmptyState
+                icon={Package}
+                size="compact"
+                title={tab.value==='active' ? (ar?'لا توجد باقات نشطة':'No active packages') : (ar?'لا توجد باقات غير نشطة':'No inactive packages')}
+                action={tab.value==='active' ? { label: ar ? 'إنشاء باقة' : 'Create Package', onClick: openNewPkg } : undefined}
+              />
             ) : (
               <div className="border rounded-md overflow-hidden divide-y divide-border">
                 {tab.items.map(pkg => {

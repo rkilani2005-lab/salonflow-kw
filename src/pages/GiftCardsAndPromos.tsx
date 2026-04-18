@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -203,11 +204,14 @@ function GiftCardsTab({ currency, ar }: { currency: string; ar: boolean }) {
         </Button>
       </div>
 
-      {isLoading ? <Skeleton className="h-48 w-full rounded-md"/> : cards.length === 0 ? (
-        <div className="border border-dashed rounded-md p-12 text-center text-muted-foreground">
-          <Gift className="h-8 w-8 mx-auto mb-2 opacity-30"/>
-          <p className="text-sm">{ar ? 'لا توجد بطاقات هدايا' : 'No gift cards yet'}</p>
-        </div>
+      {isLoading ? <LoadingState variant="rows" rows={4} /> : cards.length === 0 ? (
+        <EmptyState
+          icon={Gift}
+          size="compact"
+          title={ar ? 'لا توجد بطاقات هدايا' : 'No gift cards yet'}
+          description={ar ? 'أنشئي أول بطاقة هدية لإضافة رصيد يمكن استخدامه في البيع' : 'Create your first gift card to offer prepaid balance redeemable at POS.'}
+          action={{ label: ar ? 'بطاقة جديدة' : 'New Gift Card', onClick: openNew }}
+        />
       ) : (
         <div className="border rounded-md overflow-hidden divide-y divide-border">
           {cards.map(card => {
@@ -346,11 +350,14 @@ function PromoCodesTab({ currency, ar }: { currency: string; ar: boolean }) {
         </Button>
       </div>
 
-      {isLoading ? <Skeleton className="h-48 w-full rounded-md"/> : promos.length === 0 ? (
-        <div className="border border-dashed rounded-md p-12 text-center text-muted-foreground">
-          <Tag className="h-8 w-8 mx-auto mb-2 opacity-30"/>
-          <p className="text-sm">{ar ? 'لا توجد أكواد خصم' : 'No promo codes yet'}</p>
-        </div>
+      {isLoading ? <LoadingState variant="rows" rows={4} /> : promos.length === 0 ? (
+        <EmptyState
+          icon={Tag}
+          size="compact"
+          title={ar ? 'لا توجد أكواد خصم' : 'No promo codes yet'}
+          description={ar ? 'أنشئي أول كود خصم لتفعيل حملة ترويجية' : 'Create your first promo code to run a campaign or offer.'}
+          action={{ label: ar ? 'كود جديد' : 'New Code', onClick: openNew }}
+        />
       ) : (
         <div className="border rounded-md overflow-hidden divide-y divide-border">
           {promos.map(p => {

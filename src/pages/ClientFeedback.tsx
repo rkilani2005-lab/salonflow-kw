@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -256,13 +257,14 @@ export default function ClientFeedback() {
           </div>
 
           {isLoading ? (
-            <div className="space-y-2">{[...Array(4)].map((_,i) => <Skeleton key={i} className="h-20 rounded-md"/>)}</div>
+            <LoadingState variant="rows" rows={4} />
           ) : filtered.length === 0 ? (
-            <div className="border border-dashed rounded-md p-10 text-center text-muted-foreground">
-              <Star className="h-8 w-8 mx-auto mb-2 opacity-20"/>
-              <p className="text-sm">{ar ? 'لا توجد تقييمات' : 'No reviews yet'}</p>
-              <p className="text-xs mt-1 opacity-60">{ar ? 'أضف أول تقييم يدوياً أو شارك رابط التقييم مع العميلات' : 'Add a review manually or share the feedback link with clients'}</p>
-            </div>
+            <EmptyState
+              icon={Star}
+              size="compact"
+              title={ar ? 'لا توجد تقييمات' : 'No reviews yet'}
+              description={ar ? 'أضف أول تقييم يدوياً أو شارك رابط التقييم مع العميلات' : 'Add a review manually or share the feedback link with clients.'}
+            />
           ) : (
             <div className="border rounded-md overflow-hidden divide-y divide-border">
               {filtered.map(f => (

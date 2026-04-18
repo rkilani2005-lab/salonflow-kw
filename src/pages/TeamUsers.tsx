@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
 import {
   Users, UserPlus, Mail, Shield, Crown, Clock, CheckCircle2,
   XCircle, MoreHorizontal, Loader2, AlertTriangle, RefreshCw,
@@ -304,15 +305,14 @@ export default function TeamUsers() {
         </h2>
 
         {loadingMembers ? (
-          <div className="space-y-2">
-            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-md" />)}
-          </div>
+          <LoadingState variant="rows" rows={3} />
         ) : members.length === 0 ? (
-          <div className="border rounded-md bg-card p-8 text-center text-muted-foreground">
-            <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
-            <p className="text-sm font-medium">{ar ? 'لا يوجد أعضاء فريق بعد' : 'No team members yet'}</p>
-            <p className="text-xs mt-1 opacity-60">{ar ? 'قومي بدعوة أول عضو في فريقك' : 'Invite your first team member above'}</p>
-          </div>
+          <EmptyState
+            icon={Users}
+            size="compact"
+            title={ar ? 'لا يوجد أعضاء فريق بعد' : 'No team members yet'}
+            description={ar ? 'قومي بدعوة أول عضو في فريقك' : 'Invite your first team member above.'}
+          />
         ) : (
           <div className="border rounded-md overflow-hidden divide-y divide-border">
             {members.map(member => {

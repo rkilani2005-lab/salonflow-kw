@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -189,13 +190,14 @@ export default function ARInvoices() {
 
       {/* Invoice list */}
       {isLoading ? (
-        <div className="space-y-2">{[...Array(4)].map((_,i) => <Skeleton key={i} className="h-20 rounded-md"/>)}</div>
+        <LoadingState variant="rows" rows={4} />
       ) : filtered.length === 0 ? (
-        <div className="border border-dashed rounded-md p-12 text-center text-muted-foreground">
-          <FileText className="h-8 w-8 mx-auto mb-3 opacity-30"/>
-          <p className="font-medium text-sm">{ar ? 'لا توجد فواتير' : 'No invoices found'}</p>
-          <p className="text-xs mt-1 opacity-60">{ar ? 'أنشئ فاتورة جديدة' : 'Create your first invoice above'}</p>
-        </div>
+        <EmptyState
+          icon={FileText}
+          size="compact"
+          title={ar ? 'لا توجد فواتير' : 'No invoices found'}
+          description={ar ? 'أنشئ فاتورة جديدة' : 'Create your first invoice above.'}
+        />
       ) : (
         <div className="border rounded-md overflow-hidden divide-y divide-border">
           {filtered.map(inv => {

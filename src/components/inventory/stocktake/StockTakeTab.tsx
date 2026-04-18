@@ -10,6 +10,7 @@ import { CreateSessionDialog } from './CreateSessionDialog';
 import { StockTakeSessionView } from './StockTakeSessionView';
 import { BlindCountView } from './BlindCountView';
 import { format } from 'date-fns';
+import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
 
 const statusColors: Record<StockTakeStatus, string> = {
   open: 'bg-blue-100 text-blue-800',
@@ -48,11 +49,15 @@ export const StockTakeTab = () => {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground text-sm py-4 text-center">Loading...</p>
+            <LoadingState variant="table" rows={4} />
           ) : !sessions || sessions.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-8 text-center">
-              No stock take sessions yet. {isManager ? 'Create one to get started.' : ''}
-            </p>
+            <EmptyState
+              icon={ClipboardCheck}
+              size="compact"
+              title="No stock take sessions yet"
+              description={isManager ? 'Create a session to count stock and reconcile variance.' : 'Your manager will create a session when one is needed.'}
+              action={isManager ? { label: 'New Session', onClick: () => setShowCreate(true) } : undefined}
+            />
           ) : (
             <Table>
               <TableHeader>
