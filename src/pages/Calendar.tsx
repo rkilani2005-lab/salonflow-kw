@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CalendarHeader } from '@/components/calendar/CalendarHeader';
 import { StaffRosterSidebar } from '@/components/calendar/StaffRosterSidebar';
 import { CalendarGrid } from '@/components/calendar/CalendarGrid';
@@ -18,6 +18,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, isToday } from 'date-fns';
 import type { Enums } from '@/integrations/supabase/types';
+import { fetchBookingPayment } from '@/hooks/useBookingPayment';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 
 // ── Data hooks ─────────────────────────────────────────────────
 
@@ -210,7 +222,11 @@ export default function CalendarPage() {
     queryClient.invalidateQueries({ queryKey: ['bookings-calendar'] });
   }, [appointments, queryClient]);
 
-  const handleStatusChange = useCallback(async (appointmentId: string, newStatus: AppointmentStatus) => {
+  // Confirmation dialog state for marking 'completed' without a recorded payment.
+  const [pendingComplete, setPendingComplete] = useState<{ id: string } | null>(null);
+  const navigate = useNavigate();
+
+  const applyStatusChange = useCallback(async (appointmentId: string, newStatus: AppointmentStatus) => {
     await supabase.from('bookings').update({ status: newStatus as Enums<'booking_status'> }).eq('id', appointmentId);
     queryClient.invalidateQueries({ queryKey: ['bookings-calendar'] });
     setSelectedAppointment(prev => prev?.id === appointmentId ? { ...prev, status: newStatus } : prev);
@@ -220,6 +236,21 @@ export default function CalendarPage() {
     };
     toast({ title: labels[newStatus] || 'Status updated' });
   }, [queryClient, toast]);
+
+  const handleStatusChange = useCallback(async (appointmentId: string, newStatus: AppointmentStatus) => {
+    // Guard: marking an appointment 'completed' should normally flow through POS.
+    // If the user tries to set it directly without a recorded payment, intercept
+    // and ask what they mean.  This prevents the "invoice looks fully paid when
+    // nothing was collected" bug.
+    if (newStatus === 'completed') {
+      const { isPaid } = await fetchBookingPayment(appointmentId);
+      if (!isPaid) {
+        setPendingComplete({ id: appointmentId });
+        return;
+      }
+    }
+    await applyStatusChange(appointmentId, newStatus);
+  }, [applyStatusChange]);
 
   const handleBookingSubmit = useCallback(async (booking: {
     clientId: string; staffId: string; serviceId: string; date: string; time: string; notes: string;
@@ -393,6 +424,52 @@ export default function CalendarPage() {
         onUpdate={handleAppointmentUpdate}
         onStatusChange={handleStatusChange}
       />
+
+      {/* Guard: marking an appointment complete without a recorded payment. */}
+      <AlertDialog
+        open={!!pendingComplete}
+        onOpenChange={(open) => !open && setPendingComplete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark service complete without payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              No completed transaction is linked to this appointment. Marking it
+              complete now will record the service as delivered but will NOT
+              register any payment. The invoice will remain unpaid.
+              <br /><br />
+              The recommended action is to collect payment through POS, which
+              marks the appointment complete automatically.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (pendingComplete) {
+                  const id = pendingComplete.id;
+                  setPendingComplete(null);
+                  navigate(`/pos?bookingId=${id}`);
+                }
+              }}
+            >
+              Go to POS instead
+            </Button>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingComplete) {
+                  const id = pendingComplete.id;
+                  setPendingComplete(null);
+                  applyStatusChange(id, 'completed');
+                }
+              }}
+            >
+              Complete without payment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

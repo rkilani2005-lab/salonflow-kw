@@ -13,7 +13,7 @@ import type { Client } from '@/hooks/useClients';
 import { supabase as _supabase } from '@/integrations/supabase/client';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = _supabase as any;
-import { ShoppingCart, CalendarCheck, RotateCcw, Tag, Star, X, Loader2 } from 'lucide-react';
+import { ShoppingCart, CalendarCheck, RotateCcw, Tag, Star, X, Loader2, AlertTriangle } from 'lucide-react';
 import { RefundDialog } from '@/components/pos/RefundDialog';
 import { useTransactionById } from '@/hooks/useTransactions';
 import { useLoyaltyConfig, validatePromoCode, validateGiftCard } from '@/hooks/useLoyalty';
@@ -105,6 +105,9 @@ export default function POS() {
 
   // Whether this booking has already been paid — blocks all checkout UI
   const [bookingAlreadyPaid, setBookingAlreadyPaid] = useState(false);
+  // Whether this booking was marked complete but payment was never collected.
+  // Shows a recovery banner and ALLOWS the cart to load so payment can be taken.
+  const [completedNoPayment, setCompletedNoPayment] = useState(false);
 
   // Load booking if bookingId provided
   useEffect(() => {
@@ -122,24 +125,11 @@ export default function POS() {
 
     if (!booking) return;
 
-    // ── GUARD 1: booking status is already completed ──────────
-    if (booking.status === 'completed') {
-      setBookingAlreadyPaid(true);
-      // Still show client name so reception knows whose ticket this is
-      if (booking.client_id) {
-        const { data: client } = await supabase
-          .from('clients').select('id, name, phone, email, tier, loyalty_points, tenant_id').eq('id', booking.client_id).single();
-        if (client) setSelectedClient(client as Client);
-      }
-      // Fetch linked transaction so the Refund button works
-      const { data: txn } = await supabase
-        .from('transactions').select('id')
-        .eq('booking_id', id).eq('status', 'completed').maybeSingle();
-      if (txn) setPaidTxnId(txn.id);
-      return; // do NOT load cart — payment already taken
-    }
-
-    // ── GUARD 2: a completed transaction already exists for this booking ──
+    // ── PAYMENT GUARD — single source of truth ─────────────────
+    // Check for an existing completed transaction.  booking.status alone
+    // is NOT sufficient — the service can be marked 'completed' while
+    // payment is still pending (e.g. marked complete from the Calendar
+    // dropdown without going through POS).  We must verify in transactions.
     const { data: existingTxn } = await supabase
       .from('transactions')
       .select('id')
@@ -148,6 +138,7 @@ export default function POS() {
       .maybeSingle();
 
     if (existingTxn) {
+      // Genuinely paid — lock POS and expose the refund path.
       setBookingAlreadyPaid(true);
       setPaidTxnId(existingTxn.id);
       if (booking.client_id) {
@@ -156,6 +147,13 @@ export default function POS() {
         if (client) setSelectedClient(client as Client);
       }
       return; // payment already recorded — do NOT load cart
+    }
+
+    // Booking may be in 'completed' status without a matching transaction —
+    // surface it as a recovery scenario, but still allow the cart to load
+    // so reception can collect the payment that was missed.
+    if (booking.status === 'completed') {
+      setCompletedNoPayment(true);
     }
 
     // ── Safe to load — booking not yet paid ──────────────────
@@ -443,6 +441,22 @@ export default function POS() {
                 Refund
               </Button>
             )}
+          </div>
+        )}
+        {/* ── Recovery banner: service marked complete but unpaid ── */}
+        {completedNoPayment && !bookingAlreadyPaid && (
+          <div className="flex items-center gap-3 px-5 py-4 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800">
+            <div className="h-9 w-9 rounded-full bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                Payment not yet collected
+              </p>
+              <p className="text-xs text-amber-800 dark:text-amber-400 mt-0.5">
+                This service was marked complete but no payment has been recorded. Collect it now.
+              </p>
+            </div>
           </div>
         )}
         <POSCart

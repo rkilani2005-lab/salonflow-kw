@@ -45,6 +45,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useBookingPayment } from '@/hooks/useBookingPayment';
 
 const statusLabels: Record<AppointmentStatus, string> = {
   planned: 'Planned',
@@ -118,9 +119,20 @@ export function AppointmentDetailSheet({
 
   if (!appointment || !apt) return null;
 
-  const isCheckedOut = appointment.status === 'completed';
-  const isCancelled = appointment.status === 'cancelled';
-  const isNoShow = appointment.status === 'no_show';
+  // ── BOOKING vs PAYMENT: two independent states ─────────────────────────
+  // booking.status === 'completed'  ⇒ the SERVICE was delivered.
+  // transaction.status === 'completed' ⇒ money was collected.
+  // Historically the UI conflated these, causing an unpaid completed booking
+  // to display as "fully paid / checked out".  Never use booking status alone.
+  const { data: payment } = useBookingPayment(appointment.id);
+  const isServiceDone    = appointment.status === 'completed';
+  const isPaid           = !!payment?.isPaid;
+  const isCheckedOut     = isServiceDone && isPaid;       // service done AND paid
+  const isCompletedUnpaid = isServiceDone && !isPaid;     // service done, payment pending
+  const isCancelled      = appointment.status === 'cancelled';
+  const isNoShow         = appointment.status === 'no_show';
+  // Lock edits when the record is fully closed-out or terminal.
+  // IMPORTANT: unpaid-but-completed is NOT locked — reception needs POS access.
   const isLocked = isCheckedOut || isCancelled || isNoShow;
 
   const selectedStaff = staff.find((s) => s.id === apt.staffId);
@@ -216,11 +228,21 @@ export function AppointmentDetailSheet({
             {statusLabels[apt.status]}
           </Badge>
         </div>
-        {isLocked && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2 mt-2">
-            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+        {(isLocked || isCompletedUnpaid) && (
+          <div className={cn(
+            'flex items-center gap-2 text-sm rounded-md px-3 py-2 mt-2',
+            isCompletedUnpaid
+              ? 'bg-amber-50 text-amber-900 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800/60'
+              : 'bg-muted/50 text-muted-foreground'
+          )}>
+            <AlertTriangle className={cn(
+              'h-4 w-4 shrink-0',
+              isCompletedUnpaid ? 'text-amber-600 dark:text-amber-400' : 'text-amber-500'
+            )} />
             <span>
-              {isCheckedOut
+              {isCompletedUnpaid
+                ? 'Service marked complete but payment not collected. Click Checkout to collect.'
+                : isCheckedOut
                 ? 'This appointment has been checked out. No changes allowed.'
                 : isCancelled
                 ? 'This appointment has been cancelled.'
@@ -646,6 +668,20 @@ export function AppointmentDetailSheet({
               <CreditCard className="h-4 w-4" />
               View Receipt
             </Button>
+          ) : isCompletedUnpaid ? (
+            // Service done, payment not collected — surface this as the single primary action.
+            <>
+              <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+                Close
+              </Button>
+              <Button
+                className="flex-1 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={() => navigate(`/pos?bookingId=${appointment.id}`)}
+              >
+                <CreditCard className="h-4 w-4" />
+                Collect Payment
+              </Button>
+            </>
           ) : (
             <>
               <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
