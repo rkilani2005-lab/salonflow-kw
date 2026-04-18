@@ -362,6 +362,50 @@ export function RefundDialog({ open, onOpenChange, transaction, onRefundComplete
         }
       } catch { /* best-effort — loyalty reversal must not block the refund */ }
 
+      // 6. Package session reversal.  If any package_redemptions were
+      //    recorded against this transaction (client used a package
+      //    session for a service that is now being refunded), return
+      //    those sessions to the client's package balance.  Without
+      //    this, a refund leaves the client short: no service AND no
+      //    session on their package card.  Partial refunds don't
+      //    reverse package sessions — they're discrete, not prorated.
+      if (isFullRefund) {
+        try {
+          const { data: redemptions } = await supabase
+            .from('package_redemptions')
+            .select('id, client_package_id')
+            .eq('transaction_id', transaction.id);
+
+          for (const r of redemptions || []) {
+            const { data: pkg } = await supabase
+              .from('client_packages')
+              .select('sessions_used, sessions_total, status')
+              .eq('id', r.client_package_id)
+              .single();
+            if (!pkg) continue;
+
+            const newUsed = Math.max(0, Number(pkg.sessions_used) - 1);
+            await supabase
+              .from('client_packages')
+              .update({
+                sessions_used: newUsed,
+                // If previously depleted and now has availability, re-activate.
+                status: pkg.status === 'depleted' && newUsed < Number(pkg.sessions_total)
+                  ? 'active'
+                  : pkg.status,
+              })
+              .eq('id', r.client_package_id);
+
+            // Mark the redemption audit row as reversed so history shows
+            // it but the counter matches the package state.
+            await supabase
+              .from('package_redemptions')
+              .delete()
+              .eq('id', r.id);
+          }
+        } catch { /* best-effort */ }
+      }
+
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['bookings-calendar'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });

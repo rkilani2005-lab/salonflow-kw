@@ -155,11 +155,33 @@ export const useRedeemPackageSession = () => {
       booking_id?: string;
       transaction_id?: string;
     }) => {
-      // Increment sessions_used
+      // Re-read the package at redemption time so expiry / depletion
+      // checks reflect DB state, not whatever the caller last cached.
+      // The UI guards these same conditions, but the mutation must be
+      // independently safe — a race between two concurrent redemptions
+      // (e.g. two reception terminals) can slip past a UI-only check.
       const { data: cp, error: fetchErr } = await supabase
-        .from('client_packages').select('sessions_used,sessions_total')
-        .eq('id', input.client_package_id).single();
+        .from('client_packages')
+        .select('sessions_used, sessions_total, status, expires_at')
+        .eq('id', input.client_package_id)
+        .single();
       if (fetchErr) throw fetchErr;
+
+      // Guard 1 — already depleted
+      if (cp.sessions_used >= cp.sessions_total || cp.status === 'depleted') {
+        throw new Error('This package has no sessions remaining.');
+      }
+      // Guard 2 — expired
+      if (cp.expires_at) {
+        const today = new Date().toISOString().slice(0, 10);
+        if (cp.expires_at < today) {
+          throw new Error('This package has expired and cannot be redeemed.');
+        }
+      }
+      // Guard 3 — cancelled / non-active (anything that isn't explicitly active)
+      if (cp.status && cp.status !== 'active') {
+        throw new Error(`Package is ${cp.status} and cannot be redeemed.`);
+      }
 
       const newUsed = cp.sessions_used + 1;
       const isDepleted = newUsed >= cp.sessions_total;
@@ -170,7 +192,8 @@ export const useRedeemPackageSession = () => {
       }).eq('id', input.client_package_id);
       if (updErr) throw updErr;
 
-      // Log redemption
+      // Log redemption (best-effort audit trail — don't revert the
+      // counter if the audit insert fails, the counter is the truth).
       await supabase.from('package_redemptions').insert({
         client_package_id: input.client_package_id,
         booking_id:    input.booking_id || null,
@@ -181,6 +204,6 @@ export const useRedeemPackageSession = () => {
       qc.invalidateQueries({ queryKey: ['client-packages', vars.client_id] });
       toast({ title: '✅ Session redeemed' });
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Cannot redeem', description: e.message, variant: 'destructive' }),
   });
 };
