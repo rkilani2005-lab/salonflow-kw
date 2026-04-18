@@ -16,6 +16,7 @@ import { useServicesManagement } from '@/hooks/useServices';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { fireWhatsAppTrigger } from '@/lib/whatsapp-trigger';
 import { format, isToday } from 'date-fns';
 import type { Enums } from '@/integrations/supabase/types';
 import { fetchBookingPayment } from '@/hooks/useBookingPayment';
@@ -235,7 +236,35 @@ export default function CalendarPage() {
       completed: '✅ Completed', no_show: '⚠️ Marked as no-show', cancelled: '✗ Cancelled',
     };
     toast({ title: labels[newStatus] || 'Status updated' });
-  }, [queryClient, toast]);
+
+    // Fire WhatsApp trigger for terminal-interest transitions.  Only
+    // confirmed and cancelled have configured triggers in the UI;
+    // other status changes are internal salon flow and don't ping the
+    // client.  Best-effort — wrapped inside the helper which never
+    // throws.
+    if (tenant && (newStatus === 'confirmed' || newStatus === 'cancelled')) {
+      const { data: b } = await supabase
+        .from('bookings')
+        .select('id, client_phone, client_name, service_name, booking_date, start_time')
+        .eq('id', appointmentId)
+        .single();
+      if (b?.client_phone) {
+        fireWhatsAppTrigger({
+          tenant_id:      tenant.id,
+          event_type:     newStatus === 'confirmed' ? 'booking_confirmed' : 'booking_cancelled',
+          phone_number:   b.client_phone,
+          reference_id:   b.id,
+          reference_type: 'booking',
+          variables: {
+            client_name:   b.client_name || '',
+            service_name:  b.service_name || '',
+            booking_date:  b.booking_date || '',
+            start_time:    b.start_time || '',
+          },
+        });
+      }
+    }
+  }, [queryClient, toast, tenant]);
 
   const handleStatusChange = useCallback(async (appointmentId: string, newStatus: AppointmentStatus) => {
     // Guard: marking an appointment 'completed' should normally flow through POS.
@@ -269,7 +298,23 @@ export default function CalendarPage() {
       duration: service.duration, price: service.price, notes: booking.notes, status: 'confirmed',
     });
     toast({ title: '📅 Appointment booked', description: `${client.name} · ${service.name}` });
-  }, [clients, services, createBooking, toast]);
+
+    // Fire WhatsApp booking_confirmed.  Best-effort; does not block.
+    if (tenant && client.mobile) {
+      fireWhatsAppTrigger({
+        tenant_id:      tenant.id,
+        event_type:     'booking_confirmed',
+        phone_number:   client.mobile,
+        reference_type: 'booking',
+        variables: {
+          client_name:  client.name,
+          service_name: service.name,
+          booking_date: booking.date,
+          start_time:   booking.time,
+        },
+      });
+    }
+  }, [clients, services, createBooking, toast, tenant]);
 
   const handleMultiServiceSubmit = useCallback(async (booking: MultiServiceBooking) => {
     const client = clients.find(c => c.id === booking.clientId);

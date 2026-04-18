@@ -4,6 +4,7 @@ import { supabase as _supabase } from '@/integrations/supabase/client';
 const supabase = _supabase as any;
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { fireWhatsAppTrigger } from '@/lib/whatsapp-trigger';
 
 /**
  * Atomic-ish stock decrement with optimistic concurrency.
@@ -379,6 +380,29 @@ export const useCreateTransaction = () => {
           });
         if (earnErr) {
           stockWarnings.push(`Commission record failed for ${item.item_name}: ${earnErr.message}`);
+        }
+      }
+
+      // 8. Fire WhatsApp receipt_sent trigger.  Best-effort; does not
+      //    block the return.  Only fires if the tenant has an active
+      //    receipt_sent trigger configured and the client has a phone.
+      if (input.client_id) {
+        const { data: clientRow } = await supabase
+          .from('clients').select('name, phone').eq('id', input.client_id).single();
+        if (clientRow?.phone) {
+          fireWhatsAppTrigger({
+            tenant_id:      tenant.id,
+            event_type:     'receipt_sent',
+            phone_number:   clientRow.phone,
+            reference_id:   txn.id,
+            reference_type: 'transaction',
+            variables: {
+              client_name:  clientRow.name || '',
+              total_amount: `${Number(input.grand_total).toFixed(3)} KWD`,
+              txn_ref:      txn.id.slice(0, 8).toUpperCase(),
+              item_count:   String(input.items.length),
+            },
+          });
         }
       }
 
