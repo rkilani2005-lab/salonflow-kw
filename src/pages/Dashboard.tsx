@@ -229,7 +229,6 @@ export default function Dashboard() {
             loadingRows={4}
             emptyState={{
               icon: Calendar,
-              size: 'compact',
               title: ar ? 'لا توجد مواعيد اليوم' : 'No appointments today',
               action: {
                 label: ar ? 'إضافة موعد' : '+ Add appointment',

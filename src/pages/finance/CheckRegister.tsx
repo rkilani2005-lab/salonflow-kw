@@ -132,7 +132,6 @@ export default function CheckRegister() {
             emptyState={{
               icon: CreditCard,
               title: ar ? 'لا توجد شيكات' : 'No checks yet',
-              size: 'compact',
             }}
           >
             <div className="overflow-x-auto">
