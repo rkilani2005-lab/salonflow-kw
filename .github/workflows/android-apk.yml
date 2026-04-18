@@ -1,0 +1,77 @@
+name: Android APK build
+
+# Build a debug APK on every push to main, plus on pull requests.
+# Release (signed) APK + AAB is a separate workflow that will be
+# added once Play Console + signing keystore are provisioned.
+#
+# The resulting APK is uploaded as a GitHub Actions artifact; find
+# it under the 'Actions' tab → pick the run → 'Artifacts' panel.
+# Install on a test device with:
+#   adb install -r zaina-debug.apk
+# or sideload by download + tap on the device.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Java
+        # Capacitor 6 requires JDK 17 for the Android Gradle Plugin.
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install npm deps
+        run: npm ci --no-audit --no-fund
+
+      - name: Build web bundle
+        # Produces dist/ — the content Capacitor wraps.
+        run: npm run build
+
+      - name: Sync Capacitor
+        # Copies dist/ into android/app/src/main/assets/public and
+        # refreshes plugin registration.
+        run: npx cap sync android
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x android/gradlew
+
+      - name: Assemble debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: |
+          mv android/app/build/outputs/apk/debug/app-debug.apk \
+             android/app/build/outputs/apk/debug/zaina-debug.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zaina-debug-apk
+          path: android/app/build/outputs/apk/debug/zaina-debug.apk
+          # Keep for 14 days — enough for a testing cycle, not so long
+          # that we accumulate GBs of old builds.
+          retention-days: 14

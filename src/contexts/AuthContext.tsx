@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { initializePushNotifications } from '@/lib/native/push';
 
 interface Profile {
   id: string;
@@ -166,6 +167,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!mounted) return;
             await fetchProfile(newSession.user.id);
             if (mounted) setLoading(false);
+            // Native-only: register for push notifications once we have
+            // a signed-in user.  No-op on web.  Idempotent — guarded
+            // internally so re-entering this block on session refresh
+            // doesn't re-register.
+            initializePushNotifications(newSession.user.id).catch(() => {
+              /* non-fatal: push will retry on next session event */
+            });
           }, 0);
         } else {
           // Signed out — clear everything

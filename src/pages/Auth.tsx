@@ -5,8 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Scissors, Sparkles, Eye, EyeOff, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Scissors, Sparkles, Eye, EyeOff, ArrowRight, CheckCircle2, Fingerprint } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  isBiometricAvailable,
+  isBiometricEnabled,
+  getBiometryKind,
+  saveCredentialsForBiometric,
+  unlockWithBiometric,
+} from '@/lib/native/biometric';
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -17,6 +24,22 @@ const Auth = () => {
   const [fullName, setFullName] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Biometric state — only ever truthy on native.
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioEnabled,   setBioEnabled]   = useState(false);
+  const [bioKind,      setBioKind]      = useState<'face'|'fingerprint'|'iris'|'unknown'>('unknown');
+
+  useEffect(() => {
+    // Detect biometric support once on mount.  No-ops to false on web.
+    (async () => {
+      const avail  = await isBiometricAvailable();
+      const kind   = await getBiometryKind();
+      const enrol  = await isBiometricEnabled();
+      setBioAvailable(avail);
+      setBioKind(kind);
+      setBioEnabled(enrol);
+    })();
+  }, []);
 
   const { user, tenant, userRoles, loading: authLoading, signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -34,8 +57,39 @@ const Auth = () => {
     setLoading(true);
     const { error } = await signIn(email, password);
     setLoading(false);
-    if (error) toast.error(error.message);
-    else toast.success('Welcome back!');
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success('Welcome back!');
+    // On first successful password login on a native device with
+    // biometric hardware, stash the credentials in the platform
+    // keystore so future sessions can skip the password.  We don't
+    // ask the user — the presence of a fingerprint/face on the device
+    // is implicit consent to use it; if they dislike it they can
+    // toggle off in settings.
+    if (bioAvailable && !bioEnabled) {
+      try {
+        await saveCredentialsForBiometric(email, password);
+        setBioEnabled(true);
+      } catch { /* non-fatal */ }
+    }
+  };
+
+  const handleBiometricUnlock = async () => {
+    setLoading(true);
+    const creds = await unlockWithBiometric();
+    if (!creds) {
+      setLoading(false);
+      return; // user cancelled or biometric failed
+    }
+    const { error } = await signIn(creds.email, creds.password);
+    setLoading(false);
+    if (error) {
+      toast.error('Stored credentials no longer work. Please sign in with password.');
+      return;
+    }
+    toast.success('Welcome back!');
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -133,6 +187,25 @@ const Auth = () => {
               </>
             )}
           </Button>
+
+          {/* Biometric unlock — native-only, only after the user has
+              at least one password login under their belt so we have
+              credentials to unlock to.  Hidden on web and on fresh
+              installs; appears after first successful sign-in. */}
+          {mode === 'signin' && bioAvailable && bioEnabled && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={loading}
+              onClick={handleBiometricUnlock}
+              className="w-full h-10 gap-2 font-medium"
+            >
+              <Fingerprint className="h-4 w-4" />
+              {bioKind === 'face'        ? 'Unlock with Face ID' :
+               bioKind === 'fingerprint' ? 'Unlock with fingerprint' :
+                                           'Unlock with biometric'}
+            </Button>
+          )}
         </form>
 
         {/* Sign up benefits */}
