@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,6 +21,7 @@ import { useLoyaltyConfig, validatePromoCode, validateGiftCard, MAX_REDEEM_PCT }
 import { Input } from '@/components/ui/input';
 
 export default function POS() {
+  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const bookingId = searchParams.get('bookingId');
   const { tenant, profile, hasRole } = useAuth();

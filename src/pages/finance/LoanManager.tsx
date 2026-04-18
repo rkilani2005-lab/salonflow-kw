@@ -96,7 +96,6 @@ export default function LoanManager() {
         emptyState={{
           icon: Landmark,
           title: ar ? 'لا توجد قروض مسجلة' : 'No loans recorded',
-          size: 'compact',
         }}
       >
         {loans?.map(loan => {

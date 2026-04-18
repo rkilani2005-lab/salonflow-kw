@@ -50,7 +50,7 @@ async function safeApplyGRN(
       } as any)
       .eq('id', productId)
       .eq('current_stock', oldStock) // optimistic guard
-      .select('*', { count: 'exact', head: true });
+      .select('*');
 
     if (!updErr && (count ?? 1) > 0) {
       return { ok: true, newStock, newWAC: roundedWAC };

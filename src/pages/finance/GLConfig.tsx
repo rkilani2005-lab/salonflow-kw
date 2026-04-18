@@ -280,7 +280,6 @@ function CenterTable({ type, ar }: { type: 'cost' | 'profit'; ar: boolean }) {
         loadingRows={3}
         emptyState={{
           title: ar ? 'لا توجد مراكز بعد' : 'No centers yet — add one above',
-          size: 'compact',
         }}
       >
         <div className="border rounded-lg overflow-hidden divide-y divide-border">

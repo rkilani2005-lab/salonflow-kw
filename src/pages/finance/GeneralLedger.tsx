@@ -107,7 +107,6 @@ export default function GeneralLedger() {
             emptyState={{
               icon: BookOpen,
               title: ar ? 'لا توجد قيود في هذه الفترة' : 'No journal entries in this period',
-              size: 'compact',
             }}
           >
           {entries?.map(je => (
@@ -168,7 +167,6 @@ export default function GeneralLedger() {
                 emptyState={{
                   icon: BookOpen,
                   title: ar ? 'لا توجد بيانات' : 'No data for this period',
-                  size: 'compact',
                 }}
               >
                 <div className="overflow-x-auto">

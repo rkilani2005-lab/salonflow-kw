@@ -702,7 +702,6 @@ export default function Reports() {
                   emptyState={{
                     icon: TrendingUp,
                     title: t('No service data', 'لا توجد بيانات'),
-                    size: 'compact',
                   }}
                 >
                   <div className="space-y-2">
@@ -790,7 +789,6 @@ export default function Reports() {
                 emptyState={{
                   icon: Users,
                   title: t('No staff data', 'لا توجد بيانات'),
-                  size: 'compact',
                 }}
               >
                 <>
