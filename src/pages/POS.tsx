@@ -16,7 +16,7 @@ const supabase = _supabase as any;
 import { ShoppingCart, CalendarCheck, RotateCcw, Tag, Star, X, Loader2, AlertTriangle } from 'lucide-react';
 import { RefundDialog } from '@/components/pos/RefundDialog';
 import { useTransactionById } from '@/hooks/useTransactions';
-import { useLoyaltyConfig, validatePromoCode, validateGiftCard } from '@/hooks/useLoyalty';
+import { useLoyaltyConfig, validatePromoCode, validateGiftCard, MAX_REDEEM_PCT } from '@/hooks/useLoyalty';
 import { Input } from '@/components/ui/input';
 
 export default function POS() {
@@ -90,13 +90,22 @@ export default function POS() {
   // Promo discount
   const promoDiscount = promoResult?.is_valid ? Number(promoResult.discount_amount) : 0;
 
-  // Loyalty points redemption value
+  // Loyalty points redemption value.  Caps by both a percentage of the
+  // pre-tax subtotal AND the net discountable amount (subtotal minus
+  // any manual / promo discounts already applied).  Previously the
+  // calculation used fields that do not exist on the loyalty_config
+  // row — kwd_per_point, max_redeem_pct, is_enabled — so it silently
+  // returned NaN / 0 and the entire loyalty flow was a no-op.
   const loyaltyDiscount = useMemo(() => {
-    if (!redeemPoints || !loyaltyConfig?.is_enabled) return 0;
-    const val = Math.round(redeemPoints * loyaltyConfig.kwd_per_point * 1000) / 1000;
-    const maxPct = loyaltyConfig.max_redeem_pct / 100;
-    return Math.min(val, subtotal * maxPct);
-  }, [redeemPoints, loyaltyConfig, subtotal]);
+    if (!redeemPoints || !loyaltyConfig?.is_active) return 0;
+    const val = Math.round(redeemPoints * Number(loyaltyConfig.redemption_rate) * 1000) / 1000;
+    const cap = Math.min(
+      subtotal * (MAX_REDEEM_PCT / 100),
+      // Don't let loyalty stack past what's actually discountable.
+      Math.max(0, subtotal - discountAmount - promoDiscount),
+    );
+    return Math.min(val, cap);
+  }, [redeemPoints, loyaltyConfig, subtotal, discountAmount, promoDiscount]);
 
   const totalDiscount  = Math.round((discountAmount + promoDiscount + loyaltyDiscount) * 1000) / 1000;
   const taxRate = Number(tenant?.default_tax_rate || 0) / 100;
@@ -240,16 +249,25 @@ export default function POS() {
         grand_total: grandTotal,
       });
 
-      // Award loyalty points to client
-      if (selectedClient?.id && loyaltyConfig?.is_enabled && grandTotal > 0) {
-        const pointsEarned = Math.floor(grandTotal * loyaltyConfig.points_per_kwd);
-        const pointsSpent  = redeemPoints;
-        const netPoints    = pointsEarned - pointsSpent;
+      // Award / deduct loyalty points.  Re-reads the client balance from
+      // the DB at this moment — the selectedClient prop can be stale if
+      // another device (or another sale) changed the balance after the
+      // current cart was assembled.
+      if (selectedClient?.id && loyaltyConfig?.is_active && grandTotal > 0) {
+        const pointsEarned = Math.floor(grandTotal * Number(loyaltyConfig.points_per_kwd));
 
-        // Get current balance
         const { data: clientData } = await supabase
           .from('clients').select('loyalty_points').eq('id', selectedClient.id).single();
         const currentBalance = Number(clientData?.loyalty_points || 0);
+
+        // Redemption concurrency guard: never debit more than the client
+        // actually has right now.  If they tried to redeem 500 but only
+        // 420 remain (another sale used the rest), cap the debit to 420
+        // and flag it to the cashier in the toast at the end of the flow.
+        const pointsSpent = Math.min(redeemPoints, currentBalance);
+        const pointsShort = redeemPoints - pointsSpent;
+
+        const netPoints  = pointsEarned - pointsSpent;
         const newBalance = Math.max(0, currentBalance + netPoints);
 
         await supabase.from('clients').update({ loyalty_points: newBalance }).eq('id', selectedClient.id);
@@ -267,7 +285,13 @@ export default function POS() {
             tenant_id: tenant!.id, client_id: selectedClient.id,
             transaction_id: txn.id, type: 'redeem',
             points: -pointsSpent, balance_after: newBalance,
-            note: `Redeemed for ${loyaltyDiscount.toFixed(3)} KWD discount`,
+            note: `Redeemed for ${loyaltyDiscount.toFixed(3)} ${tenant?.currency || 'KWD'} discount`,
+          });
+        }
+        if (pointsShort > 0) {
+          toast({
+            title: 'Loyalty adjustment',
+            description: `Only ${pointsSpent} of the ${redeemPoints} requested points were available — balance had changed.`,
           });
         }
       }
@@ -513,15 +537,15 @@ export default function POS() {
             </div>
 
             {/* Loyalty Points Redemption */}
-            {selectedClient && loyaltyConfig?.is_enabled && (
+            {selectedClient && loyaltyConfig?.is_active && (
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                   <span className="flex items-center gap-1"><Star className="h-3 w-3 text-amber-500"/>
                     {(selectedClient as any).loyalty_points || 0} points available
-                    {loyaltyConfig && <span>· {(((selectedClient as any).loyalty_points || 0) * loyaltyConfig.kwd_per_point).toFixed(3)} KWD value</span>}
+                    {loyaltyConfig && <span>· {(((selectedClient as any).loyalty_points || 0) * Number(loyaltyConfig.redemption_rate)).toFixed(3)} {tenant?.currency || 'KWD'} value</span>}
                   </span>
                 </div>
-                {((selectedClient as any).loyalty_points || 0) >= loyaltyConfig.min_redeem_points && (
+                {((selectedClient as any).loyalty_points || 0) >= Number(loyaltyConfig.min_redemption) && (
                   <div className="flex gap-1.5">
                     <Input
                       type="number" min="0" max={(selectedClient as any).loyalty_points || 0}

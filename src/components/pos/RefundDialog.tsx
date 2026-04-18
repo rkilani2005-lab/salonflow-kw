@@ -317,9 +317,56 @@ export function RefundDialog({ open, onOpenChange, transaction, onRefundComplete
         }
       } catch { /* silent — GL reversal is best-effort, like the sale JE */ }
 
+      // 5. Loyalty reversal.  Prorated by refundRatio so a partial
+      //    refund gives back a proportional share of redeemed points
+      //    and deducts a proportional share of points that were earned.
+      //    Without this, every refund quietly created a points imbalance:
+      //    earned points persisted, redeemed points were lost forever.
+      try {
+        const { data: loyaltyRows } = await supabase
+          .from('loyalty_transactions')
+          .select('id, client_id, type, points')
+          .eq('transaction_id', transaction.id)
+          .in('type', ['earn', 'redeem']);
+
+        if (loyaltyRows && loyaltyRows.length > 0 && transaction.client_id) {
+          let netAdjustment = 0; // net change to apply to client balance
+          for (const row of loyaltyRows) {
+            const originalPoints = Number(row.points); // +N for earn, -N for redeem
+            const reversePoints  = Math.round(-originalPoints * refundRatio);
+            if (reversePoints === 0) continue;
+
+            // Fetch current balance for accurate balance_after
+            const { data: client } = await supabase
+              .from('clients').select('loyalty_points').eq('id', transaction.client_id).single();
+            const before = Number(client?.loyalty_points || 0);
+            const after  = Math.max(0, before + reversePoints);
+
+            await supabase.from('loyalty_transactions').insert({
+              tenant_id: tenant.id,
+              client_id: transaction.client_id,
+              transaction_id: transaction.id,
+              type:          `refund_${row.type}`,
+              points:        reversePoints,
+              balance_after: after,
+              note:          `Refund ${ref} — reversing ${row.type} of ${Math.abs(originalPoints)} points`,
+            });
+
+            await supabase
+              .from('clients')
+              .update({ loyalty_points: after })
+              .eq('id', transaction.client_id);
+
+            netAdjustment += reversePoints;
+          }
+        }
+      } catch { /* best-effort — loyalty reversal must not block the refund */ }
+
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['bookings-calendar'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['loyalty'] });
       queryClient.invalidateQueries({ queryKey: ['journal_entries'] });
       queryClient.invalidateQueries({ queryKey: ['cash-session'] });
 

@@ -32,7 +32,7 @@ End-to-end scenarios. Each produces either a ✅ or a bug fix.
 | B.3 | Discount approval workflow | ✅ fixed (this commit) — isolated verify client prevents session hijack, self-approval blocked, brute-force throttled, best-effort audit log |
 | B.4 | Day session open/close + Z-report variance accuracy | ✅ fixed (this commit) — cash refunds now subtracted from expected cash, refund payment method persisted to transaction_payments, live day totals hook replaces stale snapshot fields |
 | B.5 | Split payments — cash + card + gift card in one checkout | ✅ fixed (this commit) — gift card overdraft blocked, multi-gift-card sums correctly, cash change display, currency not hardcoded, consistent 0.001 tolerance |
-| B.6 | Loyalty accrual & redemption math | ⬜ |
+| B.6 | Loyalty accrual & redemption math | ✅ fixed (this commit) — field names repaired (entire loyalty was a no-op), concurrency guard on redemption, discount-ordering cap, refund reverses points |
 | B.7 | Package session consumption | ⬜ |
 | B.8 | Inventory deduction on service completion (BOM / recipe) | ⬜ |
 | B.9 | PO → GRN → stock movement → GL posting chain | ⬜ |

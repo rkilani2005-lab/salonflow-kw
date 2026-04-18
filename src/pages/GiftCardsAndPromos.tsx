@@ -71,17 +71,18 @@ function LoyaltyTab({ currency, ar }: { currency: string; ar: boolean }) {
 
   const [enabled,         setEnabled]         = useState<boolean | null>(null);
   const [pointsPerKwd,    setPointsPerKwd]    = useState('');
-  const [kwdPerPoint,     setKwdPerPoint]     = useState('');
+  const [kwdPerPoint,     setKwdPerPoint]     = useState('');  // local UI name; persisted as redemption_rate
   const [minRedeem,       setMinRedeem]       = useState('');
-  const [maxRedeemPct,    setMaxRedeemPct]    = useState('');
+  const [maxRedeemPct,    setMaxRedeemPct]    = useState('');  // currently UI-only — not persisted (no column)
   const [initialized,     setInitialized]     = useState(false);
 
   if (cfg && !initialized) {
-    setEnabled(cfg.is_enabled);
-    setPointsPerKwd(String(cfg.points_per_kwd));
-    setKwdPerPoint(String(cfg.kwd_per_point));
-    setMinRedeem(String(cfg.min_redeem_points));
-    setMaxRedeemPct(String(cfg.max_redeem_pct));
+    setEnabled(cfg.is_active);
+    setPointsPerKwd(String(cfg.points_per_kwd ?? 1));
+    setKwdPerPoint(String(cfg.redemption_rate ?? 0.01));
+    setMinRedeem(String(cfg.min_redemption ?? 100));
+    // MAX_REDEEM_PCT is a code-side constant until schema migration adds it.
+    setMaxRedeemPct('50');
     setInitialized(true);
   }
   if (!cfg && !initialized && !isLoading) {
@@ -89,16 +90,16 @@ function LoyaltyTab({ currency, ar }: { currency: string; ar: boolean }) {
     setMinRedeem('100'); setMaxRedeemPct('50'); setInitialized(true);
   }
 
-  const isEnabledVal = enabled ?? cfg?.is_enabled ?? true;
+  const isEnabledVal = enabled ?? cfg?.is_active ?? true;
   const exampleEarn  = Math.round(20 * Number(pointsPerKwd || 1));
   const exampleRedeem = (100 * Number(kwdPerPoint || 0.01)).toFixed(3);
 
   const handleSave = () => save.mutate({
-    is_enabled: isEnabledVal,
-    points_per_kwd: Number(pointsPerKwd),
-    kwd_per_point: Number(kwdPerPoint),
-    min_redeem_points: Number(minRedeem),
-    max_redeem_pct: Number(maxRedeemPct),
+    is_active:       isEnabledVal,
+    points_per_kwd:  Number(pointsPerKwd),
+    redemption_rate: Number(kwdPerPoint),
+    min_redemption:  Number(minRedeem),
+    // max_redeem_pct intentionally omitted — no column.  Pending migration.
   });
 
   if (isLoading) return <Skeleton className="h-64 w-full rounded-md"/>;

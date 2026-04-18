@@ -10,12 +10,29 @@ import { useToast } from '@/hooks/use-toast';
 export interface LoyaltyConfig {
   id: string;
   tenant_id: string;
-  is_enabled: boolean;
+  /** DB column: is_active.  Source of truth for whether the loyalty
+   *  programme runs on this tenant.  Previous code read `is_enabled`,
+   *  which does not exist on the row — every check returned undefined,
+   *  so no points were ever awarded and the redemption UI never rendered. */
+  is_active: boolean;
+  /** Points earned per 1 currency unit of grand total.  e.g. 1.0 means
+   *  1 point per KWD.  Whole points are floored at award time. */
   points_per_kwd: number;
-  kwd_per_point: number;
-  min_redeem_points: number;
-  max_redeem_pct: number;
+  /** Currency value of 1 point.  e.g. 0.01 means 1 point = 0.010 KWD,
+   *  so 100 points redeems for 1 KWD.  Previously referred to as
+   *  kwd_per_point in code — that name does not exist in the schema. */
+  redemption_rate: number;
+  /** Minimum points balance required before redemption is allowed. */
+  min_redemption: number;
+  tier_vip_threshold: number | null;
+  tier_vvip_threshold: number | null;
 }
+
+/** Redemption cap as a % of subtotal.  Not yet persisted in loyalty_config
+ *  schema (no column exists), so applied as a compile-time constant until
+ *  a migration adds it.  50% is a conservative default — stops a client
+ *  from wiping an entire bill with accumulated points. */
+export const MAX_REDEEM_PCT = 50;
 
 export interface GiftCard {
   id: string;
