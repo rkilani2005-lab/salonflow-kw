@@ -192,7 +192,7 @@ export default function ExpenseManager() {
                 </tbody>
               </table>
             </div>
-          )}
+          </AsyncSection>
         </CardContent>
       </Card>
 
