@@ -302,46 +302,83 @@ export const useCreateTransaction = () => {
           .eq('id', input.booking_id);
       }
 
-      // 7. Calculate and record staff commissions for service items
+      // 7. Calculate and record staff commissions for service items.
+      //    HISTORICAL BUG: the old query selected non-existent columns
+      //    (type, amount, payment_method, reference, notes, …) on
+      //    staff_commission_rules.  That table's actual columns are
+      //    commission_type and commission_value.  The query errored
+      //    silently, rule was always undefined, and NO commission
+      //    earnings row has ever been recorded for any sale.  The UI
+      //    showed commission rules being configured but the earnings
+      //    side was dark.
+      //
+      //    Fix: use the get_commission_rate RPC provisioned in
+      //    20260325000001_sprint1_commissions.sql, which returns the
+      //    category-specific rule if one exists, otherwise the default
+      //    (NULL service_category).  Error now propagates to the
+      //    stock-warnings array so cashiers see when a commission
+      //    couldn't be recorded.
       const serviceItemsForCommission = input.items.filter(
         i => i.item_type === 'service' && i.staff_commission_id
       );
       for (const item of serviceItemsForCommission) {
         const staffId = item.staff_commission_id!;
-        // Find the service category from DB
+        // Resolve category — prefer DB truth over whatever the cart held.
         let category = 'other';
         if (item.item_id) {
           const { data: svc } = await supabase
             .from('services').select('category').eq('id', item.item_id).single();
-          if (svc?.category) category = svc.category;
+          if (svc?.category) category = svc.category as string;
         }
-        // Look up commission rule (category-specific first, then default)
-        const { data: rules } = await supabase
-          .from('staff_commission_rules')
-          .select('id, tenant_id, booking_id, client_id, type, amount, payment_method, status, reference, notes, created_at')
-          .eq('staff_id', staffId)
-          .eq('is_active', true)
-          .or(`service_category.eq.${category},service_category.is.null`)
-          .order('service_category', { ascending: false, nullsFirst: false });
 
-        const rule = rules?.[0];
-        if (rule) {
-          const commissionAmt = rule.commission_type === 'percentage'
-            ? Math.round(item.total_price * (rule.commission_value / 100) * 1000) / 1000
-            : rule.commission_value;
+        // Resolve the applicable commission rule.  Category-specific
+        // takes precedence; if none, the NULL-category default applies.
+        const { data: ruleRows, error: ruleErr } = await supabase
+          .rpc('get_commission_rate' as any, {
+            p_staff_id: staffId,
+            p_category: category,
+          } as any);
+        if (ruleErr) {
+          stockWarnings.push(`Commission lookup failed for ${item.item_name}.`);
+          continue;
+        }
+        const rule = (ruleRows as any[])?.[0];
+        if (!rule) continue; // No rule = no commission owed; normal case.
 
-          await supabase.from('staff_commission_earnings').insert({
-            tenant_id:           tenant.id,
-            staff_id:            staffId,
-            transaction_id:      txn.id,
-            rule_id:             rule.id,
-            service_name:        item.item_name,
-            sale_amount:         item.total_price,
-            commission_type:     rule.commission_type,
-            commission_rate:     rule.commission_value,
-            commission_amount:   commissionAmt,
-            payout_status:       'pending',
+        const rate = Number(rule.commission_value || 0);
+        const commissionAmt = rule.commission_type === 'percentage'
+          ? Math.round(Number(item.total_price) * (rate / 100) * 1000) / 1000
+          : rate;
+
+        if (commissionAmt <= 0) continue;
+
+        // Try to locate the matching transaction_item_id so the earning
+        // row can be precisely linked (useful for partial refund logic).
+        const { data: txnItem } = await supabase
+          .from('transaction_items')
+          .select('id')
+          .eq('transaction_id', txn.id)
+          .eq('item_id', item.item_id!)
+          .eq('staff_commission_id', staffId)
+          .maybeSingle();
+
+        const { error: earnErr } = await supabase
+          .from('staff_commission_earnings')
+          .insert({
+            tenant_id:            tenant.id,
+            staff_id:             staffId,
+            transaction_id:       txn.id,
+            transaction_item_id:  txnItem?.id ?? null,
+            rule_id:              rule.rule_id,
+            service_name:         item.item_name,
+            sale_amount:          Number(item.total_price),
+            commission_type:      rule.commission_type,
+            commission_rate:      rate,
+            commission_amount:    commissionAmt,
+            payout_status:        'pending',
           });
+        if (earnErr) {
+          stockWarnings.push(`Commission record failed for ${item.item_name}: ${earnErr.message}`);
         }
       }
 

@@ -434,6 +434,39 @@ export function RefundDialog({ open, onOpenChange, transaction, onRefundComplete
         } catch { /* best-effort */ }
       }
 
+      // 7. Staff commission reversal.  A refund means the staff member
+      //    no longer earned (in full) that commission.  Void the
+      //    earnings rows rather than delete them — preserve the audit
+      //    trail, but reduce the payable amount.
+      //
+      //    Full refund  → void the earning entirely.
+      //    Partial      → reduce commission_amount by refundRatio.  If
+      //                   the earning is already paid out, a clawback
+      //                   entry would be needed — out of scope here.
+      //                   Pending earnings are scaled in place.
+      try {
+        const { data: earnings } = await supabase
+          .from('staff_commission_earnings')
+          .select('id, commission_amount, payout_status')
+          .eq('transaction_id', transaction.id);
+
+        for (const e of earnings || []) {
+          if (e.payout_status === 'paid') continue; // don't touch paid earnings
+          if (isFullRefund) {
+            await supabase
+              .from('staff_commission_earnings')
+              .update({ commission_amount: 0, payout_status: 'voided' })
+              .eq('id', e.id);
+          } else {
+            const reduced = Math.round(Number(e.commission_amount) * (1 - refundRatio) * 1000) / 1000;
+            await supabase
+              .from('staff_commission_earnings')
+              .update({ commission_amount: Math.max(0, reduced) })
+              .eq('id', e.id);
+          }
+        }
+      } catch { /* best-effort — commission reversal must not block the refund */ }
+
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['bookings-calendar'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
