@@ -156,7 +156,6 @@ export default function ExpenseManager() {
             emptyState={{
               icon: Receipt,
               title: ar ? 'لا توجد مصروفات في هذه الفترة' : 'No expenses in this period',
-              size: 'compact',
             }}
           >
             <div className="overflow-x-auto">
