@@ -4,8 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Plus, Users, Star, Crown, Phone, Mail, Calendar, Download } from 'lucide-react';
+import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
+import { Search, Plus, Users, Star, Crown, Phone, Mail, Calendar, Download, SearchX } from 'lucide-react';
 import { useClients, ClientTier } from '@/hooks/useClients';
 import AddClientDialog from '@/components/clients/AddClientDialog';
 import ClientDetailSheet from '@/components/clients/ClientDetailSheet';
@@ -201,9 +201,7 @@ const Clients = () => {
 
       {/* Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {[...Array(8)].map((_,i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
-        </div>
+        <LoadingState variant="cards" rows={8} />
       ) : filteredClients.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredClients.map(client => (
@@ -214,18 +212,30 @@ const Clients = () => {
             />
           ))}
         </div>
+      ) : stats.total === 0 ? (
+        <EmptyState
+          icon={Users}
+          title={ar ? 'لا توجد عميلات بعد' : 'No clients yet'}
+          description={ar
+            ? 'أضيفي أول عميلة لتبدئي في تتبع الزيارات والمبيعات'
+            : 'Add your first client to start tracking visits and sales'}
+          action={{
+            label: ar ? 'إضافة عميلة' : 'Add Client',
+            onClick: () => setIsAddDialogOpen(true),
+          }}
+        />
       ) : (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-4">
-            <Users className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <p className="font-semibold text-muted-foreground">
-            {ar ? 'لا توجد عميلات' : 'No clients found'}
-          </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            {ar ? 'جربي البحث بكلمة مختلفة' : 'Try a different search term'}
-          </p>
-        </div>
+        <EmptyState
+          icon={SearchX}
+          title={ar ? 'لا توجد نتائج' : 'No matches'}
+          description={ar
+            ? 'جربي البحث بكلمة مختلفة أو غيّري الفلتر'
+            : 'Try a different search term or change the filter'}
+          secondaryAction={{
+            label: ar ? 'مسح البحث' : 'Clear search',
+            onClick: () => { setSearchInput(''); setTierFilter('all'); },
+          }}
+        />
       )}
 
       <AddClientDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} />

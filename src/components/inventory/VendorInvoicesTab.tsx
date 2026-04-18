@@ -8,6 +8,7 @@ import { Plus, FileText, AlertTriangle } from 'lucide-react';
 import { CreateInvoiceDialog } from './CreateInvoiceDialog';
 import { InvoiceDetailSheet } from './InvoiceDetailSheet';
 import { format, isPast, parseISO } from 'date-fns';
+import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
 
 export const VendorInvoicesTab = () => {
   const [statusFilter, setStatusFilter] = useState('all');
@@ -49,12 +50,22 @@ export const VendorInvoicesTab = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-48 text-muted-foreground">Loading...</div>
+        <LoadingState variant="table" rows={5} />
       ) : !invoices?.length ? (
-        <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-          <FileText className="h-12 w-12 mb-3 opacity-40" />
-          <p>No invoices found</p>
-        </div>
+        <EmptyState
+          icon={FileText}
+          title={statusFilter !== 'all' ? 'No invoices in this status' : 'No vendor invoices yet'}
+          description={
+            statusFilter !== 'all'
+              ? 'Try switching to "All Statuses" or record a new invoice.'
+              : 'Record supplier invoices to track amounts owed, due dates, and AP aging.'
+          }
+          action={
+            statusFilter !== 'all'
+              ? { label: 'Show all', onClick: () => setStatusFilter('all') }
+              : { label: 'Create Invoice', onClick: () => setCreateOpen(true) }
+          }
+        />
       ) : (
         <div className="rounded-md border">
           <Table>

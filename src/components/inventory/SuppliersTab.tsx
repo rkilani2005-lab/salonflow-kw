@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Search, Truck } from 'lucide-react';
 import { AddSupplierDialog } from './AddSupplierDialog';
 import { useDebounce } from '@/hooks/useDebounce';
+import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
 
 export const SuppliersTab = () => {
   const [search, setSearch] = useState('');
@@ -33,12 +34,22 @@ export const SuppliersTab = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-48 text-muted-foreground">Loading...</div>
+        <LoadingState variant="table" rows={5} />
       ) : !suppliers?.length ? (
-        <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-          <Truck className="h-12 w-12 mb-3 opacity-40" />
-          <p>No suppliers found</p>
-        </div>
+        <EmptyState
+          icon={Truck}
+          title={search ? 'No suppliers match your search' : 'No suppliers yet'}
+          description={
+            search
+              ? 'Try a different search term.'
+              : 'Add your suppliers to start tracking purchase orders and invoices.'
+          }
+          action={
+            search
+              ? { label: 'Clear search', onClick: () => setSearch('') }
+              : { label: 'Add Supplier', onClick: () => setAddOpen(true) }
+          }
+        />
       ) : (
         <div className="rounded-md border">
           <Table>

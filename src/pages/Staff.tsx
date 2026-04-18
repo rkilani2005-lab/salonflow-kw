@@ -3,8 +3,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Plus, Users, Clock, UserCheck, Phone, Mail, Scissors, Download } from 'lucide-react';
+import { Skeleton as _Skel } from '@/components/ui/skeleton';
+import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
+import { Search, Plus, Users, Clock, UserCheck, Phone, Mail, Scissors, Download, SearchX } from 'lucide-react';
 import { useStaff } from '@/hooks/useStaff';
 import AddStaffDialog from '@/components/staff/AddStaffDialog';
 import StaffDetailSheet from '@/components/staff/StaffDetailSheet';
@@ -163,9 +164,7 @@ const Staff = () => {
 
       {/* Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {[...Array(6)].map((_,i) => <Skeleton key={i} className="h-40 rounded-xl" />)}
-        </div>
+        <LoadingState variant="cards" rows={6} />
       ) : staff && staff.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {staff.map(member => (
@@ -176,18 +175,28 @@ const Staff = () => {
             />
           ))}
         </div>
+      ) : debouncedSearch ? (
+        <EmptyState
+          icon={SearchX}
+          title={ar ? 'لا توجد نتائج' : 'No matches'}
+          description={ar ? 'جربي البحث بكلمة مختلفة' : 'Try a different search term'}
+          secondaryAction={{
+            label: ar ? 'مسح البحث' : 'Clear search',
+            onClick: () => setSearchInput(''),
+          }}
+        />
       ) : (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-4">
-            <Scissors className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <p className="font-semibold text-muted-foreground">
-            {ar ? 'لا توجد موظفات' : 'No staff found'}
-          </p>
-          <Button size="sm" onClick={() => setIsAddDialogOpen(true)} className="mt-3">
-            {ar ? 'إضافة أول موظفة' : 'Add your first staff member'}
-          </Button>
-        </div>
+        <EmptyState
+          icon={Scissors}
+          title={ar ? 'لا توجد موظفات بعد' : 'No staff yet'}
+          description={ar
+            ? 'أضيفي أول موظفة لجدولة المواعيد وتتبع العمولات'
+            : 'Add your first staff member to schedule appointments and track commissions'}
+          action={{
+            label: ar ? 'إضافة موظفة' : 'Add Staff',
+            onClick: () => setIsAddDialogOpen(true),
+          }}
+        />
       )}
 
       <AddStaffDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} />

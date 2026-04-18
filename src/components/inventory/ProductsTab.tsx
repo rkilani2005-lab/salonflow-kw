@@ -9,6 +9,7 @@ import { Plus, Search, Package } from 'lucide-react';
 import { AddProductDialog } from './AddProductDialog';
 import { ProductDetailSheet } from './ProductDetailSheet';
 import { useDebounce } from '@/hooks/useDebounce';
+import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
 
 const getStockLevelColor = (current: number, reorderPoint: number) => {
   if (current <= reorderPoint) return 'destructive';
@@ -70,12 +71,22 @@ export const ProductsTab = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-48 text-muted-foreground">Loading...</div>
+        <LoadingState variant="table" rows={6} />
       ) : !products?.length ? (
-        <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-          <Package className="h-12 w-12 mb-3 opacity-40" />
-          <p>No products found</p>
-        </div>
+        <EmptyState
+          icon={Package}
+          title={search || typeFilter !== 'all' ? 'No products match your filter' : 'No products yet'}
+          description={
+            search || typeFilter !== 'all'
+              ? 'Try adjusting the search or type filter above.'
+              : 'Add your first product to start tracking inventory, costs, and stock levels.'
+          }
+          action={
+            search || typeFilter !== 'all'
+              ? { label: 'Clear filters', onClick: () => { setSearch(''); setTypeFilter('all'); } }
+              : { label: 'Add Product', onClick: () => setAddOpen(true) }
+          }
+        />
       ) : (
         <div className="rounded-md border">
           <Table>

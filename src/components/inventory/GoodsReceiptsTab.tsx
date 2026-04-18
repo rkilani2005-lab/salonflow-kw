@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { CreateGoodsReceiptDialog } from './CreateGoodsReceiptDialog';
 import { GoodsReceiptDetailSheet } from './GoodsReceiptDetailSheet';
 import { format } from 'date-fns';
+import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
 
 export const GoodsReceiptsTab = () => {
   const [showCreate, setShowCreate] = useState(false);
@@ -30,13 +31,15 @@ export const GoodsReceiptsTab = () => {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground text-sm py-4 text-center">Loading...</p>
+            <LoadingState variant="table" rows={4} />
           ) : !receipts || receipts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <PackageCheck className="h-12 w-12 mb-3 opacity-40" />
-              <p>No goods receipts yet</p>
-              <p className="text-xs mt-1">Receive goods against approved Purchase Orders</p>
-            </div>
+            <EmptyState
+              icon={PackageCheck}
+              size="compact"
+              title="No goods receipts yet"
+              description="Receive goods against approved Purchase Orders to keep stock and GL in sync."
+              action={canReceive ? { label: 'Receive Goods', onClick: () => setShowCreate(true) } : undefined}
+            />
           ) : (
             <div className="rounded-md border">
               <Table>

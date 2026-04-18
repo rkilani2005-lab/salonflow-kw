@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowDownUp } from 'lucide-react';
 import { format } from 'date-fns';
+import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
 
 interface InventoryTransaction {
   id: string;
@@ -42,14 +43,15 @@ export const StockMovementsTab = () => {
     enabled: !!tenant?.id,
   });
 
-  if (isLoading) return <div className="flex items-center justify-center h-48 text-muted-foreground">Loading...</div>;
+  if (isLoading) return <LoadingState variant="table" rows={8} />;
 
   if (!transactions?.length) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-        <ArrowDownUp className="h-12 w-12 mb-3 opacity-40" />
-        <p>No stock movements yet</p>
-      </div>
+      <EmptyState
+        icon={ArrowDownUp}
+        title="No stock movements yet"
+        description="Movements appear automatically when you receive goods, sell retail, or consume products during services."
+      />
     );
   }
 

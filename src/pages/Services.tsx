@@ -10,8 +10,8 @@
    SelectTrigger,
    SelectValue,
  } from '@/components/ui/select';
- import { Skeleton } from '@/components/ui/skeleton';
- import { Search, Plus, Scissors, Clock, DollarSign, Filter } from 'lucide-react';
+ import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
+ import { Search, Plus, Scissors, Clock, DollarSign, Filter, SearchX } from 'lucide-react';
  import { useServicesManagement, SERVICE_CATEGORIES, Service } from '@/hooks/useServices';
  import AddServiceDialog from '@/components/services/AddServiceDialog';
  import ServiceDetailSheet from '@/components/services/ServiceDetailSheet';
@@ -137,29 +137,26 @@
  
        {/* Services List */}
        {isLoading ? (
-         <div className="space-y-4">
-           {[...Array(3)].map((_, i) => (
-             <Skeleton key={i} className="h-40 w-full" />
-           ))}
-         </div>
+         <LoadingState variant="rows" rows={3} />
        ) : services?.length === 0 ? (
-         <Card>
-           <CardContent className="text-center py-12">
-             <Scissors className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-             <h3 className="font-medium mb-1">No services found</h3>
-             <p className="text-sm text-muted-foreground mb-4">
-               {searchInput || categoryFilter !== 'all'
-                 ? 'Try adjusting your search or filters'
-                 : 'Add your first service to get started'}
-             </p>
-             {!searchInput && categoryFilter === 'all' && (
-               <Button onClick={() => setIsAddDialogOpen(true)}>
-                 <Plus className="h-4 w-4 mr-2" />
-                 Add Service
-               </Button>
-             )}
-           </CardContent>
-         </Card>
+         searchInput || categoryFilter !== 'all' ? (
+           <EmptyState
+             icon={SearchX}
+             title="No matches"
+             description="Try adjusting your search or filters"
+             secondaryAction={{
+               label: 'Clear filters',
+               onClick: () => { setSearchInput(''); setCategoryFilter('all'); },
+             }}
+           />
+         ) : (
+           <EmptyState
+             icon={Scissors}
+             title="No services yet"
+             description="Add your first service to build your catalog"
+             action={{ label: 'Add Service', onClick: () => setIsAddDialogOpen(true) }}
+           />
+         )
        ) : categoryFilter === 'all' ? (
          // Grouped view by category
          <div className="space-y-6">

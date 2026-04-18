@@ -9,6 +9,7 @@ import { CreatePODialog } from './CreatePODialog';
 import { PODetailSheet } from './PODetailSheet';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
 
 export const PurchaseOrdersTab = () => {
   const [statusFilter, setStatusFilter] = useState('all');
@@ -50,12 +51,25 @@ export const PurchaseOrdersTab = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-48 text-muted-foreground">Loading...</div>
+        <LoadingState variant="table" rows={5} />
       ) : !orders?.length ? (
-        <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-          <ClipboardList className="h-12 w-12 mb-3 opacity-40" />
-          <p>No purchase orders found</p>
-        </div>
+        <EmptyState
+          icon={ClipboardList}
+          title={statusFilter !== 'all' ? 'No purchase orders in this status' : 'No purchase orders yet'}
+          description={
+            statusFilter !== 'all'
+              ? 'Try switching to "All Statuses" or create a new PO.'
+              : 'Create your first purchase order to start procuring from suppliers.'
+          }
+          action={
+            statusFilter !== 'all'
+              ? { label: 'Show all', onClick: () => setStatusFilter('all') }
+              : { label: 'Create PO', onClick: () => setCreateOpen(true) }
+          }
+          secondaryAction={
+            statusFilter !== 'all' ? { label: 'Create PO', onClick: () => setCreateOpen(true) } : undefined
+          }
+        />
       ) : (
         <div className="rounded-md border overflow-hidden">
           <Table>
