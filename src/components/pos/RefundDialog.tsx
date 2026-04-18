@@ -182,6 +182,20 @@ export function RefundDialog({ open, onOpenChange, transaction, onRefundComplete
         .select('id')
         .single();
 
+      // 2b. Insert a payment row for the reversal with the chosen method.
+      //     Without this, the Z-report can't attribute the refund to a
+      //     specific payment method (cash vs card vs knet), which breaks
+      //     cash-drawer variance calculation.  Amount is negative.
+      if (refundTxn?.id) {
+        await supabase
+          .from('transaction_payments')
+          .insert({
+            transaction_id: refundTxn.id,
+            payment_method: refundMethod as any,
+            amount:         -(refundAmount),
+          });
+      }
+
       // 3. Reverse inventory — retail products AND service recipe consumption.
       //    Partial refunds skip inventory by default (amount was refunded, but
       //    items weren't physically returned — that's a business decision).

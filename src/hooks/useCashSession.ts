@@ -51,61 +51,85 @@ export interface SessionPayout {
 
 // ── Helpers ─────────────────────────────────────────────────────
 
-/** Pull payment-method totals from transactions for a given date */
-async function fetchDayTotals(tenantId: string, sessionDate: string) {
+export interface DayTotals {
+  cashSales: number; knetSales: number; cardSales: number; giftSales: number;
+  cashRefunds: number; knetRefunds: number; cardRefunds: number; giftRefunds: number;
+  refunds: number;   // total across all methods
+  netRevenue: number;
+  txnCount: number;
+}
+
+/** Pull payment-method totals from transactions for a given date, broken
+ *  out by method for both sales and refunds.  The per-method refund split
+ *  is required so the cash-drawer variance can subtract ONLY cash refunds,
+ *  not card/knet/gift refunds that never touched the till. */
+async function fetchDayTotals(tenantId: string, sessionDate: string): Promise<DayTotals> {
   const dateStart = `${sessionDate}T00:00:00`;
   const dateEnd   = `${sessionDate}T23:59:59`;
 
-  // All completed transactions for today
-  const { data: txns } = await supabase
+  // Completed sales today
+  const { data: saleTxns } = await supabase
     .from('transactions')
-    .select('id, grand_total, status')
+    .select('id')
     .eq('tenant_id', tenantId)
     .eq('status', 'completed')
     .gte('created_at', dateStart)
     .lte('created_at', dateEnd);
+  const saleIds = (saleTxns || []).map((t: any) => t.id);
 
-  const txnIds = (txns || []).map(t => t.id);
-
-  let cashSales = 0, knetSales = 0, cardSales = 0, giftSales = 0;
-  let refunds = 0;
-  let txnCount = (txns || []).length;
-
-  if (txnIds.length > 0) {
-    const { data: payments } = await supabase
-      .from('transaction_payments')
-      .select('payment_method, amount, transaction_id')
-      .in('transaction_id', txnIds);
-
-    for (const p of payments || []) {
-      const amt = Number(p.amount);
-      if (p.payment_method === 'cash')        cashSales += amt;
-      else if (p.payment_method === 'knet')   knetSales += amt;
-      else if (p.payment_method === 'credit_card') cardSales += amt;
-      else if (p.payment_method === 'gift_card')   giftSales += amt;
-    }
-  }
-
-  // Refunds issued today — only sum the NEGATIVE reversal rows.
-  // A refund creates two rows with status='refunded': the original
-  // transaction (positive grand_total) and a reversal row (negative
-  // grand_total).  Previously we Math.abs()'d both, double-counting
-  // every refund in the Z-report.  The money-out event IS the reversal
-  // row, so filter to grand_total < 0.
+  // Refund reversals today (negative grand_total rows)
   const { data: refundTxns } = await supabase
     .from('transactions')
-    .select('grand_total')
+    .select('id')
     .eq('tenant_id', tenantId)
     .eq('status', 'refunded')
     .lt('grand_total', 0)
     .gte('created_at', dateStart)
     .lte('created_at', dateEnd);
+  const refundIds = (refundTxns || []).map((t: any) => t.id);
 
-  for (const r of refundTxns || []) {
-    refunds += Math.abs(Number(r.grand_total));
+  let cashSales = 0, knetSales = 0, cardSales = 0, giftSales = 0;
+  let cashRefunds = 0, knetRefunds = 0, cardRefunds = 0, giftRefunds = 0;
+
+  if (saleIds.length > 0) {
+    const { data: salePayments } = await supabase
+      .from('transaction_payments')
+      .select('payment_method, amount')
+      .in('transaction_id', saleIds);
+    for (const p of salePayments || []) {
+      const amt = Number(p.amount);
+      if      (p.payment_method === 'cash')        cashSales += amt;
+      else if (p.payment_method === 'knet')        knetSales += amt;
+      else if (p.payment_method === 'credit_card') cardSales += amt;
+      else if (p.payment_method === 'gift_card')   giftSales += amt;
+    }
   }
 
-  return { cashSales, knetSales, cardSales, giftSales, refunds, txnCount };
+  if (refundIds.length > 0) {
+    const { data: refundPayments } = await supabase
+      .from('transaction_payments')
+      .select('payment_method, amount')
+      .in('transaction_id', refundIds);
+    for (const p of refundPayments || []) {
+      // Reversal payment rows are inserted with negative amount.  Take abs.
+      const amt = Math.abs(Number(p.amount));
+      if      (p.payment_method === 'cash')        cashRefunds += amt;
+      else if (p.payment_method === 'knet')        knetRefunds += amt;
+      else if (p.payment_method === 'credit_card') cardRefunds += amt;
+      else if (p.payment_method === 'gift_card')   giftRefunds += amt;
+    }
+  }
+
+  const refunds    = cashRefunds + knetRefunds + cardRefunds + giftRefunds;
+  const grossSales = cashSales + knetSales + cardSales + giftSales;
+  const netRevenue = grossSales - refunds;
+  const txnCount   = (saleTxns || []).length;
+
+  return {
+    cashSales, knetSales, cardSales, giftSales,
+    cashRefunds, knetRefunds, cardRefunds, giftRefunds,
+    refunds, netRevenue, txnCount,
+  };
 }
 
 // ── Hooks ───────────────────────────────────────────────────────
@@ -129,6 +153,21 @@ export function useTodaySession() {
       const { data } = await q.maybeSingle();
       return data as (CashSession & { payouts: SessionPayout[] }) | null;
     },
+    enabled: !!tenant?.id,
+    refetchInterval: 30_000,
+  });
+}
+
+/** Live totals from transactions for the current day — used by the open-
+ *  session dashboard so it reflects real-time sales and refunds instead
+ *  of the stale snapshot fields on cash_sessions (those are written only
+ *  on close). */
+export function useLiveDayTotals() {
+  const { tenant } = useAuth();
+  const today = format(new Date(), 'yyyy-MM-dd');
+  return useQuery({
+    queryKey: ['cash-session-live-totals', tenant?.id, today],
+    queryFn: () => fetchDayTotals(tenant!.id, today),
     enabled: !!tenant?.id,
     refetchInterval: 30_000,
   });
@@ -250,8 +289,14 @@ export function useCloseDay() {
       if (!session) throw new Error('Session not found');
       if (session.status === 'closed') throw new Error('Session is already closed');
 
+      // Expected Cash = opening float
+      //                + cash collected from sales
+      //                - cash handed back as refunds
+      //                - cash paid out of the drawer (supplies, tips, etc.)
+      // Previously cashRefunds was missing from this formula, producing
+      // fake negative variance whenever a cash refund was issued.
       const expectedCash =
-        Number(session.opening_balance) + totals.cashSales - totalPayouts;
+        Number(session.opening_balance) + totals.cashSales - totals.cashRefunds - totalPayouts;
       const variance = input.closing_cash_counted - expectedCash;
 
       const { data, error } = await supabase

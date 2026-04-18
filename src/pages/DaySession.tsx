@@ -3,7 +3,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   useTodaySession, useOpenDay, useCloseDay, useAddPayout,
-  useSessionHistory, type CashSession,
+  useSessionHistory, useLiveDayTotals, type CashSession,
 } from '@/hooks/useCashSession';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -186,13 +186,25 @@ function LiveSessionDashboard({
   const [payoutReason, setPayoutReason] = useState('');
   const [payoutTo,     setPayoutTo]     = useState('');
 
+  // Pull live per-method totals from today's transactions.  The snapshot
+  // fields on the session row are only written on close, so reading them
+  // directly during the open day gave 0 values and a meaningless
+  // "Expected Cash" that was just opening_balance minus payouts.
+  const { data: live } = useLiveDayTotals();
+  const liveCashSales   = live?.cashSales   ?? 0;
+  const liveKnetSales   = live?.knetSales   ?? 0;
+  const liveCardSales   = live?.cardSales   ?? 0;
+  const liveGiftSales   = live?.giftSales   ?? 0;
+  const liveCashRefunds = live?.cashRefunds ?? 0;
+  const liveRefunds     = live?.refunds     ?? 0;
+
   const totalPayouts = (session?.payouts || []).reduce((s, p) => s + Number(p.amount), 0);
-  const expectedCash = Number(session?.opening_balance || 0) + Number(session?.total_cash_sales || 0) - totalPayouts;
-  const totalRevenue =
-    Number(session?.total_cash_sales || 0) +
-    Number(session?.total_knet_sales  || 0) +
-    Number(session?.total_card_sales  || 0) +
-    Number(session?.total_gift_sales  || 0);
+  // Expected cash = opening + cash sales − cash refunds − cash payouts.
+  // The cash-refunds term is critical — without it, a cash refund
+  // produces a fake negative variance equal to the refund amount.
+  const expectedCash =
+    Number(session?.opening_balance || 0) + liveCashSales - liveCashRefunds - totalPayouts;
+  const totalRevenue = liveCashSales + liveKnetSales + liveCardSales + liveGiftSales - liveRefunds;
 
   // Variance preview while typing
   const variance = cashCounted ? parseFloat(cashCounted) - expectedCash : null;
@@ -284,10 +296,10 @@ function LiveSessionDashboard({
         <CardContent className="p-4">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: ar ? 'نقداً' : 'Cash',           val: session?.total_cash_sales || 0, icon: Banknote,    color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
-              { label: 'K-NET',                          val: session?.total_knet_sales || 0, icon: CreditCard,  color: 'text-blue-600',    bg: 'bg-blue-50 dark:bg-blue-950/30' },
-              { label: ar ? 'بطاقة ائتمان' : 'Card',    val: session?.total_card_sales || 0, icon: CreditCard,  color: 'text-violet-600',  bg: 'bg-violet-50 dark:bg-violet-950/30' },
-              { label: ar ? 'بطاقة هدية' : 'Gift Card', val: session?.total_gift_sales || 0, icon: Receipt,     color: 'text-pink-600',    bg: 'bg-pink-50 dark:bg-pink-950/30' },
+              { label: ar ? 'نقداً' : 'Cash',           val: liveCashSales, icon: Banknote,    color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+              { label: 'K-NET',                          val: liveKnetSales, icon: CreditCard,  color: 'text-blue-600',    bg: 'bg-blue-50 dark:bg-blue-950/30' },
+              { label: ar ? 'بطاقة ائتمان' : 'Card',    val: liveCardSales, icon: CreditCard,  color: 'text-violet-600',  bg: 'bg-violet-50 dark:bg-violet-950/30' },
+              { label: ar ? 'بطاقة هدية' : 'Gift Card', val: liveGiftSales, icon: Receipt,     color: 'text-pink-600',    bg: 'bg-pink-50 dark:bg-pink-950/30' },
             ].map(item => {
               const Icon = item.icon;
               const pct = totalRevenue > 0 ? Math.round((item.val / totalRevenue) * 100) : 0;
@@ -340,18 +352,23 @@ function LiveSessionDashboard({
           <div className="r"><span>Opened / الافتتاح</span><span>{format(new Date(session!.opened_at), 'HH:mm')}</span></div>
           <div className="r"><span>Opening Float</span><span>{fmt(session?.opening_balance, currency)}</span></div>
           <div className="l" />
-          <div className="r b"><span>Cash Sales</span><span>{fmt(session?.total_cash_sales, currency)}</span></div>
-          <div className="r b"><span>K-NET Sales</span><span>{fmt(session?.total_knet_sales, currency)}</span></div>
-          <div className="r b"><span>Card Sales</span><span>{fmt(session?.total_card_sales, currency)}</span></div>
-          <div className="r b"><span>Gift Card</span><span>{fmt(session?.total_gift_sales, currency)}</span></div>
+          <div className="r b"><span>Cash Sales</span><span>{fmt(liveCashSales, currency)}</span></div>
+          <div className="r b"><span>K-NET Sales</span><span>{fmt(liveKnetSales, currency)}</span></div>
+          <div className="r b"><span>Card Sales</span><span>{fmt(liveCardSales, currency)}</span></div>
+          <div className="r b"><span>Gift Card</span><span>{fmt(liveGiftSales, currency)}</span></div>
           <div className="l" />
           <div className="r"><span>Cash Payouts</span><span>- {fmt(totalPayouts, currency)}</span></div>
-          <div className="r"><span>Refunds</span><span>- {fmt(session?.total_refunds, currency)}</span></div>
+          <div className="r"><span>Refunds (total)</span><span>- {fmt(liveRefunds, currency)}</span></div>
+          {liveCashRefunds > 0 && (
+            <div className="r" style={{ fontSize: 10 }}>
+              <span>&nbsp;&nbsp;of which cash</span><span>- {fmt(liveCashRefunds, currency)}</span>
+            </div>
+          )}
           <div className="l" />
           <div className="r b"><span>TOTAL REVENUE</span><span>{fmt(totalRevenue, currency)}</span></div>
           <div className="r b"><span>Expected Cash</span><span>{fmt(expectedCash, currency)}</span></div>
           <div className="l" />
-          <div className="r"><span>Transactions</span><span>{session?.transaction_count}</span></div>
+          <div className="r"><span>Transactions</span><span>{live?.txnCount ?? 0}</span></div>
           <p className="c" style={{ marginTop: 8, fontSize: 10 }}>Printed: {format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
         </div>
       </div>
@@ -373,9 +390,10 @@ function LiveSessionDashboard({
                 {ar ? 'ملخص النظام' : 'System Summary'}
               </p>
               <div className="flex justify-between"><span className="text-muted-foreground">{ar ? 'رصيد الافتتاح' : 'Opening Float'}</span><span className="font-medium">{fmt(session?.opening_balance, currency)}</span></div>
-              <div className="flex justify-between text-emerald-600"><span>{ar ? 'مبيعات نقدية' : 'Cash Sales'}</span><span className="font-bold">+ {fmt(session?.total_cash_sales, currency)}</span></div>
-              <div className="flex justify-between text-blue-600"><span>K-NET</span><span className="font-bold">+ {fmt(session?.total_knet_sales, currency)}</span></div>
-              <div className="flex justify-between text-violet-600"><span>{ar ? 'بطاقة ائتمان' : 'Card'}</span><span className="font-bold">+ {fmt(session?.total_card_sales, currency)}</span></div>
+              <div className="flex justify-between text-emerald-600"><span>{ar ? 'مبيعات نقدية' : 'Cash Sales'}</span><span className="font-bold">+ {fmt(liveCashSales, currency)}</span></div>
+              <div className="flex justify-between text-blue-600"><span>K-NET</span><span className="font-bold">+ {fmt(liveKnetSales, currency)}</span></div>
+              <div className="flex justify-between text-violet-600"><span>{ar ? 'بطاقة ائتمان' : 'Card'}</span><span className="font-bold">+ {fmt(liveCardSales, currency)}</span></div>
+              {liveCashRefunds > 0 && <div className="flex justify-between text-red-600"><span>{ar ? 'استرداد نقدي' : 'Cash Refunds'}</span><span className="font-bold">- {fmt(liveCashRefunds, currency)}</span></div>}
               {totalPayouts > 0 && <div className="flex justify-between text-amber-600"><span>{ar ? 'مسحوبات نقدية' : 'Cash Payouts'}</span><span className="font-bold">- {fmt(totalPayouts, currency)}</span></div>}
               <Separator className="my-1" />
               <div className="flex justify-between font-bold text-base">
