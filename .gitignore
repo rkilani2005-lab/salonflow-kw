@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Baileys WhatsApp session auth state (never commit — these are account keys)
+baileys-service/auth/
+baileys-service/node_modules/
+baileys-service/dist/
