@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { TenantThemeProvider, PoweredByFooter } from "@/contexts/TenantThemeContext";
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import SuperAdminRoute from "@/components/admin/SuperAdminRoute";
@@ -18,6 +19,7 @@ import Auth    from "./pages/Auth";
 
 // All other pages load on demand — 2.2MB → ~300KB initial bundle
 const Dashboard        = lazy(() => import("./pages/Dashboard"));
+const Inbox            = lazy(() => import("./pages/Inbox"));
 const Calendar         = lazy(() => import("./pages/Calendar"));
 const Booking          = lazy(() => import("./pages/Booking"));
 const Onboarding       = lazy(() => import("./pages/Onboarding"));
@@ -104,11 +106,13 @@ const ComingSoon = ({ title }: { title: string }) => (
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <TenantThemeProvider>
       {/* Bug 4 fix: LanguageProvider correctly wraps the whole app */}
       <LanguageProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <PoweredByFooter />
           <BrowserRouter>
             <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -150,6 +154,7 @@ const App = () => (
                 }
               >
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/inbox" element={<Inbox />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/clients" element={<Clients />} />
                 <Route path="/staff" element={<Staff />} />
@@ -215,6 +220,7 @@ const App = () => (
           </BrowserRouter>
         </TooltipProvider>
       </LanguageProvider>
+      </TenantThemeProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

@@ -48,7 +48,7 @@ const Auth = () => {
     if (authLoading || !user) return;
     // Super admins who land on the tenant auth page get sent to their own portal
     if (userRoles.includes('super_admin' as any)) { navigate('/zaina-admin', { replace: true }); return; }
-    if (tenant?.onboarding_completed) { navigate('/dashboard', { replace: true }); return; }
+    if (tenant?.onboarding_completed) { navigate('/inbox', { replace: true }); return; }
     navigate('/onboarding', { replace: true });
   }, [user, tenant, userRoles, authLoading, navigate]);
 

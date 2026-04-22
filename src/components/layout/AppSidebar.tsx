@@ -11,7 +11,7 @@ import {
   Calendar, Users, Scissors, Package, CreditCard, BarChart3,
   Settings, LogOut, Sparkles, Crown, UserCog, Bot, LayoutDashboard,
   Brain, CalendarClock, HeartHandshake, PackageSearch, Landmark, Calculator,
-  UsersRound, Gift, Clock, Star, Inbox, GitBranch,
+  UsersRound, Gift, Clock, Star, Inbox, GitBranch, MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,7 @@ type NavItem = {
 };
 
 const mainNavItems: NavItem[] = [
+  { title: 'Inbox',            titleAr: 'صندوق الرسائل',    url: '/inbox',            icon: MessageCircle },
   { title: 'Dashboard',        titleAr: 'الرئيسية',       url: '/dashboard',        icon: LayoutDashboard },
   { title: 'Calendar',         titleAr: 'التقويم',         url: '/calendar',         icon: Calendar },
   { title: 'Booking Requests', titleAr: 'طلبات الحجز',     url: '/booking-requests', icon: Inbox,       roles: ['owner','manager','receptionist'] },
