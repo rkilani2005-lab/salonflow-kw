@@ -30,7 +30,8 @@ type Filter = {
 };
 
 export function useConversations(filter: Filter = {}) {
-  const { tenant_id } = useAuth();
+  const { tenant } = useAuth();
+  const tenant_id = tenant?.id ?? null;
   const qc = useQueryClient();
 
   const query = useQuery({
@@ -76,7 +77,8 @@ export function useConversations(filter: Filter = {}) {
 }
 
 export function useConversation(conversationId: string | null) {
-  const { tenant_id } = useAuth();
+  const { tenant } = useAuth();
+  const tenant_id = tenant?.id ?? null;
   return useQuery({
     queryKey: ["conversation", conversationId],
     enabled: !!conversationId && !!tenant_id,

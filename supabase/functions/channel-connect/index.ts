@@ -37,9 +37,9 @@ serve(async (req) => {
     const { data: { user } } = await sb.auth.getUser();
     if (!user) return json({ error: "unauthenticated" }, 401);
 
-    const { data: membership } = await sb.from("tenant_users")
-      .select("tenant_id, role").eq("user_id", user.id).maybeSingle();
-    if (!membership) return json({ error: "no tenant membership" }, 403);
+    const { data: membership } = await sb.from("profiles")
+      .select("tenant_id").eq("user_id", user.id).maybeSingle();
+    if (!membership?.tenant_id) return json({ error: "no tenant membership" }, 403);
 
     const tenantId = membership.tenant_id;
 
