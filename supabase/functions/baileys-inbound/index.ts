@@ -24,7 +24,7 @@ const sb = createClient(
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
-  const expected = Deno.env.get("SUPABASE_WEBHOOK_SECRET");
+  const expected = Deno.env.get("BAILEYS_WEBHOOK_SECRET");
   const got = req.headers.get("x-baileys-auth");
   if (!expected || got !== expected) {
     return new Response("unauthorized", { status: 401, headers: cors });
