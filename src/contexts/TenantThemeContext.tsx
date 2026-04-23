@@ -59,7 +59,8 @@ const TenantThemeCtx = createContext<Ctx>({ theme: ZAINA_DEFAULT, loading: true,
 export const useTenantTheme = () => useContext(TenantThemeCtx);
 
 export function TenantThemeProvider({ children }: { children: ReactNode }) {
-  const { tenant_id } = useAuth();
+  const { tenant } = useAuth();
+  const tenant_id = tenant?.id ?? null;
   const [theme, setTheme] = useState<TenantTheme>(ZAINA_DEFAULT);
   const [loading, setLoading] = useState(true);
 

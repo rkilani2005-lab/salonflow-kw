@@ -610,6 +610,74 @@ export type Database = {
           },
         ]
       }
+      channel_accounts: {
+        Row: {
+          ai_agent_enabled: boolean
+          auto_reply_enabled: boolean
+          channel: string
+          connected_at: string | null
+          created_at: string
+          display_handle: string | null
+          display_name: string | null
+          ice_breakers: Json | null
+          id: string
+          last_error: string | null
+          last_sync_at: string | null
+          profile_pic_url: string | null
+          provider: string
+          provider_account_id: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          ai_agent_enabled?: boolean
+          auto_reply_enabled?: boolean
+          channel: string
+          connected_at?: string | null
+          created_at?: string
+          display_handle?: string | null
+          display_name?: string | null
+          ice_breakers?: Json | null
+          id?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          profile_pic_url?: string | null
+          provider?: string
+          provider_account_id?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          ai_agent_enabled?: boolean
+          auto_reply_enabled?: boolean
+          channel?: string
+          connected_at?: string | null
+          created_at?: string
+          display_handle?: string | null
+          display_name?: string | null
+          ice_breakers?: Json | null
+          id?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          profile_pic_url?: string | null
+          provider?: string
+          provider_account_id?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_accounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chart_of_accounts: {
         Row: {
           account_subtype: string | null
@@ -942,6 +1010,94 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "clients_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          ai_handoff: boolean
+          assigned_to: string | null
+          channel: string
+          channel_account_id: string | null
+          client_id: string | null
+          created_at: string
+          display_name: string | null
+          external_id: string
+          id: string
+          last_message_at: string | null
+          last_message_direction: string | null
+          last_message_preview: string | null
+          profile_pic_url: string | null
+          provider_chat_id: string
+          status: string
+          tags: string[] | null
+          tenant_id: string
+          unread_count: number
+          updated_at: string
+        }
+        Insert: {
+          ai_handoff?: boolean
+          assigned_to?: string | null
+          channel: string
+          channel_account_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          external_id: string
+          id?: string
+          last_message_at?: string | null
+          last_message_direction?: string | null
+          last_message_preview?: string | null
+          profile_pic_url?: string | null
+          provider_chat_id: string
+          status?: string
+          tags?: string[] | null
+          tenant_id: string
+          unread_count?: number
+          updated_at?: string
+        }
+        Update: {
+          ai_handoff?: boolean
+          assigned_to?: string | null
+          channel?: string
+          channel_account_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          external_id?: string
+          id?: string
+          last_message_at?: string | null
+          last_message_direction?: string | null
+          last_message_preview?: string | null
+          profile_pic_url?: string | null
+          provider_chat_id?: string
+          status?: string
+          tags?: string[] | null
+          tenant_id?: string
+          unread_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_channel_account_id_fkey"
+            columns: ["channel_account_id"]
+            isOneToOne: false
+            referencedRelation: "channel_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1744,6 +1900,82 @@ export type Database = {
           },
           {
             foreignKeyName: "loyalty_transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          booking_id: string | null
+          content: string | null
+          content_type: string
+          conversation_id: string
+          created_at: string
+          direction: string
+          error_message: string | null
+          external_message_id: string | null
+          id: string
+          media_url: string | null
+          metadata: Json | null
+          sender_id: string | null
+          sender_type: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          booking_id?: string | null
+          content?: string | null
+          content_type?: string
+          conversation_id: string
+          created_at?: string
+          direction: string
+          error_message?: string | null
+          external_message_id?: string | null
+          id?: string
+          media_url?: string | null
+          metadata?: Json | null
+          sender_id?: string | null
+          sender_type: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          booking_id?: string | null
+          content?: string | null
+          content_type?: string
+          conversation_id?: string
+          created_at?: string
+          direction?: string
+          error_message?: string | null
+          external_message_id?: string | null
+          id?: string
+          media_url?: string | null
+          metadata?: Json | null
+          sender_id?: string | null
+          sender_type?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -3173,6 +3405,92 @@ export type Database = {
           },
         ]
       }
+      tenant_theme: {
+        Row: {
+          accent_color: string
+          bg_color: string
+          border_color: string
+          brand_name: string
+          created_at: string
+          favicon_url: string | null
+          font_arabic: string
+          font_body: string
+          font_heading: string
+          id: string
+          instagram_handle: string | null
+          logo_dark_url: string | null
+          logo_url: string | null
+          muted_color: string
+          powered_by_text: string | null
+          powered_by_url: string | null
+          primary_color: string
+          primary_foreground: string
+          show_powered_by: boolean
+          tenant_id: string
+          text_color: string
+          updated_at: string
+          whatsapp_link: string | null
+        }
+        Insert: {
+          accent_color?: string
+          bg_color?: string
+          border_color?: string
+          brand_name: string
+          created_at?: string
+          favicon_url?: string | null
+          font_arabic?: string
+          font_body?: string
+          font_heading?: string
+          id?: string
+          instagram_handle?: string | null
+          logo_dark_url?: string | null
+          logo_url?: string | null
+          muted_color?: string
+          powered_by_text?: string | null
+          powered_by_url?: string | null
+          primary_color?: string
+          primary_foreground?: string
+          show_powered_by?: boolean
+          tenant_id: string
+          text_color?: string
+          updated_at?: string
+          whatsapp_link?: string | null
+        }
+        Update: {
+          accent_color?: string
+          bg_color?: string
+          border_color?: string
+          brand_name?: string
+          created_at?: string
+          favicon_url?: string | null
+          font_arabic?: string
+          font_body?: string
+          font_heading?: string
+          id?: string
+          instagram_handle?: string | null
+          logo_dark_url?: string | null
+          logo_url?: string | null
+          muted_color?: string
+          powered_by_text?: string | null
+          powered_by_url?: string | null
+          primary_color?: string
+          primary_foreground?: string
+          show_powered_by?: boolean
+          tenant_id?: string
+          text_color?: string
+          updated_at?: string
+          whatsapp_link?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_theme_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           created_at: string | null
@@ -3647,6 +3965,50 @@ export type Database = {
           },
           {
             foreignKeyName: "waiting_list_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_logs: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          error: string | null
+          event_type: string | null
+          id: number
+          payload: Json
+          processed: boolean
+          provider: string
+          tenant_id: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          error?: string | null
+          event_type?: string | null
+          id?: number
+          payload: Json
+          processed?: boolean
+          provider: string
+          tenant_id?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          error?: string | null
+          event_type?: string | null
+          id?: number
+          payload?: Json
+          processed?: boolean
+          provider?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_logs_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
