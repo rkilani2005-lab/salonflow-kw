@@ -116,7 +116,7 @@ export function useChannelAccounts(channel: 'whatsapp' = 'whatsapp') {
     try {
       const sessionRes = await supabase.auth.getSession();
       const accessToken = sessionRes.data.session?.access_token;
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/channel-connect`, {
+      const res = await window.fetch(`${SUPABASE_URL}/functions/v1/channel-connect`, {
         method: 'POST',
         headers: {
           'Content-Type':  'application/json',
@@ -151,7 +151,7 @@ export function useChannelAccounts(channel: 'whatsapp' = 'whatsapp') {
     try {
       const sessionRes = await supabase.auth.getSession();
       const accessToken = sessionRes.data.session?.access_token;
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/channel-connect`, {
+      const res = await window.fetch(`${SUPABASE_URL}/functions/v1/channel-connect`, {
         method: 'DELETE',
         headers: {
           'Content-Type':  'application/json',
