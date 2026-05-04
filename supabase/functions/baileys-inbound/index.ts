@@ -105,7 +105,7 @@ serve(async (req) => {
         await sb.from("conversations").update({ client_id: client.id }).eq("id", conv.id);
       }
 
-      await sb.from("messages").insert({
+      const { data: msgRow } = await sb.from("messages").insert({
         tenant_id,
         conversation_id: conv.id,
         direction: "inbound",
@@ -116,11 +116,26 @@ serve(async (req) => {
         external_message_id: data?.message_id ?? null,
         status: "delivered",
         metadata: { baileys: data },
-      });
+      }).select("id").single();
 
       await markProcessed(logRow?.id);
 
-      // TODO Phase 5: trigger AI agent if channel_accounts.ai_agent_enabled
+      // Fire-and-forget AI handler.  ai-reply does its own gating
+      // (ai_handoff, ai_agent_enabled, cooldown) so we dispatch
+      // unconditionally and let it decide whether to act.  We do NOT
+      // await — Baileys is waiting for our 200, and AI work can take
+      // multiple seconds for tool-use loops.
+      if (msgRow?.id && (data?.content_type ?? "text") === "text" && data?.text) {
+        fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-reply`, {
+          method:  "POST",
+          headers: {
+            "Content-Type":  "application/json",
+            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({ message_id: msgRow.id }),
+        }).catch(e => console.error("[ai-reply dispatch] non-fatal:", e));
+      }
+
       return ok();
     }
 
