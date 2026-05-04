@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { AlertTriangle, Bell, Settings, LogOut } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
+import { WhatsAppStatusBanner } from './WhatsAppStatusBanner';
 
 const DashboardLayout = () => {
   const { tenant, profile, userRoles, signOut } = useAuth();
@@ -118,6 +119,11 @@ const DashboardLayout = () => {
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
+
+          {/* Global status banner — appears only when WhatsApp is in
+              an unhealthy state (disconnected/error/expired) AND the
+              tenant has paired before.  See WhatsAppStatusBanner. */}
+          <WhatsAppStatusBanner />
 
           {/* Main content */}
           <main className="flex-1 overflow-auto">

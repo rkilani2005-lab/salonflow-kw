@@ -20,8 +20,11 @@ const supabase = _supabase as any;
 import {
   Building2, Clock, Bell, Globe, Save, Upload, User, Phone,
   MapPin, CheckCircle2, Loader2, ImageIcon, X, Calendar, Link, Copy, Check,
+  MessageCircle, QrCode, Power, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSearchParams } from 'react-router-dom';
+import { useChannelAccounts } from '@/hooks/useChannelAccounts';
 
 const DAYS = [
   { key: 'sun', en: 'Sunday',    ar: 'الأحد' },
@@ -40,6 +43,10 @@ const DEFAULT_WORKING_DAYS: Record<string, boolean> = {
 
 export default function Settings() {
   const { tenant, profile, currentBranch, refreshProfile } = useAuth();
+  const [searchParams] = useSearchParams();
+  // Allow deep-linking to a specific tab — used by the global
+  // disconnection banner which navigates to /settings?tab=channels.
+  const initialTab = searchParams.get('tab') ?? 'business';
   const { language } = useLanguage();
   const { toast } = useToast();
   const ar = language === 'ar';
@@ -346,10 +353,11 @@ export default function Settings() {
         </p>
       </div>
 
-      <Tabs defaultValue="business" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 h-10">
+      <Tabs defaultValue={initialTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-6 h-10">
           <TabsTrigger value="business"      className="text-xs gap-1.5"><Building2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'النشاط' : 'Business'}</span></TabsTrigger>
           <TabsTrigger value="hours"         className="text-xs gap-1.5"><Clock     className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'الأوقات' : 'Hours'}</span></TabsTrigger>
+          <TabsTrigger value="channels"      className="text-xs gap-1.5"><MessageCircle className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'القنوات' : 'Channels'}</span></TabsTrigger>
           <TabsTrigger value="notifications" className="text-xs gap-1.5"><Bell      className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'الإشعارات' : 'Notifications'}</span></TabsTrigger>
           <TabsTrigger value="preferences"   className="text-xs gap-1.5"><Globe     className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'التفضيلات' : 'Preferences'}</span></TabsTrigger>
           <TabsTrigger value="booking"       className="text-xs gap-1.5"><Calendar  className="h-3.5 w-3.5" /><span className="hidden sm:inline">{ar ? 'الحجز' : 'Booking'}</span></TabsTrigger>
@@ -560,6 +568,11 @@ export default function Settings() {
             </CardContent>
           </Card>
           <SaveBar tab="hours" onSave={handleSaveHours} />
+        </TabsContent>
+
+        {/* ── Channels (WhatsApp pairing) ── */}
+        <TabsContent value="channels" className="space-y-5">
+          <ChannelsTab ar={ar} />
         </TabsContent>
 
         {/* ── Notifications ── */}
@@ -835,6 +848,237 @@ function OnlineBookingConfig({ ar, tenantId }: { ar: boolean; tenantId?: string 
         {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Save className="h-3.5 w-3.5"/>}
         {ar?'حفظ إعدادات الحجز':'Save Booking Settings'}
       </Button>
+    </div>
+  );
+}
+
+/**
+ * D.8 — Channels tab component.
+ *
+ * Single-channel UI for now (WhatsApp).  Future-proofed for IG /
+ * Telegram by reading the channel from useChannelAccounts; the
+ * shape is identical, just the labels change.
+ *
+ * Three states:
+ *   - never connected    → big CTA to start pairing
+ *   - pending (QR shown) → render QR + instructions, poll for
+ *                          status flip to 'connected'
+ *   - connected          → show paired phone number, last sync,
+ *                          AI/auto-reply toggles, disconnect button
+ *   - disconnected/error → show last_error if present, prominent
+ *                          re-pair button.  This is the state the
+ *                          global banner sends users into.
+ */
+function ChannelsTab({ ar }: { ar: boolean }) {
+  const { account, qrCode, loading, actionLoading, error, connect, disconnect } =
+    useChannelAccounts('whatsapp');
+
+  if (loading) {
+    return (
+      <Card className="border">
+        <CardContent className="py-12 flex items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const status = account?.status ?? 'disconnected';
+  const isConnected = status === 'connected';
+  const isPending   = status === 'pending';
+  const isUnhealthy = status === 'disconnected' || status === 'error' || status === 'expired';
+
+  return (
+    <Card className="border">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-base flex items-center gap-2">
+          <MessageCircle className="h-4 w-4" />
+          {ar ? 'واتساب' : 'WhatsApp'}
+        </CardTitle>
+        <CardDescription className="text-xs">
+          {ar
+            ? 'اربط واتساب صالونك لإرسال التذكيرات والفواتير والرد التلقائي بالذكاء الاصطناعي'
+            : 'Pair your salon\'s WhatsApp for reminders, invoices, and AI auto-replies'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+
+        {/* Status row */}
+        <div className="flex items-center gap-3 p-3 rounded-md border bg-muted/30">
+          <div className={cn(
+            'h-2.5 w-2.5 rounded-full flex-shrink-0',
+            isConnected ? 'bg-emerald-500' :
+            isPending   ? 'bg-amber-500 animate-pulse' :
+                          'bg-red-500',
+          )} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold">
+              {isConnected ? (ar ? 'متصل' : 'Connected') :
+               isPending   ? (ar ? 'بانتظار المسح…' : 'Waiting for QR scan…') :
+               status === 'expired' ? (ar ? 'انتهت الجلسة' : 'Session expired') :
+               status === 'error'   ? (ar ? 'خطأ في الاتصال' : 'Connection error') :
+                                      (ar ? 'غير متصل' : 'Not connected')}
+            </p>
+            {account?.display_handle && (
+              <p className="text-[11px] text-muted-foreground tabular-nums">
+                {account.display_handle}
+                {account.last_sync_at && (
+                  <span className="ms-2 opacity-70">
+                    · {ar ? 'آخر نشاط:' : 'last seen:'}{' '}
+                    {new Date(account.last_sync_at).toLocaleString()}
+                  </span>
+                )}
+              </p>
+            )}
+            {!account?.display_handle && account?.connected_at && (
+              <p className="text-[11px] text-muted-foreground">
+                {ar ? 'تم الربط في: ' : 'Paired: '}
+                {new Date(account.connected_at).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Last error — only when present and status is unhealthy.
+            Bridge writes free-form strings here; useful for diagnosis
+            when a re-pair fails repeatedly (e.g. 'pre-key failed'). */}
+        {isUnhealthy && account?.last_error && (
+          <div className="flex items-start gap-2 p-3 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 text-amber-900 dark:text-amber-100">
+            <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <div className="text-xs leading-relaxed">
+              <p className="font-semibold">{ar ? 'سبب فشل الاتصال' : 'Last error'}</p>
+              <p className="opacity-80 break-all">{account.last_error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* QR code while pairing.  qrCode is a data URL the bridge
+            generated for this exact session. */}
+        {isPending && qrCode && (
+          <div className="space-y-3">
+            <div className="flex justify-center p-4 bg-white rounded-md border">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrCode} alt="WhatsApp pairing QR" className="w-64 h-64" />
+            </div>
+            <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal ms-5">
+              <li>{ar ? 'افتح واتساب على هاتفك' : 'Open WhatsApp on your phone'}</li>
+              <li>{ar ? 'اذهب إلى الإعدادات ← الأجهزة المرتبطة' : 'Go to Settings → Linked Devices'}</li>
+              <li>{ar ? 'اضغط على "ربط جهاز"' : 'Tap "Link a device"'}</li>
+              <li>{ar ? 'امسح هذا الرمز' : 'Scan this code'}</li>
+            </ol>
+            <p className="text-[10px] text-muted-foreground text-center">
+              {ar
+                ? 'الرمز ينتهي خلال دقيقة — إذا انتهى اضغط "إعادة الربط" مرة أخرى'
+                : 'QR expires in ~1 min — click Re-pair if it does'}
+            </p>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex gap-2 pt-1">
+          {!isConnected && (
+            <Button
+              onClick={connect}
+              disabled={actionLoading}
+              className="gap-2"
+            >
+              {actionLoading
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : isPending ? <RefreshCw className="h-4 w-4" /> : <QrCode className="h-4 w-4" />}
+              {isPending
+                ? (ar ? 'إعادة الرمز' : 'Refresh QR')
+                : isUnhealthy && account?.connected_at
+                  ? (ar ? 'إعادة الربط' : 'Re-pair WhatsApp')
+                  : (ar ? 'ربط واتساب' : 'Connect WhatsApp')}
+            </Button>
+          )}
+          {(isConnected || isPending) && (
+            <Button
+              variant="outline"
+              onClick={disconnect}
+              disabled={actionLoading}
+              className="gap-2"
+            >
+              {actionLoading
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Power className="h-4 w-4" />}
+              {ar ? 'فصل' : 'Disconnect'}
+            </Button>
+          )}
+        </div>
+
+        {/* Inline action error */}
+        {error && (
+          <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+        )}
+
+        {/* Per-account toggles — only show when actually paired so we
+            don't surface settings the user can't act on. */}
+        {isConnected && account && (
+          <div className="space-y-3 pt-3 border-t">
+            <ChannelToggle
+              accountId={account.id}
+              field="ai_agent_enabled"
+              value={account.ai_agent_enabled}
+              label={ar ? 'الرد بالذكاء الاصطناعي' : 'AI auto-reply'}
+              hint={ar
+                ? 'يرد الذكاء الاصطناعي على رسائل العملاء تلقائياً (يمكن التعديل لكل محادثة من البريد الوارد)'
+                : 'AI responds to client messages automatically (override per-conversation in the inbox)'}
+            />
+            <ChannelToggle
+              accountId={account.id}
+              field="auto_reply_enabled"
+              value={account.auto_reply_enabled}
+              label={ar ? 'الرد التلقائي خارج ساعات العمل' : 'Off-hours auto-reply'}
+              hint={ar
+                ? 'إرسال رد آلي عندما تتلقى رسالة خارج ساعات العمل'
+                : 'Send an automated reply when messages arrive outside business hours'}
+            />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Reusable on/off row for a channel_accounts boolean field.
+ * Optimistic update — flip locally, persist, revert on error.
+ */
+function ChannelToggle({
+  accountId, field, value, label, hint,
+}: {
+  accountId: string;
+  field: 'ai_agent_enabled' | 'auto_reply_enabled';
+  value: boolean;
+  label: string;
+  hint: string;
+}) {
+  const [optimistic, setOptimistic] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const handleToggle = async (next: boolean) => {
+    setOptimistic(next);
+    setSaving(true);
+    const { error } = await supabase
+      .from('channel_accounts')
+      .update({ [field]: next } as any)
+      .eq('id', accountId);
+    if (error) {
+      setOptimistic(!next); // revert
+    }
+    setSaving(false);
+  };
+  return (
+    <div className="flex items-start gap-3">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">{hint}</p>
+      </div>
+      <div className="pt-0.5">
+        {saving
+          ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          : <Switch checked={optimistic} onCheckedChange={handleToggle} />}
+      </div>
     </div>
   );
 }
