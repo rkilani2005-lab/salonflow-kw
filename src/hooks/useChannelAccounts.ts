@@ -114,24 +114,13 @@ export function useChannelAccounts(channel: 'whatsapp' = 'whatsapp') {
     setActionLoading(true);
     setError(null);
     try {
-      const sessionRes = await supabase.auth.getSession();
-      const accessToken = sessionRes.data.session?.access_token;
-      const res = await window.fetch(`${SUPABASE_URL}/functions/v1/channel-connect`, {
+      const { data, error: fnErr } = await supabase.functions.invoke('channel-connect', {
         method: 'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': `Bearer ${accessToken ?? SUPABASE_KEY}`,
-          apikey:          SUPABASE_KEY,
-        },
-        body: JSON.stringify({
-          tenant_id: tenant.id,
-          channel:   'whatsapp',
-        }),
+        body: { tenant_id: tenant.id, channel: 'whatsapp' },
       });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body?.error ?? `connect failed: ${res.status}`);
-      if (body?.qr) setQrCode(body.qr);
-      await fetch();  // update account row immediately
+      if (fnErr) throw new Error((data as any)?.error ?? fnErr.message ?? 'connect failed');
+      if ((data as any)?.qr) setQrCode((data as any).qr);
+      await fetch();
     } catch (e: any) {
       setError(e?.message ?? String(e));
     } finally {
@@ -149,24 +138,11 @@ export function useChannelAccounts(channel: 'whatsapp' = 'whatsapp') {
     setActionLoading(true);
     setError(null);
     try {
-      const sessionRes = await supabase.auth.getSession();
-      const accessToken = sessionRes.data.session?.access_token;
-      const res = await window.fetch(`${SUPABASE_URL}/functions/v1/channel-connect`, {
+      const { data, error: fnErr } = await supabase.functions.invoke('channel-connect', {
         method: 'DELETE',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': `Bearer ${accessToken ?? SUPABASE_KEY}`,
-          apikey:          SUPABASE_KEY,
-        },
-        body: JSON.stringify({
-          tenant_id: account.tenant_id,
-          channel:   account.channel,
-        }),
+        body: { tenant_id: account.tenant_id, channel: account.channel },
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error ?? `disconnect failed: ${res.status}`);
-      }
+      if (fnErr) throw new Error((data as any)?.error ?? fnErr.message ?? 'disconnect failed');
       setQrCode(null);
       await fetch();
     } catch (e: any) {
