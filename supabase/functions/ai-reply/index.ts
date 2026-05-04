@@ -528,15 +528,43 @@ async function lookupLastInvoice(input: AgentInput) {
 
   if (!txn) return { found: false };
 
-  // PDF generation + send is a separate flow — flagged for D.7 follow-up.
-  // For now return enough info that Claude can summarise in chat.
+  // Generate + send PDF in one call.  invoice-pdf handles the
+  // upload, signing, and channel-send dispatch.  We don't await
+  // the full send — Claude only needs to know we kicked it off
+  // so it can write a friendly "I'm sending your invoice now"
+  // reply.  The PDF itself arrives separately as an outbound
+  // message, which baileys-inbound's dedupe will keep clean.
+  let pdfDispatched = false;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/invoice-pdf`, {
+      method: "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({
+        transaction_id:  txn.id,
+        conversation_id: input.conversation_id,
+      }),
+    });
+    if (res.ok) {
+      const body = await res.json();
+      pdfDispatched = !!body?.dispatched;
+    }
+  } catch (e) {
+    console.warn("[ai-reply] invoice-pdf dispatch failed:", e);
+  }
+
   return {
-    found:        true,
-    transaction_id: txn.id,
-    date:         (txn.created_at as string).slice(0, 10),
-    total:        txn.grand_total,
-    items:        (txn.items as any[]) ?? [],
-    note:         "PDF dispatch not yet implemented — summarise verbally for now.",
+    found:           true,
+    transaction_id:  txn.id,
+    date:            (txn.created_at as string).slice(0, 10),
+    total:           txn.grand_total,
+    items:           (txn.items as any[]) ?? [],
+    pdf_dispatched:  pdfDispatched,
+    note: pdfDispatched
+      ? "PDF is being sent to the client now as a separate message — confirm receipt in your reply."
+      : "Could not send PDF automatically — summarise the invoice in text instead.",
   };
 }
 
