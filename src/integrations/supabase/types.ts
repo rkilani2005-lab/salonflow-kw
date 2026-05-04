@@ -266,6 +266,7 @@ export type Database = {
           staff_id: string | null
           start_time: string
           status: Database["public"]["Enums"]["booking_status"]
+          tenant_id: string
           updated_at: string
         }
         Insert: {
@@ -290,6 +291,7 @@ export type Database = {
           staff_id?: string | null
           start_time: string
           status?: Database["public"]["Enums"]["booking_status"]
+          tenant_id: string
           updated_at?: string
         }
         Update: {
@@ -314,6 +316,7 @@ export type Database = {
           staff_id?: string | null
           start_time?: string
           status?: Database["public"]["Enums"]["booking_status"]
+          tenant_id?: string
           updated_at?: string
         }
         Relationships: [
