@@ -49,6 +49,27 @@ serve(async (req) => {
     let effectiveTenantId = tenantId;
 
     if (simulatorMode && tenantId) {
+      // Gate simulator: must be an authenticated user belonging to this tenant
+      const authHeader = req.headers.get("Authorization") ?? "";
+      const token = authHeader.replace(/^Bearer\s+/i, "");
+      if (!token) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: profile } = await supabase
+        .from("profiles").select("tenant_id").eq("user_id", userData.user.id).maybeSingle();
+      if (!profile || profile.tenant_id !== tenantId) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const { data: configData } = await supabase
         .from("whatsapp_config").select("*").eq("tenant_id", tenantId).single();
       config = configData;
