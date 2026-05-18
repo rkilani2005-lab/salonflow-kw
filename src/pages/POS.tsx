@@ -203,7 +203,20 @@ export default function POS() {
       if (service?.name_ar) serviceItem.item_name_ar = service.name_ar;
     }
 
-    setItems([serviceItem]);
+    const stagedRetail: CartItem[] = Array.isArray(booking.pending_retail)
+      ? (booking.pending_retail as CartItem[]).map((r: any) => ({
+          item_type: r.item_type ?? 'product',
+          item_id:   r.item_id,
+          item_name: r.item_name,
+          item_name_ar: r.item_name_ar,
+          quantity:  Number(r.quantity || 1),
+          unit_price: Number(r.unit_price || 0),
+          total_price: Number(r.total_price || Number(r.unit_price || 0) * Number(r.quantity || 1)),
+          staff_commission_id: r.staff_commission_id || booking.staff_id || undefined,
+        }))
+      : [];
+
+    setItems([serviceItem, ...stagedRetail]);
   };
 
   const handleDiscountChange = (type: string | null, value: number, reason: string) => {
