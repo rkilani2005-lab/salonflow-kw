@@ -109,7 +109,42 @@ export function AppointmentDetailSheet({
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [editedAppointment, setEditedAppointment] = useState<Appointment | null>(null);
-  const [retailItems, setRetailItems] = useState<RetailItem[]>([]);
+  const [retailItems, setRetailItems] = useState<CartItem[]>([]);
+  const lastSavedRef = useRef<string>('[]');
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!appointment) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('bookings')
+        .select('pending_retail')
+        .eq('id', appointment.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const items: CartItem[] = Array.isArray(data?.pending_retail) ? data.pending_retail : [];
+      setRetailItems(items);
+      lastSavedRef.current = JSON.stringify(items);
+    })();
+    return () => { cancelled = true; };
+  }, [appointment?.id]);
+
+  useEffect(() => {
+    if (!appointment) return;
+    const serialised = JSON.stringify(retailItems);
+    if (serialised === lastSavedRef.current) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ pending_retail: retailItems })
+        .eq('id', appointment.id);
+      if (!error) lastSavedRef.current = serialised;
+      else console.error('[pending_retail] save failed', error);
+    }, 600);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [retailItems, appointment?.id]);
   const [notes, setNotes] = useState('');
 
   // ── BOOKING vs PAYMENT: two independent states ─────────────────────────
