@@ -327,6 +327,11 @@ export function AppointmentDetailSheet({
               <TabsTrigger value="products" className="gap-1.5" disabled={isLocked}>
                 <ShoppingBag className="h-3.5 w-3.5" />
                 Products
+                {retailItems.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">
+                    {retailItems.length}
+                  </Badge>
+                )}
               </TabsTrigger>
             </TabsList>
 
