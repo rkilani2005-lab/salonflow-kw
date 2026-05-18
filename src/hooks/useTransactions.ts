@@ -203,6 +203,8 @@ export const useCreateTransaction = () => {
         transaction_id: txn.id,
         payment_method: p.payment_method,
         amount: p.amount,
+        payer_index: p.payer_index ?? null,
+        payer_label: p.payer_label ?? null,
       }));
 
       const { error: paymentsError } = await supabase
