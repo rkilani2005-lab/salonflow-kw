@@ -1,4 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { ProductSearch } from '@/components/pos/ProductSearch';
+import type { CartItem } from '@/hooks/useTransactions';
+import { supabase as _supabaseRaw } from '@/integrations/supabase/client';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabase = _supabaseRaw as any;
 import { Appointment, Staff, Service, Client, AppointmentStatus, SERVICE_CATEGORY_COLORS } from '@/types/calendar';
 import {
   Sheet,
@@ -78,13 +83,6 @@ const statusTransitions: Record<AppointmentStatus, AppointmentStatus[]> = {
   no_show: [],
 };
 
-interface RetailItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
 interface AppointmentDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -111,7 +109,42 @@ export function AppointmentDetailSheet({
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [editedAppointment, setEditedAppointment] = useState<Appointment | null>(null);
-  const [retailItems, setRetailItems] = useState<RetailItem[]>([]);
+  const [retailItems, setRetailItems] = useState<CartItem[]>([]);
+  const lastSavedRef = useRef<string>('[]');
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!appointment) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('bookings')
+        .select('pending_retail')
+        .eq('id', appointment.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const items: CartItem[] = Array.isArray(data?.pending_retail) ? data.pending_retail : [];
+      setRetailItems(items);
+      lastSavedRef.current = JSON.stringify(items);
+    })();
+    return () => { cancelled = true; };
+  }, [appointment?.id]);
+
+  useEffect(() => {
+    if (!appointment) return;
+    const serialised = JSON.stringify(retailItems);
+    if (serialised === lastSavedRef.current) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ pending_retail: retailItems })
+        .eq('id', appointment.id);
+      if (!error) lastSavedRef.current = serialised;
+      else console.error('[pending_retail] save failed', error);
+    }, 600);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [retailItems, appointment?.id]);
   const [notes, setNotes] = useState('');
 
   // ── BOOKING vs PAYMENT: two independent states ─────────────────────────
@@ -195,24 +228,48 @@ export function AppointmentDetailSheet({
     }
   };
 
-  const addRetailItem = () => {
-    setRetailItems((prev) => [
-      ...prev,
-      { id: `retail-${Date.now()}`, name: '', price: 0, quantity: 1 },
-    ]);
+  const addRetailProduct = (product: any) => {
+    if (isLocked) return;
+    setRetailItems(prev => {
+      const idx = prev.findIndex(i => i.item_type === 'product' && i.item_id === product.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        const q = next[idx].quantity + 1;
+        next[idx] = { ...next[idx], quantity: q, total_price: Math.round(next[idx].unit_price * q * 1000) / 1000 };
+        return next;
+      }
+      const price = Number(product.retail_price ?? product.unit_price ?? 0);
+      return [
+        ...prev,
+        {
+          item_type: 'product',
+          item_id: product.id,
+          item_name: product.name,
+          item_name_ar: product.name_ar || undefined,
+          quantity: 1,
+          unit_price: price,
+          total_price: price,
+        } as CartItem,
+      ];
+    });
   };
 
-  const updateRetailItem = (index: number, field: keyof RetailItem, value: string | number) => {
-    setRetailItems((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
-    );
+  const updateRetailQty = (idx: number, qty: number) => {
+    if (isLocked) return;
+    setRetailItems(prev => {
+      const next = [...prev];
+      const q = Math.max(1, qty);
+      next[idx] = { ...next[idx], quantity: q, total_price: Math.round(next[idx].unit_price * q * 1000) / 1000 };
+      return next;
+    });
   };
 
-  const removeRetailItem = (index: number) => {
-    setRetailItems((prev) => prev.filter((_, i) => i !== index));
+  const removeRetailItem = (idx: number) => {
+    if (isLocked) return;
+    setRetailItems(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const totalRetail = retailItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalRetail = retailItems.reduce((s, i) => s + Number(i.total_price || 0), 0);
   const grandTotal = apt.price + totalRetail;
 
   // Generate time options (every 15 minutes)
@@ -270,6 +327,11 @@ export function AppointmentDetailSheet({
               <TabsTrigger value="products" className="gap-1.5" disabled={isLocked}>
                 <ShoppingBag className="h-3.5 w-3.5" />
                 Products
+                {retailItems.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">
+                    {retailItems.length}
+                  </Badge>
+                )}
               </TabsTrigger>
             </TabsList>
 
@@ -576,85 +638,57 @@ export function AppointmentDetailSheet({
 
             {/* PRODUCTS TAB */}
             <TabsContent value="products" className="space-y-4 mt-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Retail Products</Label>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={addRetailItem}
-                  className="gap-1.5"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Add Product
-                </Button>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Add retail products</Label>
+                <ProductSearch onAddProduct={addRetailProduct} />
+                <p className="text-[11px] text-muted-foreground">
+                  Items added here will appear in the POS cart automatically at checkout.
+                </p>
               </div>
 
               {retailItems.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">
                   <ShoppingBag className="h-8 w-8 mx-auto mb-2 opacity-40" />
                   <p>No retail products added yet.</p>
-                  <p className="text-xs mt-1">Add products to be included in the checkout.</p>
+                  <p className="text-xs mt-1">Search above to add a product.</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {retailItems.map((item, idx) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-2 rounded-lg border p-3"
-                    >
-                      <div className="flex-1 space-y-2">
-                        <Input
-                          placeholder="Product name"
-                          value={item.name}
-                          onChange={(e) => updateRetailItem(idx, 'name', e.target.value)}
-                        />
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            placeholder="Price"
-                            value={item.price || ''}
-                            onChange={(e) =>
-                              updateRetailItem(idx, 'price', parseFloat(e.target.value) || 0)
-                            }
-                            className="w-24"
-                            step="0.001"
-                          />
-                          <div className="flex items-center gap-1 border rounded-md">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() =>
-                                updateRetailItem(idx, 'quantity', Math.max(1, item.quantity - 1))
-                              }
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="text-sm w-6 text-center">{item.quantity}</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => updateRetailItem(idx, 'quantity', item.quantity + 1)}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          <span className="text-sm font-medium ml-auto">
-                            {(item.price * item.quantity).toFixed(3)}
-                          </span>
-                        </div>
+                    <div key={`${item.item_id}-${idx}`} className="flex items-center gap-2 rounded-lg border p-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{item.item_name}</p>
+                        {item.item_name_ar && (
+                          <p className="text-xs text-muted-foreground truncate" dir="rtl">{item.item_name_ar}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {Number(item.unit_price).toFixed(3)} KWD × {item.quantity}
+                        </p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive h-8 w-8 shrink-0"
-                        onClick={() => removeRetailItem(idx)}
-                      >
+                      <div className="flex items-center gap-1 border rounded-md">
+                        <Button variant="ghost" size="icon" className="h-8 w-8"
+                          onClick={() => updateRetailQty(idx, item.quantity - 1)} disabled={isLocked}>
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="text-sm w-6 text-center">{item.quantity}</span>
+                        <Button variant="ghost" size="icon" className="h-8 w-8"
+                          onClick={() => updateRetailQty(idx, item.quantity + 1)} disabled={isLocked}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <span className="text-sm font-medium ml-2 w-20 text-right">
+                        {Number(item.total_price).toFixed(3)}
+                      </span>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0"
+                        onClick={() => removeRetailItem(idx)} disabled={isLocked}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
+                  <div className="flex items-center justify-between pt-2 border-t text-sm">
+                    <span className="text-muted-foreground">Products subtotal</span>
+                    <span className="font-semibold">{totalRetail.toFixed(3)} KWD</span>
+                  </div>
                 </div>
               )}
             </TabsContent>

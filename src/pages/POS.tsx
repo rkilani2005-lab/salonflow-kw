@@ -132,7 +132,7 @@ export default function POS() {
   const loadBooking = async (id: string) => {
     const { data: booking } = await supabase
       .from('bookings')
-      .select('id, client_id, client_name, client_phone, staff_id, service_id, service_name, service_category, booking_date, start_time, end_time, duration, status, price, deposit_amount, deposit_status, is_online_booking, notes')
+      .select('id, client_id, client_name, client_phone, staff_id, service_id, service_name, service_category, booking_date, start_time, end_time, duration, status, price, deposit_amount, deposit_status, is_online_booking, notes, pending_retail')
       .eq('id', id)
       .single();
 
@@ -203,7 +203,20 @@ export default function POS() {
       if (service?.name_ar) serviceItem.item_name_ar = service.name_ar;
     }
 
-    setItems([serviceItem]);
+    const stagedRetail: CartItem[] = Array.isArray(booking.pending_retail)
+      ? (booking.pending_retail as CartItem[]).map((r: any) => ({
+          item_type: r.item_type ?? 'product',
+          item_id:   r.item_id,
+          item_name: r.item_name,
+          item_name_ar: r.item_name_ar,
+          quantity:  Number(r.quantity || 1),
+          unit_price: Number(r.unit_price || 0),
+          total_price: Number(r.total_price || Number(r.unit_price || 0) * Number(r.quantity || 1)),
+          staff_commission_id: r.staff_commission_id || booking.staff_id || undefined,
+        }))
+      : [];
+
+    setItems([serviceItem, ...stagedRetail]);
   };
 
   const handleDiscountChange = (type: string | null, value: number, reason: string) => {
@@ -252,6 +265,13 @@ export default function POS() {
         tip_amount: tipAmount,
         grand_total: grandTotal,
       });
+
+      if (bookingId) {
+        supabase.from('bookings')
+          .update({ pending_retail: [] })
+          .eq('id', bookingId)
+          .then(({ error }: { error: any }) => { if (error) console.warn('[pending_retail] clear failed', error); });
+      }
 
       // Award / deduct loyalty points.  Re-reads the client balance from
       // the DB at this moment — the selectedClient prop can be stale if

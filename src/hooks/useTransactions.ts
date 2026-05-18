@@ -84,6 +84,10 @@ export interface CartItem {
 export interface PaymentEntry {
   payment_method: 'cash' | 'knet' | 'credit_card' | 'gift_card';
   amount: number;
+  /** 1-based payer position when a sale is split across multiple customers. Omit for single-payer sales. */
+  payer_index?: number;
+  /** Optional human label for the payer (e.g. "Layla"). Falls back to "Payer N" on receipts. */
+  payer_label?: string;
 }
 
 export interface CreateTransactionInput {
@@ -199,6 +203,8 @@ export const useCreateTransaction = () => {
         transaction_id: txn.id,
         payment_method: p.payment_method,
         amount: p.amount,
+        payer_index: p.payer_index ?? null,
+        payer_label: p.payer_label ?? null,
       }));
 
       const { error: paymentsError } = await supabase
