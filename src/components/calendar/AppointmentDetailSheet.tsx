@@ -1,4 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { ProductSearch } from '@/components/pos/ProductSearch';
+import type { CartItem } from '@/hooks/useTransactions';
+import { supabase as _supabaseRaw } from '@/integrations/supabase/client';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabase = _supabaseRaw as any;
 import { Appointment, Staff, Service, Client, AppointmentStatus, SERVICE_CATEGORY_COLORS } from '@/types/calendar';
 import {
   Sheet,
