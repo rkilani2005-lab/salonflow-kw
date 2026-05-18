@@ -132,7 +132,7 @@ export default function POS() {
   const loadBooking = async (id: string) => {
     const { data: booking } = await supabase
       .from('bookings')
-      .select('id, client_id, client_name, client_phone, staff_id, service_id, service_name, service_category, booking_date, start_time, end_time, duration, status, price, deposit_amount, deposit_status, is_online_booking, notes')
+      .select('id, client_id, client_name, client_phone, staff_id, service_id, service_name, service_category, booking_date, start_time, end_time, duration, status, price, deposit_amount, deposit_status, is_online_booking, notes, pending_retail')
       .eq('id', id)
       .single();
 
