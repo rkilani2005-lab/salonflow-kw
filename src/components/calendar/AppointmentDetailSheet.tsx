@@ -228,24 +228,48 @@ export function AppointmentDetailSheet({
     }
   };
 
-  const addRetailItem = () => {
-    setRetailItems((prev) => [
-      ...prev,
-      { id: `retail-${Date.now()}`, name: '', price: 0, quantity: 1 },
-    ]);
+  const addRetailProduct = (product: any) => {
+    if (isLocked) return;
+    setRetailItems(prev => {
+      const idx = prev.findIndex(i => i.item_type === 'product' && i.item_id === product.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        const q = next[idx].quantity + 1;
+        next[idx] = { ...next[idx], quantity: q, total_price: Math.round(next[idx].unit_price * q * 1000) / 1000 };
+        return next;
+      }
+      const price = Number(product.retail_price ?? product.unit_price ?? 0);
+      return [
+        ...prev,
+        {
+          item_type: 'product',
+          item_id: product.id,
+          item_name: product.name,
+          item_name_ar: product.name_ar || undefined,
+          quantity: 1,
+          unit_price: price,
+          total_price: price,
+        } as CartItem,
+      ];
+    });
   };
 
-  const updateRetailItem = (index: number, field: keyof RetailItem, value: string | number) => {
-    setRetailItems((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
-    );
+  const updateRetailQty = (idx: number, qty: number) => {
+    if (isLocked) return;
+    setRetailItems(prev => {
+      const next = [...prev];
+      const q = Math.max(1, qty);
+      next[idx] = { ...next[idx], quantity: q, total_price: Math.round(next[idx].unit_price * q * 1000) / 1000 };
+      return next;
+    });
   };
 
-  const removeRetailItem = (index: number) => {
-    setRetailItems((prev) => prev.filter((_, i) => i !== index));
+  const removeRetailItem = (idx: number) => {
+    if (isLocked) return;
+    setRetailItems(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const totalRetail = retailItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalRetail = retailItems.reduce((s, i) => s + Number(i.total_price || 0), 0);
   const grandTotal = apt.price + totalRetail;
 
   // Generate time options (every 15 minutes)
