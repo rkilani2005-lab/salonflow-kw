@@ -84,6 +84,10 @@ export interface CartItem {
 export interface PaymentEntry {
   payment_method: 'cash' | 'knet' | 'credit_card' | 'gift_card';
   amount: number;
+  /** 1-based payer position when a sale is split across multiple customers. Omit for single-payer sales. */
+  payer_index?: number;
+  /** Optional human label for the payer (e.g. "Layla"). Falls back to "Payer N" on receipts. */
+  payer_label?: string;
 }
 
 export interface CreateTransactionInput {
