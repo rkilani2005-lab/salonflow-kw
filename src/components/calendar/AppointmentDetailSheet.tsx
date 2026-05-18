@@ -83,13 +83,6 @@ const statusTransitions: Record<AppointmentStatus, AppointmentStatus[]> = {
   no_show: [],
 };
 
-interface RetailItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
 interface AppointmentDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
