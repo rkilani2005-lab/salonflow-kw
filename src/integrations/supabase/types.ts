@@ -259,6 +259,7 @@ export type Database = {
           notes: string | null
           payment_id: string | null
           payment_url: string | null
+          pending_retail: Json
           price: number
           service_category: Database["public"]["Enums"]["service_category"]
           service_id: string | null
@@ -284,6 +285,7 @@ export type Database = {
           notes?: string | null
           payment_id?: string | null
           payment_url?: string | null
+          pending_retail?: Json
           price?: number
           service_category?: Database["public"]["Enums"]["service_category"]
           service_id?: string | null
@@ -309,6 +311,7 @@ export type Database = {
           notes?: string | null
           payment_id?: string | null
           payment_url?: string | null
+          pending_retail?: Json
           price?: number
           service_category?: Database["public"]["Enums"]["service_category"]
           service_id?: string | null
@@ -3606,18 +3609,24 @@ export type Database = {
         Row: {
           amount: number
           id: string
+          payer_index: number | null
+          payer_label: string | null
           payment_method: Database["public"]["Enums"]["pos_payment_method"]
           transaction_id: string
         }
         Insert: {
           amount: number
           id?: string
+          payer_index?: number | null
+          payer_label?: string | null
           payment_method: Database["public"]["Enums"]["pos_payment_method"]
           transaction_id: string
         }
         Update: {
           amount?: number
           id?: string
+          payer_index?: number | null
+          payer_label?: string | null
           payment_method?: Database["public"]["Enums"]["pos_payment_method"]
           transaction_id?: string
         }
@@ -4317,7 +4326,28 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      transaction_payers_v1: {
+        Row: {
+          payer_index: number | null
+          payer_label: string | null
+          payer_total: number | null
+          payment_count: number | null
+          payment_ids: string[] | null
+          payment_methods:
+            | Database["public"]["Enums"]["pos_payment_method"][]
+            | null
+          transaction_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_payments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       count_tenant_users: { Args: { p_tenant_id: string }; Returns: number }
