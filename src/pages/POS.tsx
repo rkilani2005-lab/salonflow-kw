@@ -266,6 +266,13 @@ export default function POS() {
         grand_total: grandTotal,
       });
 
+      if (bookingId) {
+        supabase.from('bookings')
+          .update({ pending_retail: [] })
+          .eq('id', bookingId)
+          .then(({ error }: { error: any }) => { if (error) console.warn('[pending_retail] clear failed', error); });
+      }
+
       // Award / deduct loyalty points.  Re-reads the client balance from
       // the DB at this moment — the selectedClient prop can be stale if
       // another device (or another sale) changed the balance after the
