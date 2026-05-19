@@ -26,10 +26,12 @@ interface PaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   grandTotal: number;
-  onConfirm: (payments: PaymentEntry[]) => void;
+  onConfirm: (payments: PaymentEntry[], tipSplits?: { staff_id: string; amount: number }[]) => void;
   loading?: boolean;
   maxByMethod?: Partial<Record<PaymentMethod, number>>;
   currency?: string;
+  tipAmount?: number;
+  items?: CartItem[];
 }
 
 const PAYMENT_METHODS: { method: PaymentMethod; label: string; icon: React.ElementType; color: string }[] = [
