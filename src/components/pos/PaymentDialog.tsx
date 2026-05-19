@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import type { PaymentEntry } from '@/hooks/useTransactions';
+import type { PaymentEntry, CartItem } from '@/hooks/useTransactions';
 import {
   Banknote, CreditCard, Smartphone, Gift, Trash2, Loader2, Check,
   Users, ChevronRight, ArrowLeft,
