@@ -61,6 +61,8 @@ export function PaymentDialog({
   open, onOpenChange, grandTotal, onConfirm, loading,
   maxByMethod = {},
   currency = 'KWD',
+  tipAmount = 0,
+  items = [],
 }: PaymentDialogProps) {
 
   const [splitCount, setSplitCount] = useState(1);
@@ -69,6 +71,7 @@ export function PaymentDialog({
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
   const [payerLabel, setPayerLabel] = useState('');
   const [customAmount, setCustomAmount] = useState('');
+  const [tipSplits, setTipSplits] = useState<{ staff_id: string; amount: number }[]>([]);
 
   useEffect(() => {
     if (!open) {
@@ -78,6 +81,7 @@ export function PaymentDialog({
       setPayments([]);
       setPayerLabel('');
       setCustomAmount('');
+      setTipSplits([]);
     }
   }, [open]);
 
