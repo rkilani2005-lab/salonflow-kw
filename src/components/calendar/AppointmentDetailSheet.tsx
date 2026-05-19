@@ -114,7 +114,64 @@ export function AppointmentDetailSheet({
   const isMobile = useIsMobile();
   const [editedAppointment, setEditedAppointment] = useState<Appointment | null>(null);
   const [retailItems, setRetailItems] = useState<CartItem[]>([]);
+  const [recipe, setRecipe] = useState<Array<{ product_id: string; product_name: string; expected_qty: number; uom: string; actual_qty: string }>>([]);
+  const [savingActuals, setSavingActuals] = useState(false);
+  const { toast } = useToast();
+  const { tenant } = useAuth();
   const lastSavedRef = useRef<string>('[]');
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!appointment?.id || !appointment?.service_id) { setRecipe([]); return; }
+    (async () => {
+      const { data: recipes } = await supabase
+        .from('service_recipes')
+        .select('product_id, quantity_per_service, product:products(name, usage_unit)')
+        .eq('service_id', appointment.service_id);
+      const { data: priors } = await supabase
+        .from('service_consumption_actuals')
+        .select('product_id, actual_qty')
+        .eq('booking_id', appointment.id);
+      const priorMap = new Map<string, string>((priors || []).map((p: any) => [p.product_id, String(p.actual_qty)]));
+      const rows = (recipes || []).map((r: any) => ({
+        product_id: r.product_id,
+        product_name: r.product?.name ?? '',
+        expected_qty: Number(r.quantity_per_service || 0),
+        uom: r.product?.usage_unit ?? '',
+        actual_qty: priorMap.get(r.product_id) ?? '',
+      }));
+      setRecipe(rows);
+    })();
+  }, [appointment?.id, appointment?.service_id]);
+
+  async function saveActuals() {
+    if (!appointment?.id || !appointment?.service_id || !tenant?.id) return;
+    setSavingActuals(true);
+    try {
+      await supabase.from('service_consumption_actuals').delete().eq('booking_id', appointment.id);
+      const rows = recipe
+        .filter(r => r.actual_qty !== '')
+        .map(r => ({
+          tenant_id: tenant.id,
+          booking_id: appointment.id,
+          service_id: appointment.service_id,
+          product_id: r.product_id,
+          staff_id: appointment.staff_id ?? null,
+          expected_qty: r.expected_qty,
+          actual_qty: Number(r.actual_qty),
+        }));
+      if (rows.length > 0) {
+        const { error } = await supabase.from('service_consumption_actuals').insert(rows);
+        if (error) throw error;
+      }
+      toast?.({ title: 'Back-bar usage saved' });
+    } catch (err: any) {
+      toast?.({ title: 'Save failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setSavingActuals(false);
+    }
+  }
+
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
