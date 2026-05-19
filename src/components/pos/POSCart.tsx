@@ -158,6 +158,22 @@ export function POSCart({
                   <Plus className="h-3 w-3" />
                 </Button>
               </div>
+              {item.item_type === 'service' && (
+                <Select
+                  value={item.staff_commission_id || ''}
+                  onValueChange={(v) => updateStaff(index, v || null)}
+                >
+                  <SelectTrigger className="w-28 h-9 text-xs" aria-label="Assign staff">
+                    <User className="h-3 w-3 mr-1 flex-shrink-0" />
+                    <SelectValue placeholder="Staff" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(staffList || []).filter((s: any) => s.is_active).map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <p className="text-sm font-semibold text-foreground w-20 text-right">
                 {item.total_price.toFixed(3)}
               </p>
