@@ -246,6 +246,8 @@ export type Database = {
       bookings: {
         Row: {
           booking_date: string
+          check_in_token: string | null
+          checked_in_at: string | null
           client_id: string | null
           client_name: string
           client_phone: string
@@ -272,6 +274,8 @@ export type Database = {
         }
         Insert: {
           booking_date: string
+          check_in_token?: string | null
+          checked_in_at?: string | null
           client_id?: string | null
           client_name: string
           client_phone: string
@@ -298,6 +302,8 @@ export type Database = {
         }
         Update: {
           booking_date?: string
+          check_in_token?: string | null
+          checked_in_at?: string | null
           client_id?: string | null
           client_name?: string
           client_phone?: string
@@ -1147,6 +1153,44 @@ export type Database = {
             foreignKeyName: "cost_centers_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_briefing_config: {
+        Row: {
+          enabled: boolean
+          last_brief: string | null
+          last_sent_date: string | null
+          recipient_phone: string | null
+          send_hour: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          last_brief?: string | null
+          last_sent_date?: string | null
+          recipient_phone?: string | null
+          send_hour?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          last_brief?: string | null
+          last_sent_date?: string | null
+          recipient_phone?: string | null
+          send_hour?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_briefing_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -2694,6 +2738,80 @@ export type Database = {
           },
         ]
       }
+      service_actual_usage: {
+        Row: {
+          actual_qty: number
+          booking_id: string
+          expected_qty: number
+          id: string
+          notes: string | null
+          product_id: string
+          recorded_at: string
+          recorded_by: string | null
+          service_id: string | null
+          tenant_id: string
+          variance: number | null
+          variance_pct: number | null
+        }
+        Insert: {
+          actual_qty?: number
+          booking_id: string
+          expected_qty?: number
+          id?: string
+          notes?: string | null
+          product_id: string
+          recorded_at?: string
+          recorded_by?: string | null
+          service_id?: string | null
+          tenant_id: string
+          variance?: number | null
+          variance_pct?: number | null
+        }
+        Update: {
+          actual_qty?: number
+          booking_id?: string
+          expected_qty?: number
+          id?: string
+          notes?: string | null
+          product_id?: string
+          recorded_at?: string
+          recorded_by?: string | null
+          service_id?: string | null
+          tenant_id?: string
+          variance?: number | null
+          variance_pct?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_actual_usage_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_actual_usage_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_actual_usage_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_actual_usage_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_packages: {
         Row: {
           color: string | null
@@ -3551,6 +3669,48 @@ export type Database = {
         }
         Relationships: []
       }
+      transaction_item_staff: {
+        Row: {
+          allocation_percent: number
+          created_at: string
+          id: string
+          role_in_service: string | null
+          staff_id: string
+          transaction_item_id: string
+        }
+        Insert: {
+          allocation_percent: number
+          created_at?: string
+          id?: string
+          role_in_service?: string | null
+          staff_id: string
+          transaction_item_id: string
+        }
+        Update: {
+          allocation_percent?: number
+          created_at?: string
+          id?: string
+          role_in_service?: string | null
+          staff_id?: string
+          transaction_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_item_staff_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_item_staff_transaction_item_id_fkey"
+            columns: ["transaction_item_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transaction_items: {
         Row: {
           id: string
@@ -3633,6 +3793,45 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "transaction_payments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transaction_tip_allocations: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          staff_id: string
+          transaction_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          staff_id: string
+          transaction_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          staff_id?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_tip_allocations_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_tip_allocations_transaction_id_fkey"
             columns: ["transaction_id"]
             isOneToOne: false
             referencedRelation: "transactions"
@@ -4344,6 +4543,34 @@ export type Database = {
             columns: ["transaction_id"]
             isOneToOne: false
             referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usage_variance_v1: {
+        Row: {
+          captures: number | null
+          product_id: string | null
+          product_name: string | null
+          tenant_id: string | null
+          total_actual: number | null
+          total_expected: number | null
+          total_variance: number | null
+          variance_pct: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_actual_usage_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_actual_usage_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
