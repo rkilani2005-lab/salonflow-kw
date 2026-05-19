@@ -724,9 +724,9 @@ export default function POS() {
         onConfirm={handlePaymentConfirm}
         loading={createTransaction.isPending}
         currency={tenant?.currency || 'KWD'}
+        tipAmount={tipAmount}
+        items={items}
         maxByMethod={{
-          // Cap gift-card payment to the validated card's remaining balance.
-          // 0 = no gift card linked → button disabled with "No gift card linked".
           gift_card: Number(giftCardResult?.balance ?? 0),
         }}
       />
