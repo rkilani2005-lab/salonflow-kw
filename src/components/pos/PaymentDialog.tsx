@@ -152,7 +152,7 @@ export function PaymentDialog({
             payer_label: p.label,
           })))
         : updated.flatMap(p => p.payments);
-      onConfirm(flat);
+      onConfirm(flat, tipSplits);
     } else {
       setCompletedPayers(updated);
       setPayerIndex(p => p + 1);
