@@ -347,6 +347,41 @@ export function PaymentDialog({
             </>
           )}
 
+          {tipAmount > 0 && (() => {
+            const serviceStaffIds = Array.from(new Set(
+              (items || []).filter(i => i.item_type === 'service' && i.staff_commission_id).map(i => i.staff_commission_id as string)
+            ));
+            if (serviceStaffIds.length < 2) return null;
+            if (tipSplits.length === 0) {
+              const each = Math.round((tipAmount / serviceStaffIds.length) * 1000) / 1000;
+              const splits = serviceStaffIds.map((sid, idx) => ({
+                staff_id: sid,
+                amount: idx === serviceStaffIds.length - 1
+                  ? Math.round((tipAmount - each * (serviceStaffIds.length - 1)) * 1000) / 1000
+                  : each,
+              }));
+              setTimeout(() => setTipSplits(splits), 0);
+            }
+            return (
+              <div className="border rounded p-3 space-y-2 bg-muted/30">
+                <p className="text-xs font-semibold">Tip distribution ({tipAmount.toFixed(3)} {currency})</p>
+                {tipSplits.map((sp, i) => (
+                  <div key={sp.staff_id} className="flex items-center gap-2">
+                    <span className="text-xs flex-1 truncate">{sp.staff_id.slice(0, 6)}…</span>
+                    <Input
+                      type="number" step="0.001" className="w-24 h-7 text-xs"
+                      value={sp.amount}
+                      onChange={(e) => setTipSplits(prev => prev.map((x, j) => j === i ? { ...x, amount: Number(e.target.value || 0) } : x))}
+                    />
+                  </div>
+                ))}
+                <p className="text-[10px] text-muted-foreground">
+                  Sum: {tipSplits.reduce((s, x) => s + Number(x.amount || 0), 0).toFixed(3)} / {tipAmount.toFixed(3)} {currency}
+                </p>
+              </div>
+            );
+          })()}
+
           <div className="flex gap-2">
             {splitMode && payerIndex > 0 && (
               <Button variant="outline" onClick={handleBack} disabled={loading} className="gap-1.5">
