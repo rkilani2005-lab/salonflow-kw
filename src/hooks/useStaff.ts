@@ -65,7 +65,7 @@
            .in('id', serviceIds);
  
          if (servicesError) throw servicesError;
-         services = servicesData || [];
+         services = (servicesData || []) as any;
        }
  
        return { ...staff, services } as StaffWithServices;

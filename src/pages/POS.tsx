@@ -246,7 +246,7 @@ export default function POS() {
 
   const handleCheckout = () => { setShowPayment(true); };
 
-  const handlePaymentConfirm = async (payments: PaymentEntry[]) => {
+  const handlePaymentConfirm = async (payments: PaymentEntry[], tipSplits?: { staff_id: string; amount: number }[]) => {
     if (bookingAlreadyPaid || createTransaction.isPending) return;
     try {
       const txn = await createTransaction.mutateAsync({
@@ -264,6 +264,7 @@ export default function POS() {
         tax_amount: taxAmount,
         tip_amount: tipAmount,
         grand_total: grandTotal,
+        tip_splits: tipSplits,
       });
 
       if (bookingId) {
@@ -723,9 +724,9 @@ export default function POS() {
         onConfirm={handlePaymentConfirm}
         loading={createTransaction.isPending}
         currency={tenant?.currency || 'KWD'}
+        tipAmount={tipAmount}
+        items={items}
         maxByMethod={{
-          // Cap gift-card payment to the validated card's remaining balance.
-          // 0 = no gift card linked → button disabled with "No gift card linked".
           gift_card: Number(giftCardResult?.balance ?? 0),
         }}
       />

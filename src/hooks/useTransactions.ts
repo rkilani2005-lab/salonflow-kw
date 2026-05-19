@@ -106,6 +106,7 @@ export interface CreateTransactionInput {
   tip_amount: number;
   grand_total: number;
   notes?: string;
+  tip_splits?: { staff_id: string; amount: number }[];
 }
 
 export const useTransactions = () => {
@@ -212,6 +213,24 @@ export const useCreateTransaction = () => {
         .insert(payments);
 
       if (paymentsError) throw paymentsError;
+
+      // 3b. Insert per-staff tip distribution (item 5).
+      if (input.tip_splits && input.tip_splits.length > 0 && input.tip_amount > 0) {
+        const tipRows = input.tip_splits
+          .filter(s => s.staff_id && Number(s.amount) > 0)
+          .map(s => ({
+            transaction_id: txn.id,
+            staff_id: s.staff_id,
+            amount: Number(s.amount),
+          }));
+        if (tipRows.length > 0) {
+          const { error: tipErr } = await (supabase as any).from('transaction_tips').insert(tipRows);
+          if (tipErr) {
+            // eslint-disable-next-line no-console
+            console.error('transaction_tips insert failed:', tipErr);
+          }
+        }
+      }
 
       // Collected warnings surfaced to the cashier after the sale closes,
       // so a race / negative-stock / missing-recipe-product condition is

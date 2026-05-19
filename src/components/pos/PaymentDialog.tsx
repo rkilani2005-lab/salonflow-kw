@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import type { PaymentEntry } from '@/hooks/useTransactions';
+import type { PaymentEntry, CartItem } from '@/hooks/useTransactions';
 import {
   Banknote, CreditCard, Smartphone, Gift, Trash2, Loader2, Check,
   Users, ChevronRight, ArrowLeft,
@@ -26,10 +26,12 @@ interface PaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   grandTotal: number;
-  onConfirm: (payments: PaymentEntry[]) => void;
+  onConfirm: (payments: PaymentEntry[], tipSplits?: { staff_id: string; amount: number }[]) => void;
   loading?: boolean;
   maxByMethod?: Partial<Record<PaymentMethod, number>>;
   currency?: string;
+  tipAmount?: number;
+  items?: CartItem[];
 }
 
 const PAYMENT_METHODS: { method: PaymentMethod; label: string; icon: React.ElementType; color: string }[] = [
@@ -59,6 +61,8 @@ export function PaymentDialog({
   open, onOpenChange, grandTotal, onConfirm, loading,
   maxByMethod = {},
   currency = 'KWD',
+  tipAmount = 0,
+  items = [],
 }: PaymentDialogProps) {
 
   const [splitCount, setSplitCount] = useState(1);
@@ -67,6 +71,7 @@ export function PaymentDialog({
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
   const [payerLabel, setPayerLabel] = useState('');
   const [customAmount, setCustomAmount] = useState('');
+  const [tipSplits, setTipSplits] = useState<{ staff_id: string; amount: number }[]>([]);
 
   useEffect(() => {
     if (!open) {
@@ -76,6 +81,7 @@ export function PaymentDialog({
       setPayments([]);
       setPayerLabel('');
       setCustomAmount('');
+      setTipSplits([]);
     }
   }, [open]);
 
@@ -146,7 +152,7 @@ export function PaymentDialog({
             payer_label: p.label,
           })))
         : updated.flatMap(p => p.payments);
-      onConfirm(flat);
+      onConfirm(flat, tipSplits);
     } else {
       setCompletedPayers(updated);
       setPayerIndex(p => p + 1);
@@ -340,6 +346,41 @@ export function PaymentDialog({
               </div>
             </>
           )}
+
+          {tipAmount > 0 && (() => {
+            const serviceStaffIds = Array.from(new Set(
+              (items || []).filter(i => i.item_type === 'service' && i.staff_commission_id).map(i => i.staff_commission_id as string)
+            ));
+            if (serviceStaffIds.length < 2) return null;
+            if (tipSplits.length === 0) {
+              const each = Math.round((tipAmount / serviceStaffIds.length) * 1000) / 1000;
+              const splits = serviceStaffIds.map((sid, idx) => ({
+                staff_id: sid,
+                amount: idx === serviceStaffIds.length - 1
+                  ? Math.round((tipAmount - each * (serviceStaffIds.length - 1)) * 1000) / 1000
+                  : each,
+              }));
+              setTimeout(() => setTipSplits(splits), 0);
+            }
+            return (
+              <div className="border rounded p-3 space-y-2 bg-muted/30">
+                <p className="text-xs font-semibold">Tip distribution ({tipAmount.toFixed(3)} {currency})</p>
+                {tipSplits.map((sp, i) => (
+                  <div key={sp.staff_id} className="flex items-center gap-2">
+                    <span className="text-xs flex-1 truncate">{sp.staff_id.slice(0, 6)}…</span>
+                    <Input
+                      type="number" step="0.001" className="w-24 h-7 text-xs"
+                      value={sp.amount}
+                      onChange={(e) => setTipSplits(prev => prev.map((x, j) => j === i ? { ...x, amount: Number(e.target.value || 0) } : x))}
+                    />
+                  </div>
+                ))}
+                <p className="text-[10px] text-muted-foreground">
+                  Sum: {tipSplits.reduce((s, x) => s + Number(x.amount || 0), 0).toFixed(3)} / {tipAmount.toFixed(3)} {currency}
+                </p>
+              </div>
+            );
+          })()}
 
           <div className="flex gap-2">
             {splitMode && payerIndex > 0 && (

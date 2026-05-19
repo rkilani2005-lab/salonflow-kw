@@ -8,10 +8,11 @@ import { ProductSearch } from './ProductSearch';
 import { TipInput } from './TipInput';
 import { DiscountApprovalDialog } from './DiscountApprovalDialog';
 import { cn } from '@/lib/utils';
-import { Minus, Plus, Trash2, Tag, Percent } from 'lucide-react';
+import { Minus, Plus, Trash2, Tag, Percent, User } from 'lucide-react';
 import type { CartItem } from '@/hooks/useTransactions';
 import type { Product } from '@/hooks/useProducts';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStaff } from '@/hooks/useStaff';
 
 interface POSCartProps {
   items: CartItem[];
@@ -47,6 +48,12 @@ export function POSCart({
   const [showDiscountApproval, setShowDiscountApproval] = useState(false);
   const [pendingDiscount, setPendingDiscount] = useState<{ type: string; value: number; reason: string } | null>(null);
   const { tenant } = useAuth();
+  const { data: staffList } = useStaff();
+  const updateStaff = (index: number, staffId: string | null) => {
+    onItemsChange(items.map((i, idx) =>
+      idx === index ? { ...i, staff_commission_id: staffId || undefined } : i
+    ));
+  };
 
   const subtotal = items.reduce((sum, item) => sum + item.total_price, 0);
   const taxRate = Number(tenant?.default_tax_rate || 0) / 100;
@@ -151,6 +158,22 @@ export function POSCart({
                   <Plus className="h-3 w-3" />
                 </Button>
               </div>
+              {item.item_type === 'service' && (
+                <Select
+                  value={item.staff_commission_id || ''}
+                  onValueChange={(v) => updateStaff(index, v || null)}
+                >
+                  <SelectTrigger className="w-28 h-9 text-xs" aria-label="Assign staff">
+                    <User className="h-3 w-3 mr-1 flex-shrink-0" />
+                    <SelectValue placeholder="Staff" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(staffList || []).filter((s: any) => s.is_active).map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <p className="text-sm font-semibold text-foreground w-20 text-right">
                 {item.total_price.toFixed(3)}
               </p>

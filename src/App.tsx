@@ -40,6 +40,8 @@ const StaffAttendance  = lazy(() => import("./pages/StaffAttendance"));
 const WaitingList      = lazy(() => import("./pages/WaitingList"));
 const ClientFeedback   = lazy(() => import("./pages/ClientFeedback"));
 const Packages         = lazy(() => import("./pages/Packages"));
+const MyDay            = lazy(() => import("./pages/MyDay"));
+const BackBarVariance  = lazy(() => import("./pages/BackBarVariance"));
 const BookingRequests  = lazy(() => import("./pages/BookingRequests"));
 const ClientPortal     = lazy(() => import("./pages/ClientPortal"));
 const NotFound         = lazy(() => import("./pages/NotFound"));
@@ -172,6 +174,8 @@ const App = () => (
                 <Route path="/feedback"         element={<ClientFeedback />} />
                 <Route path="/packages"         element={<Packages />} />
                 <Route path="/booking-requests" element={<BookingRequests />} />
+                <Route path="/my-day" element={<MyDay />} />
+                <Route path="/reports/back-bar-variance" element={<BackBarVariance />} />
                 <Route path="/subscription" element={<Subscription />} />
               <Route path="/ai/scheduling" element={<AIScheduling />} />
               <Route path="/ai/clients" element={<AIClientIntelligence />} />

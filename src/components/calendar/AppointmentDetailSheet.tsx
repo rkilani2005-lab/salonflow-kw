@@ -47,10 +47,14 @@ import {
   Plus,
   Minus,
   Trash2,
+  FlaskConical,
+  Save as SaveIcon,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useBookingPayment } from '@/hooks/useBookingPayment';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 const statusLabels: Record<AppointmentStatus, string> = {
   planned: 'Planned',
@@ -110,8 +114,67 @@ export function AppointmentDetailSheet({
   const isMobile = useIsMobile();
   const [editedAppointment, setEditedAppointment] = useState<Appointment | null>(null);
   const [retailItems, setRetailItems] = useState<CartItem[]>([]);
+  const [recipe, setRecipe] = useState<Array<{ product_id: string; product_name: string; expected_qty: number; uom: string; actual_qty: string }>>([]);
+  const [savingActuals, setSavingActuals] = useState(false);
+  const { toast } = useToast();
+  const { tenant } = useAuth();
   const lastSavedRef = useRef<string>('[]');
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const appt = appointment as any;
+    if (!appt?.id || !appt?.serviceId) { setRecipe([]); return; }
+    (async () => {
+      const { data: recipes } = await supabase
+        .from('service_recipes')
+        .select('product_id, quantity_per_service, product:products(name, usage_unit)')
+        .eq('service_id', appt.serviceId);
+      const { data: priors } = await supabase
+        .from('service_consumption_actuals')
+        .select('product_id, actual_qty')
+        .eq('booking_id', appt.id);
+      const priorMap = new Map<string, string>((priors || []).map((p: any) => [p.product_id, String(p.actual_qty)]));
+      const rows = (recipes || []).map((r: any) => ({
+        product_id: r.product_id,
+        product_name: r.product?.name ?? '',
+        expected_qty: Number(r.quantity_per_service || 0),
+        uom: r.product?.usage_unit ?? '',
+        actual_qty: priorMap.get(r.product_id) ?? '',
+      }));
+      setRecipe(rows);
+    })();
+  }, [(appointment as any)?.id, (appointment as any)?.serviceId]);
+
+  async function saveActuals() {
+    const appt = appointment as any;
+    if (!appt?.id || !appt?.serviceId || !tenant?.id) return;
+    setSavingActuals(true);
+    try {
+      await supabase.from('service_consumption_actuals').delete().eq('booking_id', appt.id);
+      const rows = recipe
+        .filter(r => r.actual_qty !== '')
+        .map(r => ({
+          tenant_id: tenant.id,
+          booking_id: appt.id,
+          service_id: appt.serviceId,
+          product_id: r.product_id,
+          staff_id: appt.staffId ?? null,
+          expected_qty: r.expected_qty,
+          actual_qty: Number(r.actual_qty),
+        }));
+      if (rows.length > 0) {
+        const { error } = await supabase.from('service_consumption_actuals').insert(rows);
+        if (error) throw error;
+      }
+      toast?.({ title: 'Back-bar usage saved' });
+    } catch (err: any) {
+      toast?.({ title: 'Save failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setSavingActuals(false);
+    }
+  }
+
+
 
   useEffect(() => {
     if (!appointment) return;
@@ -331,6 +394,13 @@ export function AppointmentDetailSheet({
                   <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">
                     {retailItems.length}
                   </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="backbar" className="gap-1">
+                <FlaskConical className="h-3.5 w-3.5" />
+                Back-bar
+                {recipe.length > 0 && (
+                  <span className="ml-1 text-[10px] bg-muted-foreground/10 rounded px-1">{recipe.length}</span>
                 )}
               </TabsTrigger>
             </TabsList>
@@ -690,6 +760,41 @@ export function AppointmentDetailSheet({
                     <span className="font-semibold">{totalRetail.toFixed(3)} KWD</span>
                   </div>
                 </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="backbar" className="space-y-3">
+              {recipe.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">No recipe defined for this service.</p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">Log actual product usage. Variance is calculated against the recipe.</p>
+                  <div className="space-y-2">
+                    {recipe.map((r, i) => (
+                      <div key={r.product_id} className="flex items-center gap-2 p-2 border rounded">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{r.product_name}</p>
+                          <p className="text-[10px] text-muted-foreground">Recipe: {r.expected_qty} {r.uom}</p>
+                        </div>
+                        <Input
+                          type="number" step="0.001"
+                          placeholder={String(r.expected_qty)}
+                          className="w-24 h-8 text-sm"
+                          value={r.actual_qty}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setRecipe(prev => prev.map((x, j) => j === i ? { ...x, actual_qty: v } : x));
+                          }}
+                        />
+                        <span className="text-xs text-muted-foreground w-8">{r.uom}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <Button onClick={saveActuals} disabled={savingActuals} className="w-full">
+                    <SaveIcon className="h-4 w-4 mr-1.5" />
+                    {savingActuals ? 'Saving…' : 'Save back-bar usage'}
+                  </Button>
+                </>
               )}
             </TabsContent>
           </Tabs>
