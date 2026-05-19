@@ -762,6 +762,41 @@ export function AppointmentDetailSheet({
                 </div>
               )}
             </TabsContent>
+
+            <TabsContent value="backbar" className="space-y-3">
+              {recipe.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">No recipe defined for this service.</p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">Log actual product usage. Variance is calculated against the recipe.</p>
+                  <div className="space-y-2">
+                    {recipe.map((r, i) => (
+                      <div key={r.product_id} className="flex items-center gap-2 p-2 border rounded">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{r.product_name}</p>
+                          <p className="text-[10px] text-muted-foreground">Recipe: {r.expected_qty} {r.uom}</p>
+                        </div>
+                        <Input
+                          type="number" step="0.001"
+                          placeholder={String(r.expected_qty)}
+                          className="w-24 h-8 text-sm"
+                          value={r.actual_qty}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setRecipe(prev => prev.map((x, j) => j === i ? { ...x, actual_qty: v } : x));
+                          }}
+                        />
+                        <span className="text-xs text-muted-foreground w-8">{r.uom}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <Button onClick={saveActuals} disabled={savingActuals} className="w-full">
+                    <SaveIcon className="h-4 w-4 mr-1.5" />
+                    {savingActuals ? 'Saving…' : 'Save back-bar usage'}
+                  </Button>
+                </>
+              )}
+            </TabsContent>
           </Tabs>
         </ScrollArea>
 
