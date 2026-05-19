@@ -40,6 +40,8 @@ const StaffAttendance  = lazy(() => import("./pages/StaffAttendance"));
 const WaitingList      = lazy(() => import("./pages/WaitingList"));
 const ClientFeedback   = lazy(() => import("./pages/ClientFeedback"));
 const Packages         = lazy(() => import("./pages/Packages"));
+const MyDay            = lazy(() => import("./pages/MyDay"));
+const BackBarVariance  = lazy(() => import("./pages/BackBarVariance"));
 const BookingRequests  = lazy(() => import("./pages/BookingRequests"));
 const ClientPortal     = lazy(() => import("./pages/ClientPortal"));
 const NotFound         = lazy(() => import("./pages/NotFound"));
