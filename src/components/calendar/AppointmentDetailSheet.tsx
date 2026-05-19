@@ -396,6 +396,13 @@ export function AppointmentDetailSheet({
                   </Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="backbar" className="gap-1">
+                <FlaskConical className="h-3.5 w-3.5" />
+                Back-bar
+                {recipe.length > 0 && (
+                  <span className="ml-1 text-[10px] bg-muted-foreground/10 rounded px-1">{recipe.length}</span>
+                )}
+              </TabsTrigger>
             </TabsList>
 
             {/* DETAILS TAB */}
