@@ -106,6 +106,7 @@ export interface CreateTransactionInput {
   tip_amount: number;
   grand_total: number;
   notes?: string;
+  tip_splits?: { staff_id: string; amount: number }[];
 }
 
 export const useTransactions = () => {
