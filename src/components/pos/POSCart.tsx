@@ -48,6 +48,12 @@ export function POSCart({
   const [showDiscountApproval, setShowDiscountApproval] = useState(false);
   const [pendingDiscount, setPendingDiscount] = useState<{ type: string; value: number; reason: string } | null>(null);
   const { tenant } = useAuth();
+  const { data: staffList } = useStaff();
+  const updateStaff = (index: number, staffId: string | null) => {
+    onItemsChange(items.map((i, idx) =>
+      idx === index ? { ...i, staff_commission_id: staffId || undefined } : i
+    ));
+  };
 
   const subtotal = items.reduce((sum, item) => sum + item.total_price, 0);
   const taxRate = Number(tenant?.default_tax_rate || 0) / 100;
