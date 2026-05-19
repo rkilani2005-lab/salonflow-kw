@@ -172,7 +172,6 @@ export function AppointmentDetailSheet({
     }
   }
 
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!appointment) return;
