@@ -985,6 +985,57 @@ export type Database = {
           },
         ]
       }
+      client_trigger_log: {
+        Row: {
+          channel: string
+          client_id: string
+          id: string
+          notes: string | null
+          reference_id: string | null
+          sent_at: string
+          status: string
+          tenant_id: string
+          trigger_event: string
+        }
+        Insert: {
+          channel?: string
+          client_id: string
+          id?: string
+          notes?: string | null
+          reference_id?: string | null
+          sent_at?: string
+          status?: string
+          tenant_id: string
+          trigger_event: string
+        }
+        Update: {
+          channel?: string
+          client_id?: string
+          id?: string
+          notes?: string | null
+          reference_id?: string | null
+          sent_at?: string
+          status?: string
+          tenant_id?: string
+          trigger_event?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_trigger_log_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_trigger_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           created_at: string
@@ -2096,6 +2147,44 @@ export type Database = {
           },
         ]
       }
+      owner_briefing_log: {
+        Row: {
+          briefing_date: string
+          id: string
+          metrics_json: Json | null
+          sent_at: string
+          status: string
+          summary_text: string | null
+          tenant_id: string
+        }
+        Insert: {
+          briefing_date: string
+          id?: string
+          metrics_json?: Json | null
+          sent_at?: string
+          status?: string
+          summary_text?: string | null
+          tenant_id: string
+        }
+        Update: {
+          briefing_date?: string
+          id?: string
+          metrics_json?: Json | null
+          sent_at?: string
+          status?: string
+          summary_text?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_briefing_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       package_redemptions: {
         Row: {
           booking_id: string | null
@@ -2812,6 +2901,84 @@ export type Database = {
           },
         ]
       }
+      service_consumption_actuals: {
+        Row: {
+          actual_qty: number
+          booking_id: string | null
+          expected_qty: number | null
+          id: string
+          notes: string | null
+          product_id: string
+          recorded_at: string
+          recorded_by: string | null
+          service_id: string
+          staff_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          actual_qty: number
+          booking_id?: string | null
+          expected_qty?: number | null
+          id?: string
+          notes?: string | null
+          product_id: string
+          recorded_at?: string
+          recorded_by?: string | null
+          service_id: string
+          staff_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          actual_qty?: number
+          booking_id?: string | null
+          expected_qty?: number | null
+          id?: string
+          notes?: string | null
+          product_id?: string
+          recorded_at?: string
+          recorded_by?: string | null
+          service_id?: string
+          staff_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_consumption_actuals_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_consumption_actuals_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_consumption_actuals_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_consumption_actuals_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_consumption_actuals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_packages: {
         Row: {
           color: string | null
@@ -2988,6 +3155,7 @@ export type Database = {
           name: string
           name_ar: string | null
           price: number
+          rebook_after_days: number | null
           tenant_id: string | null
           updated_at: string
         }
@@ -3003,6 +3171,7 @@ export type Database = {
           name: string
           name_ar?: string | null
           price?: number
+          rebook_after_days?: number | null
           tenant_id?: string | null
           updated_at?: string
         }
@@ -3018,6 +3187,7 @@ export type Database = {
           name?: string
           name_ar?: string | null
           price?: number
+          rebook_after_days?: number | null
           tenant_id?: string | null
           updated_at?: string
         }
@@ -3619,6 +3789,8 @@ export type Database = {
         Row: {
           created_at: string | null
           currency: string | null
+          daily_briefing_enabled: boolean
+          daily_briefing_hour: number
           default_tax_rate: number | null
           id: string
           is_active: boolean | null
@@ -3627,6 +3799,7 @@ export type Database = {
           name: string
           notification_prefs: Json | null
           onboarding_completed: boolean | null
+          owner_whatsapp: string | null
           subscription_plan:
             | Database["public"]["Enums"]["subscription_plan"]
             | null
@@ -3636,6 +3809,8 @@ export type Database = {
         Insert: {
           created_at?: string | null
           currency?: string | null
+          daily_briefing_enabled?: boolean
+          daily_briefing_hour?: number
           default_tax_rate?: number | null
           id?: string
           is_active?: boolean | null
@@ -3644,6 +3819,7 @@ export type Database = {
           name: string
           notification_prefs?: Json | null
           onboarding_completed?: boolean | null
+          owner_whatsapp?: string | null
           subscription_plan?:
             | Database["public"]["Enums"]["subscription_plan"]
             | null
@@ -3653,6 +3829,8 @@ export type Database = {
         Update: {
           created_at?: string | null
           currency?: string | null
+          daily_briefing_enabled?: boolean
+          daily_briefing_hour?: number
           default_tax_rate?: number | null
           id?: string
           is_active?: boolean | null
@@ -3661,6 +3839,7 @@ export type Database = {
           name?: string
           notification_prefs?: Json | null
           onboarding_completed?: boolean | null
+          owner_whatsapp?: string | null
           subscription_plan?:
             | Database["public"]["Enums"]["subscription_plan"]
             | null
@@ -3832,6 +4011,45 @@ export type Database = {
           },
           {
             foreignKeyName: "transaction_tip_allocations_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transaction_tips: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          staff_id: string
+          transaction_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          staff_id: string
+          transaction_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          staff_id?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_tips_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_tips_transaction_id_fkey"
             columns: ["transaction_id"]
             isOneToOne: false
             referencedRelation: "transactions"
@@ -4525,6 +4743,61 @@ export type Database = {
       }
     }
     Views: {
+      consumption_variance_v1: {
+        Row: {
+          actual_qty: number | null
+          booking_id: string | null
+          expected_qty: number | null
+          id: string | null
+          product_id: string | null
+          product_name: string | null
+          recorded_at: string | null
+          service_id: string | null
+          service_name: string | null
+          staff_id: string | null
+          staff_name: string | null
+          tenant_id: string | null
+          unit_of_measure: string | null
+          variance_pct: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_consumption_actuals_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_consumption_actuals_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_consumption_actuals_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_consumption_actuals_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_consumption_actuals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transaction_payers_v1: {
         Row: {
           payer_index: number | null
@@ -4540,6 +4813,30 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "transaction_payments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transaction_tip_rollup_v1: {
+        Row: {
+          staff_id: string | null
+          staff_name: string | null
+          tip_total: number | null
+          transaction_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_tips_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_tips_transaction_id_fkey"
             columns: ["transaction_id"]
             isOneToOne: false
             referencedRelation: "transactions"
