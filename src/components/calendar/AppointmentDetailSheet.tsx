@@ -47,10 +47,14 @@ import {
   Plus,
   Minus,
   Trash2,
+  FlaskConical,
+  Save as SaveIcon,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useBookingPayment } from '@/hooks/useBookingPayment';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 const statusLabels: Record<AppointmentStatus, string> = {
   planned: 'Planned',
