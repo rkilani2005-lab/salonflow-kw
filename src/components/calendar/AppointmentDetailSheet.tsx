@@ -122,16 +122,17 @@ export function AppointmentDetailSheet({
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!appointment?.id || !appointment?.service_id) { setRecipe([]); return; }
+    const appt = appointment as any;
+    if (!appt?.id || !appt?.serviceId) { setRecipe([]); return; }
     (async () => {
       const { data: recipes } = await supabase
         .from('service_recipes')
         .select('product_id, quantity_per_service, product:products(name, usage_unit)')
-        .eq('service_id', appointment.service_id);
+        .eq('service_id', appt.serviceId);
       const { data: priors } = await supabase
         .from('service_consumption_actuals')
         .select('product_id, actual_qty')
-        .eq('booking_id', appointment.id);
+        .eq('booking_id', appt.id);
       const priorMap = new Map<string, string>((priors || []).map((p: any) => [p.product_id, String(p.actual_qty)]));
       const rows = (recipes || []).map((r: any) => ({
         product_id: r.product_id,
@@ -142,21 +143,22 @@ export function AppointmentDetailSheet({
       }));
       setRecipe(rows);
     })();
-  }, [appointment?.id, appointment?.service_id]);
+  }, [(appointment as any)?.id, (appointment as any)?.serviceId]);
 
   async function saveActuals() {
-    if (!appointment?.id || !appointment?.service_id || !tenant?.id) return;
+    const appt = appointment as any;
+    if (!appt?.id || !appt?.serviceId || !tenant?.id) return;
     setSavingActuals(true);
     try {
-      await supabase.from('service_consumption_actuals').delete().eq('booking_id', appointment.id);
+      await supabase.from('service_consumption_actuals').delete().eq('booking_id', appt.id);
       const rows = recipe
         .filter(r => r.actual_qty !== '')
         .map(r => ({
           tenant_id: tenant.id,
-          booking_id: appointment.id,
-          service_id: appointment.service_id,
+          booking_id: appt.id,
+          service_id: appt.serviceId,
           product_id: r.product_id,
-          staff_id: appointment.staff_id ?? null,
+          staff_id: appt.staffId ?? null,
           expected_qty: r.expected_qty,
           actual_qty: Number(r.actual_qty),
         }));
@@ -171,6 +173,7 @@ export function AppointmentDetailSheet({
       setSavingActuals(false);
     }
   }
+
 
 
   useEffect(() => {
