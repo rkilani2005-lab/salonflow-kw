@@ -2010,6 +2010,7 @@ export type Database = {
       }
       messages: {
         Row: {
+          ai_handled: boolean
           booking_id: string | null
           content: string | null
           content_type: string
@@ -2027,6 +2028,7 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
+          ai_handled?: boolean
           booking_id?: string | null
           content?: string | null
           content_type?: string
@@ -2044,6 +2046,7 @@ export type Database = {
           tenant_id: string
         }
         Update: {
+          ai_handled?: boolean
           booking_id?: string | null
           content?: string | null
           content_type?: string
