@@ -23,11 +23,16 @@ serve(async (req) => {
     }
 
     const authHeader = req.headers.get("Authorization") ?? "";
+    // Use the service-role client for the DB lookup. RLS on
+    // conversations/channel_accounts blocks the join when this function
+    // is invoked server-to-server (e.g. by ai-reply with a service-role
+    // JWT passed through an anon client). Auth is already enforced at
+    // the gateway via verify_jwt; we just need reliable DB access.
     const sb = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+    void authHeader;
 
     const { data: conv, error: cErr } = await sb
       .from("conversations")

@@ -134,8 +134,9 @@ serve(async (req) => {
     });
 
     // 7. Send the reply.
+    console.log("[ai-reply] finalReply length:", finalReply?.length ?? 0, "preview:", (finalReply || "").slice(0, 120));
     if (finalReply && finalReply.trim()) {
-      await fetch(`${SUPABASE_URL}/functions/v1/channel-send`, {
+      const sendRes = await fetch(`${SUPABASE_URL}/functions/v1/channel-send`, {
         method:  "POST",
         headers: {
           "Content-Type":  "application/json",
@@ -147,6 +148,10 @@ serve(async (req) => {
           sender_type:     "ai",
         }),
       });
+      const sendBody = await sendRes.text();
+      console.log("[ai-reply] channel-send status:", sendRes.status, "body:", sendBody.slice(0, 300));
+    } else {
+      console.warn("[ai-reply] no finalReply produced — skipping channel-send");
     }
 
     // 8. Idempotency.

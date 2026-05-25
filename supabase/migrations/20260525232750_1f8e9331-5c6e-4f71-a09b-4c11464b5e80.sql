@@ -1,0 +1,1 @@
+update public.messages set ai_handled = false where id = 'f16d185f-a36a-4bd7-8d0f-dd83a78ba03a';
