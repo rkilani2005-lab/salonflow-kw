@@ -97,10 +97,17 @@ serve(async (req) => {
 
       if (!conv) throw new Error("conversation upsert failed");
 
-      // Link to existing client by phone if present
-      const { data: client } = await sb.from("clients")
-        .select("id").eq("tenant_id", tenant_id)
-        .or(`phone.eq.+${phone},phone.eq.${phone}`).maybeSingle();
+      // Link to existing client by phone if present.
+      // Match on the last 8 digits to handle the many formats a phone
+      // might be stored in: "+965 9988 7766", "+96599887766", "99887766",
+      // "00965-99887766", etc. All GCC local numbers are 8 digits, so
+      // the last 8 digits uniquely identify the subscriber.
+      const last8 = phone.slice(-8);
+      const { data: clientCandidates } = await sb.from("clients")
+        .select("id, phone").eq("tenant_id", tenant_id)
+        .like("phone", `%${last8}`)
+        .limit(2);
+      const client = clientCandidates?.[0]; // first match wins; collisions on last-8 are rare
       if (client) {
         await sb.from("conversations").update({ client_id: client.id }).eq("id", conv.id);
       }

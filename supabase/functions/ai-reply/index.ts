@@ -103,6 +103,26 @@ serve(async (req) => {
       return json({ skip: "staff_active" });
     }
 
+    // 2b. If the conversation has no client_id yet, try one more time
+    //     to link it using the same last-8-digit match as baileys-inbound.
+    //     This heals conversations that were created before this fix and
+    //     also catches the case where the customer's phone was added to
+    //     the clients table AFTER the conversation started.
+    if (!conv.client_id && conv.external_id) {
+      const last8 = String(conv.external_id).slice(-8);
+      if (last8.length === 8) {
+        const { data: candidates } = await sb.from("clients")
+          .select("id").eq("tenant_id", msg.tenant_id)
+          .like("phone", `%${last8}`)
+          .limit(1);
+        const found = candidates?.[0];
+        if (found) {
+          await sb.from("conversations").update({ client_id: found.id }).eq("id", conv.id);
+          conv.client_id = found.id;
+        }
+      }
+    }
+
     // 3. Build tenant context for the system prompt.
     const ctx = await loadTenantContext(msg.tenant_id, conv.client_id);
 
@@ -216,8 +236,8 @@ function buildSystemPrompt(ctx: TenantCtx): string {
     : "(no staff)";
 
   const clientLine = ctx.client
-    ? `The client you are speaking with is ${ctx.client.name} (loyalty points: ${ctx.client.loyalty_points}).`
-    : "This person is not yet a registered client.";
+    ? `RETURNING CLIENT — You are speaking with ${ctx.client.name} (loyalty points: ${ctx.client.loyalty_points}). ALWAYS greet them by their first name. Never ask their name again.`
+    : `NEW CLIENT — This phone number is not in the salon's client database. On your very first reply, politely ask for their name (use the language they used to write to you). Once they give you a name, call the register_client tool with that name BEFORE doing anything else. After registration succeeds, greet them by name and continue.`;
 
   return `You are the WhatsApp assistant for ${ctx.tenant.name}, a salon in Kuwait.
 
@@ -226,6 +246,7 @@ ${clientLine}
 You can:
 - Answer questions about services and prices.
 - Check availability for a service on a specific date/time.
+- Register a brand new client when they share their name (register_client tool).
 - Book an appointment after explicit client confirmation.
 - Look up the client's most recent invoice and send a PDF.
 
@@ -233,6 +254,7 @@ You CANNOT:
 - Modify prices, give unauthorized discounts, or make promises about loyalty rewards beyond what's stored.
 - Cancel or modify existing appointments — escalate those to staff.
 - Discuss other clients' information.
+- Book or look up invoices without a registered client. If somehow you get this far without a registered client, ask for the name first.
 
 When the client's request is ambiguous or sensitive (complaint, refund, anything emotional), keep your reply brief and say a team member will follow up — do NOT try to handle it yourself.
 
@@ -264,6 +286,17 @@ interface AgentInput {
 
 const TOOLS = [
   {
+    name: "register_client",
+    description: "Register a brand-new client in the salon's database using the name they just provided. ONLY call this when the system prompt says you're talking to a NEW CLIENT and the client has just shared their name. Do NOT call for existing clients. The phone number is taken automatically from the WhatsApp conversation — you do not provide it.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "The client's name exactly as they shared it. Trim whitespace. Do not modify capitalization beyond basic title-casing if it's clearly lowercase." },
+      },
+      required: ["name"],
+    },
+  },
+  {
     name: "check_availability",
     description: "Check if a service is available on a specific date and approximate time. Returns a list of free slots.",
     input_schema: {
@@ -278,7 +311,7 @@ const TOOLS = [
   },
   {
     name: "book_appointment",
-    description: "Create a confirmed appointment AFTER the client has explicitly agreed to a specific service, date, and time. Never call without confirmation.",
+    description: "Create a confirmed appointment AFTER the client has explicitly agreed to a specific service, date, and time. Never call without confirmation. Requires a registered client — if the client is new, call register_client first.",
     input_schema: {
       type: "object",
       properties: {
@@ -292,7 +325,7 @@ const TOOLS = [
   },
   {
     name: "lookup_last_invoice",
-    description: "Retrieve the client's most recent paid invoice (transaction). Returns total, items, date.",
+    description: "Retrieve the client's most recent paid invoice (transaction). Returns total, items, date. Requires a registered client.",
     input_schema: { type: "object", properties: {} },
   },
 ] as const;
@@ -365,6 +398,7 @@ async function runAgent(input: AgentInput): Promise<string> {
 async function runTool(name: string, args: any, input: AgentInput): Promise<any> {
   try {
     switch (name) {
+      case "register_client":      return await registerClient(args, input);
       case "check_availability":   return await checkAvailability(args, input);
       case "book_appointment":     return await bookAppointment(args, input);
       case "lookup_last_invoice":  return await lookupLastInvoice(input);
@@ -373,6 +407,49 @@ async function runTool(name: string, args: any, input: AgentInput): Promise<any>
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };
   }
+}
+
+async function registerClient(args: any, input: AgentInput) {
+  if (input.client_id) {
+    // Idempotent: AI got confused and called this twice. Don't create duplicates.
+    return { already_registered: true, client_id: input.client_id, note: "This client is already in the database." };
+  }
+  const name = String(args.name ?? "").trim();
+  if (!name || name.length < 2) {
+    return { error: "name_invalid", hint: "Ask the client to share their name again." };
+  }
+  // external_id is the digit-only WhatsApp number, e.g. "96599887766".
+  // Store with a leading "+" so it matches the rest of the salon's CRM.
+  const phone = `+${input.external_id}`;
+
+  // Defensive: another registration may have raced (e.g. customer messaged
+  // twice in quick succession). Re-check by last-8 first.
+  const last8 = input.external_id.slice(-8);
+  if (last8.length === 8) {
+    const { data: existing } = await sb.from("clients")
+      .select("id, name").eq("tenant_id", input.tenant_id)
+      .like("phone", `%${last8}`).limit(1);
+    if (existing?.[0]) {
+      await sb.from("conversations").update({ client_id: existing[0].id }).eq("id", input.conversation_id);
+      input.client_id = existing[0].id;
+      return { already_registered: true, client_id: existing[0].id, client_name: existing[0].name };
+    }
+  }
+
+  const { data: client, error } = await sb.from("clients").insert({
+    tenant_id: input.tenant_id,
+    name,
+    phone,
+    tier: "normal",
+    notes: "Registered via WhatsApp AI assistant",
+  }).select("id, name").single();
+  if (error || !client) return { error: error?.message ?? "client insert failed" };
+
+  // Link conversation → new client, and update input so subsequent tools see it.
+  await sb.from("conversations").update({ client_id: client.id }).eq("id", input.conversation_id);
+  input.client_id = client.id;
+
+  return { registered: true, client_id: client.id, client_name: client.name };
 }
 
 async function checkAvailability(args: any, input: AgentInput) {
@@ -437,7 +514,7 @@ async function checkAvailability(args: any, input: AgentInput) {
 
 async function bookAppointment(args: any, input: AgentInput) {
   if (!input.client_id) {
-    return { error: "client_not_registered", hint: "Ask staff to register this client before booking." };
+    return { error: "client_not_registered", hint: "This client is new. Ask for their name and call register_client BEFORE booking." };
   }
   // Resolve service.
   const { data: svc } = await sb
@@ -516,7 +593,7 @@ async function bookAppointment(args: any, input: AgentInput) {
 }
 
 async function lookupLastInvoice(input: AgentInput) {
-  if (!input.client_id) return { error: "client_not_registered" };
+  if (!input.client_id) return { error: "client_not_registered", hint: "This client is new — invoices only exist for registered clients. Ask for their name and call register_client first." };
 
   const { data: txn } = await sb
     .from("transactions")
