@@ -104,18 +104,22 @@ serve(async (req) => {
     }
 
     // 2b. If the conversation has no client_id yet, try one more time
-    //     to link it using the same last-8-digit match as baileys-inbound.
+    //     to link it using the same robust phone match as baileys-inbound.
     //     This heals conversations that were created before this fix and
     //     also catches the case where the customer's phone was added to
     //     the clients table AFTER the conversation started.
     if (!conv.client_id && conv.external_id) {
-      const last8 = String(conv.external_id).slice(-8);
-      if (last8.length === 8) {
+      const phone = String(conv.external_id).replace(/\D/g, "");
+      if (phone.length >= 8) {
+        const target = phone.slice(-8);
+        const loose  = phone.slice(-5);
         const { data: candidates } = await sb.from("clients")
-          .select("id").eq("tenant_id", msg.tenant_id)
-          .like("phone", `%${last8}`)
-          .limit(1);
-        const found = candidates?.[0];
+          .select("id, phone").eq("tenant_id", msg.tenant_id)
+          .like("phone", `%${loose}%`)
+          .limit(20);
+        const found = (candidates ?? []).find(
+          (c: any) => typeof c.phone === "string" && c.phone.replace(/\D/g, "").endsWith(target),
+        );
         if (found) {
           await sb.from("conversations").update({ client_id: found.id }).eq("id", conv.id);
           conv.client_id = found.id;
@@ -423,16 +427,24 @@ async function registerClient(args: any, input: AgentInput) {
   const phone = `+${input.external_id}`;
 
   // Defensive: another registration may have raced (e.g. customer messaged
-  // twice in quick succession). Re-check by last-8 first.
-  const last8 = input.external_id.slice(-8);
-  if (last8.length === 8) {
-    const { data: existing } = await sb.from("clients")
-      .select("id, name").eq("tenant_id", input.tenant_id)
-      .like("phone", `%${last8}`).limit(1);
-    if (existing?.[0]) {
-      await sb.from("conversations").update({ client_id: existing[0].id }).eq("id", input.conversation_id);
-      input.client_id = existing[0].id;
-      return { already_registered: true, client_id: existing[0].id, client_name: existing[0].name };
+  // twice in quick succession), or the customer's phone is in the CRM with
+  // formatting that the heal-on-message path didn't manage to detect on the
+  // first try. Re-check with robust digit-only comparison.
+  const phoneDigits = input.external_id.replace(/\D/g, "");
+  if (phoneDigits.length >= 8) {
+    const target = phoneDigits.slice(-8);
+    const loose  = phoneDigits.slice(-5);
+    const { data: candidates } = await sb.from("clients")
+      .select("id, name, phone").eq("tenant_id", input.tenant_id)
+      .like("phone", `%${loose}%`)
+      .limit(20);
+    const existing = (candidates ?? []).find(
+      (c: any) => typeof c.phone === "string" && c.phone.replace(/\D/g, "").endsWith(target),
+    );
+    if (existing) {
+      await sb.from("conversations").update({ client_id: existing.id }).eq("id", input.conversation_id);
+      input.client_id = existing.id;
+      return { already_registered: true, client_id: existing.id, client_name: existing.name };
     }
   }
 

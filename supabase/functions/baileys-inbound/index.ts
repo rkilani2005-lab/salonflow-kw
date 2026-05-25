@@ -98,16 +98,28 @@ serve(async (req) => {
       if (!conv) throw new Error("conversation upsert failed");
 
       // Link to existing client by phone if present.
-      // Match on the last 8 digits to handle the many formats a phone
-      // might be stored in: "+965 9988 7766", "+96599887766", "99887766",
-      // "00965-99887766", etc. All GCC local numbers are 8 digits, so
-      // the last 8 digits uniquely identify the subscriber.
-      const last8 = phone.slice(-8);
-      const { data: clientCandidates } = await sb.from("clients")
-        .select("id, phone").eq("tenant_id", tenant_id)
-        .like("phone", `%${last8}`)
-        .limit(2);
-      const client = clientCandidates?.[0]; // first match wins; collisions on last-8 are rare
+      // Phones in the CRM may be stored in any format: "+965 9988 7766",
+      // "965-9988-7766", "0096599887766", "99887766". A simple LIKE
+      // doesn't survive whitespace/punctuation inside the stored string.
+      // Strategy:
+      //   1. Pre-filter with a loose LIKE on the last 5 digits (cheap, uses
+      //      the (tenant_id, phone) index for tenant scoping).
+      //   2. JS-side, strip non-digits from each candidate's phone and
+      //      check whether it ends with the WhatsApp number's last 8 digits.
+      //      8 = standard GCC local-number length, uniquely identifies
+      //      the subscriber regardless of country-code prefix variations.
+      let client: { id: string } | undefined;
+      if (phone.length >= 8) {
+        const target = phone.slice(-8);          // e.g. "99887766"
+        const loose  = phone.slice(-5);          // e.g. "87766" — survives most formatting
+        const { data: candidates } = await sb.from("clients")
+          .select("id, phone").eq("tenant_id", tenant_id)
+          .like("phone", `%${loose}%`)
+          .limit(20);
+        client = (candidates ?? []).find(
+          (c: any) => typeof c.phone === "string" && c.phone.replace(/\D/g, "").endsWith(target),
+        );
+      }
       if (client) {
         await sb.from("conversations").update({ client_id: client.id }).eq("id", conv.id);
       }
