@@ -278,7 +278,7 @@ app.delete("/sessions/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
-app.listen(PORT, async () => {
+app.listen(PORT, '0.0.0.0', async () => {
   logger.info({ port: PORT }, "baileys service listening");
   await resumeExistingSessions();
 });

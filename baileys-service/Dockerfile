@@ -10,8 +10,8 @@ RUN npm ci
 COPY src ./src
 RUN npx tsc
 
-# Auth state volume
-VOLUME ["/app/auth"]
+# Auth state persistence is handled by Railway's managed Volume mounted at /app/auth
+# (Dockerfile VOLUME instruction is not supported on Railway and would block builds)
 
 ENV NODE_ENV=production
 ENV AUTH_DIR=/app/auth
