@@ -229,6 +229,19 @@ async function loadTenantContext(tenantId: string, clientId: string | null): Pro
 }
 
 function buildSystemPrompt(ctx: TenantCtx): string {
+  // Today in the tenant's timezone (Asia/Kuwait by default).  The AI's
+  // training data is stale, so without this it would resolve "tomorrow"
+  // and other relative dates against its training cutoff (typically last
+  // year), inserting bookings in the past that the calendar then hides.
+  const now = new Date();
+  const tz = ctx.tenant.timezone || "Asia/Kuwait";
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", weekday: "long",
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(now).map(p => [p.type, p.value]));
+  const todayIso = `${parts.year}-${parts.month}-${parts.day}`;     // e.g. 2026-05-26
+  const todayWd  = parts.weekday;                                    // e.g. Tuesday
+
   const servicesList = ctx.services.length
     ? ctx.services
         .map(s => `- ${s.name} (${s.duration} min, ${s.price.toFixed(3)} ${ctx.tenant.currency})`)
@@ -244,6 +257,11 @@ function buildSystemPrompt(ctx: TenantCtx): string {
     : `NEW CLIENT — This phone number is not in the salon's client database. On your very first reply, politely ask for their name (use the language they used to write to you). Once they give you a name, call the register_client tool with that name BEFORE doing anything else. After registration succeeds, greet them by name and continue.`;
 
   return `You are the WhatsApp assistant for ${ctx.tenant.name}, a salon in Kuwait.
+
+CURRENT DATE: ${todayIso} (${todayWd}), salon timezone ${tz}.
+When the client says "today" use ${todayIso}. "Tomorrow" is the day after.
+If they give a date with no year (e.g. "May 27"), assume the NEXT occurrence of that date — i.e. if it has already passed this year, use next year. NEVER use a year from before ${parts.year}.
+All booking dates passed to the book_appointment tool MUST be in YYYY-MM-DD format with year ${parts.year} or later.
 
 ${clientLine}
 
@@ -465,6 +483,11 @@ async function registerClient(args: any, input: AgentInput) {
 }
 
 async function checkAvailability(args: any, input: AgentInput) {
+  // Defensive: normalize / reject past dates the AI may have hallucinated.
+  const normDate = normalizeAndValidateDate(args.date, args.preferred_time);
+  if ("error" in normDate) return normDate;
+  args.date = normDate.iso;
+
   // Resolve service name → id + duration.
   const { data: svc } = await sb
     .from("services")
@@ -528,6 +551,13 @@ async function bookAppointment(args: any, input: AgentInput) {
   if (!input.client_id) {
     return { error: "client_not_registered", hint: "This client is new. Ask for their name and call register_client BEFORE booking." };
   }
+
+  // Defensive date handling — Claude sometimes sends past dates because of
+  // stale knowledge of "today". Normalize to YYYY-MM-DD and reject anything
+  // before today in the salon's timezone.
+  const normDate = normalizeAndValidateDate(args.date, args.start_time);
+  if ("error" in normDate) return normDate;
+  args.date = normDate.iso;
   // Resolve service.
   const { data: svc } = await sb
     .from("services")
@@ -601,6 +631,7 @@ async function bookAppointment(args: any, input: AgentInput) {
     date: args.date,
     start_time: args.start_time,
     end_time: endTime,
+    confirmation_message: `Booking confirmed in the salon's calendar for ${svc.name} on ${args.date} at ${args.start_time}. In your reply to the client, confirm this exact date and time so they can spot any mistake.`,
   };
 }
 
@@ -667,4 +698,76 @@ function json(body: any, status = 200) {
     status,
     headers: { ...cors, "Content-Type": "application/json" },
   });
+}
+
+// ───────────────────────────────────────────────────────────────
+// Date helpers — guard against the AI producing past dates.
+// All comparisons happen in the salon's timezone (Asia/Kuwait by default).
+// ───────────────────────────────────────────────────────────────
+
+function todayIsoInTz(tz = "Asia/Kuwait"): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+    }).formatToParts(new Date()).map(p => [p.type, p.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+/**
+ * Accept a date the AI passed (best case "2026-05-27", worst case
+ * "5/27", "May 27", or even just garbage) and return either:
+ *   { iso: "YYYY-MM-DD" }              — valid, today or later
+ *   { error: ..., hint: ... }          — reject; AI should retry
+ */
+function normalizeAndValidateDate(
+  raw: unknown,
+  _preferredTime?: unknown,
+): { iso: string } | { error: string; hint: string } {
+  if (typeof raw !== "string" || !raw.trim()) {
+    return { error: "date_invalid", hint: "Provide date in YYYY-MM-DD format, e.g. 2026-05-27." };
+  }
+  const today = todayIsoInTz();
+
+  // Already YYYY-MM-DD?
+  let iso: string | null = null;
+  const m1 = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m1) iso = raw;
+
+  // M/D/YYYY or D/M/YYYY (ambiguous — assume M/D — but if the AI got here
+  // it's most likely producing the en-US default).
+  if (!iso) {
+    const m2 = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m2) iso = `${m2[3]}-${m2[1].padStart(2,"0")}-${m2[2].padStart(2,"0")}`;
+  }
+
+  // M/D with no year — assume current year, bump to next if already past.
+  if (!iso) {
+    const m3 = raw.match(/^(\d{1,2})\/(\d{1,2})$/);
+    if (m3) {
+      const year = Number(today.slice(0,4));
+      const candidate = `${year}-${m3[1].padStart(2,"0")}-${m3[2].padStart(2,"0")}`;
+      iso = candidate < today
+        ? `${year + 1}-${m3[1].padStart(2,"0")}-${m3[2].padStart(2,"0")}`
+        : candidate;
+    }
+  }
+
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    return { error: "date_invalid", hint: `Could not parse "${raw}". Use YYYY-MM-DD, e.g. ${today}.` };
+  }
+
+  // Past date — bump same MM-DD into the current year, or next year if it
+  // has already passed. This rescues the common Claude failure mode of
+  // emitting last year's date because of stale training.
+  if (iso < today) {
+    const mmdd = iso.slice(5);
+    const thisYear = today.slice(0,4);
+    const candidate = `${thisYear}-${mmdd}`;
+    iso = candidate < today
+      ? `${Number(thisYear) + 1}-${mmdd}`
+      : candidate;
+  }
+
+  return { iso };
 }
