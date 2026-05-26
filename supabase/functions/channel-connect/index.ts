@@ -20,6 +20,7 @@ const cors = {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (req.method === "DELETE") return await handleDisconnect(req);
 
   try {
     const { channel = "whatsapp" } = await req.json().catch(() => ({}));
@@ -95,6 +96,74 @@ serve(async (req) => {
     return json({ error: (err as Error).message }, 500);
   }
 });
+
+// ---------------------------------------------------------------
+// DELETE = tenant clicks "Disconnect" in Settings > Channels.
+// Tears down the Baileys session (logout + wipe local auth keys)
+// on the Railway side, then flips channel_accounts.status to
+// 'disconnected'. The Baileys call is best-effort: if the bridge
+// is unreachable we still update the DB so the UI is consistent.
+// ---------------------------------------------------------------
+async function handleDisconnect(req: Request): Promise<Response> {
+  try {
+    const body = await req.json().catch(() => ({}));
+    const channel = body?.channel ?? "whatsapp";
+
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const sb = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return json({ error: "unauthenticated" }, 401);
+
+    const { data: membership } = await sb.from("profiles")
+      .select("tenant_id").eq("user_id", user.id).maybeSingle();
+    if (!membership?.tenant_id) return json({ error: "no tenant membership" }, 403);
+
+    const tenantId = membership.tenant_id;
+
+    const { data: chAcc } = await sb.from("channel_accounts")
+      .select("id, status").eq("tenant_id", tenantId).eq("channel", channel).maybeSingle();
+    if (!chAcc) return json({ error: "no channel account to disconnect" }, 404);
+
+    // Best-effort Baileys teardown — if Railway is down or slow,
+    // we still want the DB to reflect disconnected so the UI doesn't
+    // get stuck. Timeout at 8s.
+    const BAILEYS_URL    = Deno.env.get("BAILEYS_SERVICE_URL");
+    const BAILEYS_SECRET = Deno.env.get("BAILEYS_SHARED_SECRET");
+    if (BAILEYS_URL && BAILEYS_SECRET) {
+      try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 8000);
+        await fetch(`${BAILEYS_URL}/sessions/${chAcc.id}`, {
+          method: "DELETE",
+          headers: { "X-Baileys-Auth": BAILEYS_SECRET },
+          signal: controller.signal,
+        });
+        clearTimeout(tid);
+      } catch (e) {
+        console.warn("[channel-connect/DELETE] baileys disconnect failed (non-fatal):", e);
+      }
+    }
+
+    const { error: uErr } = await sb.from("channel_accounts")
+      .update({
+        status: "disconnected",
+        last_sync_at: new Date().toISOString(),
+        connected_at: null,
+        last_error: null,
+      })
+      .eq("id", chAcc.id);
+    if (uErr) return json({ error: uErr.message }, 500);
+
+    return json({ ok: true, status: "disconnected" });
+  } catch (err) {
+    return json({ error: (err as Error).message }, 500);
+  }
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
