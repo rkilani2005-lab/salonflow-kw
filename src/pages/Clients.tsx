@@ -238,7 +238,14 @@ const Clients = () => {
         />
       )}
 
-      <AddClientDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} />
+      <AddClientDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onPickExisting={(id) => {
+          setSelectedClientId(id);
+          setIsDetailOpen(true);
+        }}
+      />
       <ClientDetailSheet clientId={selectedClientId} open={isDetailOpen} onOpenChange={setIsDetailOpen} />
     </div>
   );

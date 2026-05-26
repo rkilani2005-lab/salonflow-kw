@@ -15,12 +15,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Phone, Mail, Calendar, DollarSign, Star, Clock, Edit2, Save, X,
   CheckCircle2, XCircle, AlertCircle, Crown, Gift, TrendingUp, Scissors,
+  GitMerge,
 } from 'lucide-react';
 import { useClientWithStats, useUpdateClient, ClientTier } from '@/hooks/useClients';
 import { useClientLoyalty } from '@/hooks/useLoyalty';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import MergeClientDialog from './MergeClientDialog';
 
 const tierColors: Record<ClientTier, string> = {
   normal: 'bg-muted text-muted-foreground',
@@ -65,6 +67,7 @@ export default function ClientDetailSheet({ clientId, open, onOpenChange }: Prop
   const { data: transactions = [] }  = useClientTransactions(clientId);
   const updateClient = useUpdateClient();
   const [isEditing, setIsEditing] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
   const [editData, setEditData] = useState<{
     name: string; phone: string; email: string; notes: string; tier: ClientTier;
   } | null>(null);
@@ -146,7 +149,10 @@ export default function ClientDetailSheet({ clientId, open, onOpenChange }: Prop
                   <Button size="sm" onClick={saveChanges} disabled={updateClient.isPending}><Save className="h-3.5 w-3.5 mr-1"/>Save</Button>
                 </>
               ) : (
-                <Button variant="outline" size="sm" onClick={startEditing}><Edit2 className="h-3.5 w-3.5 mr-1"/>Edit</Button>
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setMergeOpen(true)}><GitMerge className="h-3.5 w-3.5 mr-1"/>Merge duplicate</Button>
+                  <Button variant="outline" size="sm" onClick={startEditing}><Edit2 className="h-3.5 w-3.5 mr-1"/>Edit</Button>
+                </>
               )}
             </div>
 
@@ -306,6 +312,13 @@ export default function ClientDetailSheet({ clientId, open, onOpenChange }: Prop
           </TabsContent>
         </Tabs>
       </SheetContent>
+      {client && (
+        <MergeClientDialog
+          open={mergeOpen}
+          onOpenChange={setMergeOpen}
+          primary={{ id: client.id, name: client.name, phone: client.phone, email: client.email }}
+        />
+      )}
     </Sheet>
   );
 }

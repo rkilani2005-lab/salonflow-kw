@@ -21,8 +21,9 @@
    SelectTrigger,
    SelectValue,
  } from '@/components/ui/select';
- import { useCreateClient, ClientTier } from '@/hooks/useClients';
+ import { useCreateClient, ClientTier, SimilarClient } from '@/hooks/useClients';
  import { formatPhoneInput } from '@/lib/phoneUtils';
+ import SimilarClientSuggestions from './SimilarClientSuggestions';
 
  const clientSchema = z.object({
    name: z.string().trim().min(1, 'Name is required').max(100, 'Name must be less than 100 characters'),
@@ -37,9 +38,13 @@
  interface AddClientDialogProps {
    open: boolean;
    onOpenChange: (open: boolean) => void;
+   /** Called when the user picks an existing client from the suggestion list
+    *  instead of creating a new row.  Use this to open the client detail
+    *  sheet for that client.  If omitted, the dialog will simply close. */
+   onPickExisting?: (clientId: string) => void;
  }
  
- const AddClientDialog = ({ open, onOpenChange }: AddClientDialogProps) => {
+ const AddClientDialog = ({ open, onOpenChange, onPickExisting }: AddClientDialogProps) => {
    const createClient = useCreateClient();
    const [tier, setTier] = useState<ClientTier>('normal');
  
@@ -48,11 +53,23 @@
      handleSubmit,
      reset,
      setValue,
+     watch,
      formState: { errors, isSubmitting },
    } = useForm<ClientFormData>({
      resolver: zodResolver(clientSchema),
      defaultValues: { tier: 'normal' },
    });
+ 
+   const watchedName  = watch('name');
+   const watchedPhone = watch('phone');
+   const watchedEmail = watch('email');
+ 
+   const handlePickExisting = (c: SimilarClient) => {
+     onPickExisting?.(c.id);
+     reset();
+     setTier('normal');
+     onOpenChange(false);
+   };
  
    const onSubmit = async (data: ClientFormData) => {
      await createClient.mutateAsync({
@@ -120,6 +137,14 @@
                <p className="text-sm text-destructive">{errors.email.message}</p>
              )}
            </div>
+
+           {/* Live duplicate suggestions — phone/email = hard conflict, name = soft */}
+           <SimilarClientSuggestions
+             name={watchedName}
+             phone={watchedPhone}
+             email={watchedEmail}
+             onPickExisting={handlePickExisting}
+           />
  
            <div className="space-y-2">
              <Label htmlFor="tier">Client Tier</Label>
