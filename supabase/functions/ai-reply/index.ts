@@ -254,7 +254,7 @@ function buildSystemPrompt(ctx: TenantCtx): string {
 
   const clientLine = ctx.client
     ? `RETURNING CLIENT — You are speaking with ${ctx.client.name} (loyalty points: ${ctx.client.loyalty_points}). ALWAYS greet them by their first name. Never ask their name again.`
-    : `NEW CLIENT — This phone number is not in the salon's client database. On your very first reply, politely ask for their name (use the language they used to write to you). Once they give you a name, call the register_client tool with that name BEFORE doing anything else. After registration succeeds, greet them by name and continue.`;
+    : `NEW CLIENT — This person's WhatsApp number is not linked to any client in the salon's CRM. Your job: politely ask for BOTH their name AND a phone number to register them (use the same language they wrote in). Once they share both, call register_client with name AND phone. Do NOT call register_client until you have both. Do NOT invent a phone number or assume their WhatsApp account number — WhatsApp may be hiding it. The salon needs a real phone they can call.`;
 
   return `You are the WhatsApp assistant for ${ctx.tenant.name}, a salon in Kuwait.
 
@@ -309,13 +309,14 @@ interface AgentInput {
 const TOOLS = [
   {
     name: "register_client",
-    description: "Register a brand-new client in the salon's database using the name they just provided. ONLY call this when the system prompt says you're talking to a NEW CLIENT and the client has just shared their name. Do NOT call for existing clients. The phone number is taken automatically from the WhatsApp conversation — you do not provide it.",
+    description: "Register a brand-new client in the salon's database. ONLY call when (a) the system prompt says NEW CLIENT and (b) the client has just shared BOTH their name AND their phone number. Do NOT use the WhatsApp number — many customers chat from accounts with privacy mode, which hides their real phone. ALWAYS ask the customer explicitly for the phone number they want on file.",
     input_schema: {
       type: "object",
       properties: {
-        name: { type: "string", description: "The client's name exactly as they shared it. Trim whitespace. Do not modify capitalization beyond basic title-casing if it's clearly lowercase." },
+        name:  { type: "string", description: "The client's name exactly as they shared it. Trim whitespace." },
+        phone: { type: "string", description: "The phone number the client just told you, EXACTLY as they typed it. Do not modify or invent. If they didn't share one yet, do NOT call this tool — ask them first." },
       },
-      required: ["name"],
+      required: ["name", "phone"],
     },
   },
   {
@@ -440,30 +441,37 @@ async function registerClient(args: any, input: AgentInput) {
   if (!name || name.length < 2) {
     return { error: "name_invalid", hint: "Ask the client to share their name again." };
   }
-  // external_id is the digit-only WhatsApp number, e.g. "96599887766".
-  // Store with a leading "+" so it matches the rest of the salon's CRM.
-  const phone = `+${input.external_id}`;
 
-  // Defensive: another registration may have raced (e.g. customer messaged
-  // twice in quick succession), or the customer's phone is in the CRM with
-  // formatting that the heal-on-message path didn't manage to detect on the
-  // first try. Re-check with robust digit-only comparison.
-  const phoneDigits = input.external_id.replace(/\D/g, "");
-  if (phoneDigits.length >= 8) {
-    const target = phoneDigits.slice(-8);
-    const loose  = phoneDigits.slice(-5);
-    const { data: candidates } = await sb.from("clients")
-      .select("id, name, phone").eq("tenant_id", input.tenant_id)
-      .like("phone", `%${loose}%`)
-      .limit(20);
-    const existing = (candidates ?? []).find(
-      (c: any) => typeof c.phone === "string" && c.phone.replace(/\D/g, "").endsWith(target),
-    );
-    if (existing) {
-      await sb.from("conversations").update({ client_id: existing.id }).eq("id", input.conversation_id);
-      input.client_id = existing.id;
-      return { already_registered: true, client_id: existing.id, client_name: existing.name };
-    }
+  // Phone MUST come from the customer (not from the WhatsApp JID). Some
+  // accounts use Linked Identity (LID) privacy mode, which means the JID
+  // gives us a 15-digit pseudo-ID rather than a real phone. We rejected
+  // those upstream — this is the defensive double-check.
+  const rawPhone = String(args.phone ?? "").trim();
+  const phoneDigits = rawPhone.replace(/\D/g, "");
+  if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+    return {
+      error: "phone_invalid",
+      hint: `"${rawPhone}" doesn't look like a real phone number. Ask the customer to share it again (with country code, e.g. +965 XXXX XXXX).`,
+    };
+  }
+  // Store with a single leading "+" and just digits — keeps the CRM clean
+  // and ensures last-8 matching works on future messages.
+  const phone = `+${phoneDigits}`;
+
+  // Check for duplicates by phone (last-8 robust match).
+  const target = phoneDigits.slice(-8);
+  const loose  = phoneDigits.slice(-5);
+  const { data: candidates } = await sb.from("clients")
+    .select("id, name, phone").eq("tenant_id", input.tenant_id)
+    .like("phone", `%${loose}%`)
+    .limit(20);
+  const existing = (candidates ?? []).find(
+    (c: any) => typeof c.phone === "string" && c.phone.replace(/\D/g, "").endsWith(target),
+  );
+  if (existing) {
+    await sb.from("conversations").update({ client_id: existing.id }).eq("id", input.conversation_id);
+    input.client_id = existing.id;
+    return { already_registered: true, client_id: existing.id, client_name: existing.name, note: `Found existing client ${existing.name} matching that phone — linked them to this conversation.` };
   }
 
   const { data: client, error } = await sb.from("clients").insert({
@@ -479,7 +487,7 @@ async function registerClient(args: any, input: AgentInput) {
   await sb.from("conversations").update({ client_id: client.id }).eq("id", input.conversation_id);
   input.client_id = client.id;
 
-  return { registered: true, client_id: client.id, client_name: client.name };
+  return { registered: true, client_id: client.id, client_name: client.name, client_phone: phone };
 }
 
 async function checkAvailability(args: any, input: AgentInput) {

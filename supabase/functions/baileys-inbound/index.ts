@@ -74,6 +74,15 @@ serve(async (req) => {
       }
       const fromJid: string = data?.from_jid ?? "";
       const phone = fromJid.split("@")[0].replace(/\D/g, "");
+
+      // Validate the phone we extracted. A real WhatsApp number is a
+      // JID ending in @s.whatsapp.net with 7-15 digits. Anything else
+      // (most often @lid in privacy mode) should NOT be used to match
+      // existing clients — the "phone" will be 15+ digits of garbage.
+      const isRealPhone =
+        fromJid.endsWith("@s.whatsapp.net") &&
+        phone.length >= 7 && phone.length <= 15 &&
+        !data?.is_lid_only;
       if (!phone) return ok();
 
       // Dedupe
@@ -90,28 +99,20 @@ serve(async (req) => {
         channel: "whatsapp",
         provider_chat_id: fromJid,
         external_id: phone,
-        display_name: data?.push_name ?? `+${phone}`,
+        display_name: data?.push_name ?? (isRealPhone ? `+${phone}` : "WhatsApp user"),
         status: "open",
       }, { onConflict: "tenant_id,channel,provider_chat_id" })
         .select("id").single();
 
       if (!conv) throw new Error("conversation upsert failed");
 
-      // Link to existing client by phone if present.
-      // Phones in the CRM may be stored in any format: "+965 9988 7766",
-      // "965-9988-7766", "0096599887766", "99887766". A simple LIKE
-      // doesn't survive whitespace/punctuation inside the stored string.
-      // Strategy:
-      //   1. Pre-filter with a loose LIKE on the last 5 digits (cheap, uses
-      //      the (tenant_id, phone) index for tenant scoping).
-      //   2. JS-side, strip non-digits from each candidate's phone and
-      //      check whether it ends with the WhatsApp number's last 8 digits.
-      //      8 = standard GCC local-number length, uniquely identifies
-      //      the subscriber regardless of country-code prefix variations.
+      // Link to existing client by phone if present — ONLY for real phones.
+      // For LID-only contacts we can't do a meaningful lookup; the AI will
+      // have to ask the customer to share their actual phone number.
       let client: { id: string } | undefined;
-      if (phone.length >= 8) {
-        const target = phone.slice(-8);          // e.g. "99887766"
-        const loose  = phone.slice(-5);          // e.g. "87766" — survives most formatting
+      if (isRealPhone && phone.length >= 8) {
+        const target = phone.slice(-8);
+        const loose  = phone.slice(-5);
         const { data: candidates } = await sb.from("clients")
           .select("id, phone").eq("tenant_id", tenant_id)
           .like("phone", `%${loose}%`)

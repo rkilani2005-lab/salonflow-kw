@@ -152,6 +152,30 @@ async function startSession(id: string, tenantId: string): Promise<SessionState>
     for (const m of messages) {
       if (m.key.fromMe) continue;
       if (!m.message) continue;
+
+      // ---- Pick the best contact identifier ----------------------------
+      // In Baileys v7+, m.key.remoteJid can be a Linked Identity (LID)
+      // JID like "1550828804751:57@lid" when the contact has WhatsApp's
+      // privacy mode on.  Stripping non-digits from this gives a fake
+      // 15-digit "phone" that breaks everything downstream.  Prefer any
+      // available @s.whatsapp.net JID; if only LID is available, mark
+      // the contact as anonymous so the Supabase side knows to ask the
+      // customer for their real phone.
+      const k: any = m.key;
+      const jidCandidates: string[] = [
+        k.remoteJidAlt,   // v7 phone-number alt for LID chats
+        k.senderPn,       // alternate naming in some builds
+        k.remoteJid,
+      ].filter((j): j is string => typeof j === "string");
+      const phoneJid = jidCandidates.find(j => j.endsWith("@s.whatsapp.net"));
+      const fromJid  = phoneJid ?? k.remoteJid ?? "";
+      const isLidOnly = !phoneJid && typeof k.remoteJid === "string" && k.remoteJid.endsWith("@lid");
+
+      if (isLidOnly) {
+        logger.warn({ remoteJid: k.remoteJid, candidates: jidCandidates },
+          "LID-only contact; downstream will need to ask for phone");
+      }
+
       const text =
         m.message.conversation ??
         m.message.extendedTextMessage?.text ??
@@ -169,12 +193,14 @@ async function startSession(id: string, tenantId: string): Promise<SessionState>
         session_id: id, tenant_id: tenantId,
         data: {
           message_id: m.key.id,
-          from_jid: m.key.remoteJid,          // e.g. "9996677@s.whatsapp.net"
+          from_jid: fromJid,
+          raw_remote_jid: k.remoteJid,  // for debug + future LID resolution
+          is_lid_only: isLidOnly,
           push_name: m.pushName ?? null,
           text,
           content_type: contentType,
           timestamp: Number(m.messageTimestamp) * 1000,
-          is_group: m.key.remoteJid?.endsWith("@g.us") ?? false,
+          is_group: fromJid?.endsWith("@g.us") ?? false,
         },
       });
     }
