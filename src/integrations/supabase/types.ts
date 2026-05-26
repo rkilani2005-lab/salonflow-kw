@@ -4919,6 +4919,10 @@ export type Database = {
         Args: { p_duplicate: string; p_primary: string }
         Returns: Json
       }
+      seed_salon_chart_of_accounts: {
+        Args: { p_tenant_id: string }
+        Returns: Json
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       validate_promo_code: {
