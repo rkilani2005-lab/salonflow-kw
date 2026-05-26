@@ -1044,6 +1044,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string
+          phone_norm: string | null
           tenant_id: string | null
           tier: string
           updated_at: string
@@ -1055,6 +1056,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone: string
+          phone_norm?: string | null
           tenant_id?: string | null
           tier?: string
           updated_at?: string
@@ -1066,6 +1068,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string
+          phone_norm?: string | null
           tenant_id?: string | null
           tier?: string
           updated_at?: string
@@ -4878,6 +4881,22 @@ export type Database = {
     }
     Functions: {
       count_tenant_users: { Args: { p_tenant_id: string }; Returns: number }
+      find_similar_clients: {
+        Args: {
+          p_email?: string
+          p_limit?: number
+          p_name?: string
+          p_phone?: string
+        }
+        Returns: {
+          email: string
+          id: string
+          match_reason: string
+          name: string
+          phone: string
+          similarity: number
+        }[]
+      }
       get_effective_price: {
         Args: { p_at?: string; p_service_id: string }
         Returns: number
@@ -4896,6 +4915,12 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      merge_clients: {
+        Args: { p_duplicate: string; p_primary: string }
+        Returns: Json
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       validate_promo_code: {
         Args: { p_code: string; p_subtotal: number; p_tenant_id: string }
         Returns: {
