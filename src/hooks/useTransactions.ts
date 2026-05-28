@@ -197,9 +197,10 @@ export const useCreateTransaction = () => {
         staff_commission_id: item.staff_commission_id || null,
       }));
 
-      const { error: itemsError } = await supabase
+      const { data: insertedItems, error: itemsError } = await supabase
         .from('transaction_items')
-        .insert(items);
+        .insert(items)
+        .select('id, item_id, item_type');
 
       if (itemsError) throw itemsError;
 
