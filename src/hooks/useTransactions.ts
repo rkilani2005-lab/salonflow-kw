@@ -79,6 +79,10 @@ export interface CartItem {
   total_price: number;
   staff_commission_id?: string;
   current_stock?: number; // for products only
+  /** When set, this service line will be redeemed from the given client_package after checkout. */
+  redeem_from_package_id?: string;
+  /** Snapshot of original price before redemption zeroed it (for UI display). */
+  original_unit_price?: number;
 }
 
 export interface PaymentEntry {
