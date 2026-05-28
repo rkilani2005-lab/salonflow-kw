@@ -3630,6 +3630,51 @@ export type Database = {
           },
         ]
       }
+      subscription_plans: {
+        Row: {
+          code: string
+          created_at: string
+          features: Json
+          id: string
+          is_active: boolean
+          name: string
+          name_ar: string | null
+          period: string
+          price_kwd: number
+          seat_limit: number | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          features?: Json
+          id?: string
+          is_active?: boolean
+          name: string
+          name_ar?: string | null
+          period?: string
+          price_kwd: number
+          seat_limit?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          features?: Json
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_ar?: string | null
+          period?: string
+          price_kwd?: number
+          seat_limit?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           address: string | null
@@ -3728,6 +3773,142 @@ export type Database = {
             foreignKeyName: "tenant_invitations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_invoices: {
+        Row: {
+          amount_kwd: number
+          created_at: string
+          currency: string
+          id: string
+          issued_at: string
+          paid_at: string | null
+          period_end: string | null
+          period_start: string | null
+          plan_code: string | null
+          provider: string
+          provider_ref: string | null
+          raw: Json | null
+          status: Database["public"]["Enums"]["tenant_invoice_status"]
+          subscription_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_kwd: number
+          created_at?: string
+          currency?: string
+          id?: string
+          issued_at?: string
+          paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          plan_code?: string | null
+          provider?: string
+          provider_ref?: string | null
+          raw?: Json | null
+          status?: Database["public"]["Enums"]["tenant_invoice_status"]
+          subscription_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_kwd?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          issued_at?: string
+          paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          plan_code?: string | null
+          provider?: string
+          provider_ref?: string | null
+          raw?: Json | null
+          status?: Database["public"]["Enums"]["tenant_invoice_status"]
+          subscription_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_invoices_plan_code_fkey"
+            columns: ["plan_code"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "tenant_invoices_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          plan_code: string
+          provider: string
+          provider_ref: string | null
+          status: Database["public"]["Enums"]["subscription_status"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan_code: string
+          provider?: string
+          provider_ref?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan_code?: string
+          provider?: string
+          provider_ref?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_subscriptions_plan_code_fkey"
+            columns: ["plan_code"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "tenant_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -4922,6 +5103,17 @@ export type Database = {
         Args: { p_prefix: string; p_tenant_id: string }
         Returns: string
       }
+      activate_subscription: {
+        Args: {
+          p_amount: number
+          p_period_end: string
+          p_period_start: string
+          p_plan_code: string
+          p_provider_ref: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       award_loyalty: { Args: { p_transaction_id: string }; Returns: number }
       count_tenant_users: { Args: { p_tenant_id: string }; Returns: number }
       current_salon_id: { Args: never; Returns: string }
@@ -4970,6 +5162,15 @@ export type Database = {
       }
       post_transaction_to_gl: {
         Args: { p_transaction_id: string }
+        Returns: string
+      }
+      record_pending_invoice: {
+        Args: {
+          p_amount: number
+          p_plan_code: string
+          p_provider_ref: string
+          p_tenant_id: string
+        }
         Returns: string
       }
       redeem_package_for_item: {
@@ -5063,6 +5264,13 @@ export type Database = {
         | "unrecorded_sale"
         | "other"
       subscription_plan: "starter" | "professional" | "ai"
+      subscription_status:
+        | "trialing"
+        | "active"
+        | "past_due"
+        | "canceled"
+        | "expired"
+      tenant_invoice_status: "issued" | "paid" | "failed" | "refunded"
       transaction_status: "completed" | "refunded" | "voided"
       vendor_invoice_status:
         | "pending"
@@ -5275,6 +5483,14 @@ export const Constants = {
         "other",
       ],
       subscription_plan: ["starter", "professional", "ai"],
+      subscription_status: [
+        "trialing",
+        "active",
+        "past_due",
+        "canceled",
+        "expired",
+      ],
+      tenant_invoice_status: ["issued", "paid", "failed", "refunded"],
       transaction_status: ["completed", "refunded", "voided"],
       vendor_invoice_status: [
         "pending",
