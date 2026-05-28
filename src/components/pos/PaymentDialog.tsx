@@ -32,6 +32,15 @@ interface PaymentDialogProps {
   currency?: string;
   tipAmount?: number;
   items?: CartItem[];
+  // Gift-card-by-code lookup, surfaced inline when 'gift_card' is selected
+  // and no card is linked yet.  All props optional — if not supplied,
+  // the inline lookup section is hidden (legacy behaviour).
+  giftCardCode?: string;
+  giftCardError?: string;
+  giftCardLinked?: { code: string; balance: number } | null;
+  onGiftCardCodeChange?: (v: string) => void;
+  onLookupGiftCard?: () => void | Promise<void>;
+  onClearGiftCard?: () => void;
 }
 
 const PAYMENT_METHODS: { method: PaymentMethod; label: string; icon: React.ElementType; color: string }[] = [
@@ -63,7 +72,20 @@ export function PaymentDialog({
   currency = 'KWD',
   tipAmount = 0,
   items = [],
+  giftCardCode = '',
+  giftCardError = '',
+  giftCardLinked = null,
+  onGiftCardCodeChange,
+  onLookupGiftCard,
+  onClearGiftCard,
 }: PaymentDialogProps) {
+  const [giftCardLookupBusy, setGiftCardLookupBusy] = useState(false);
+  const handleGiftCardLookup = async () => {
+    if (!onLookupGiftCard) return;
+    setGiftCardLookupBusy(true);
+    try { await onLookupGiftCard(); }
+    finally { setGiftCardLookupBusy(false); }
+  };
 
   const [splitCount, setSplitCount] = useState(1);
   const [payerIndex, setPayerIndex] = useState(0);
