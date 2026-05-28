@@ -274,51 +274,47 @@ export default function POS() {
           .then(({ error }: { error: any }) => { if (error) console.warn('[pending_retail] clear failed', error); });
       }
 
-      // Award / deduct loyalty points.  Re-reads the client balance from
-      // the DB at this moment — the selectedClient prop can be stale if
-      // another device (or another sale) changed the balance after the
-      // current cart was assembled.
-      if (selectedClient?.id && loyaltyConfig?.is_active && grandTotal > 0) {
-        const pointsEarned = Math.floor(grandTotal * Number(loyaltyConfig.points_per_kwd));
+      // Loyalty points (earn + redeem) are now posted server-side by the
+      // award_loyalty RPC (called below alongside the GL posters) and by
+      // the gift-card / loyalty-redeem payment-method legs in
+      // post_transaction_to_gl. The previous frontend insert into
+      // loyalty_transactions has been removed because it collides with
+      // the unique partial index uq_loyalty_per_sale_type — the trigger /
+      // RPC and the frontend would both try to write the same earn row.
+      //
+      // The loyalty-points redemption (debit) is still surfaced to the
+      // cashier via the discount line on the transaction; future Phase 4
+      // work will move the redeem write server-side too. For now the
+      // client's loyalty_points balance is decremented by the existing
+      // server logic via the redemption payment-method leg.
 
-        const { data: clientData } = await supabase
-          .from('clients').select('loyalty_points').eq('id', selectedClient.id).single();
-        const currentBalance = Number(clientData?.loyalty_points || 0);
-
-        // Redemption concurrency guard: never debit more than the client
-        // actually has right now.  If they tried to redeem 500 but only
-        // 420 remain (another sale used the rest), cap the debit to 420
-        // and flag it to the cashier in the toast at the end of the flow.
-        const pointsSpent = Math.min(redeemPoints, currentBalance);
-        const pointsShort = redeemPoints - pointsSpent;
-
-        const netPoints  = pointsEarned - pointsSpent;
-        const newBalance = Math.max(0, currentBalance + netPoints);
-
-        await supabase.from('clients').update({ loyalty_points: newBalance }).eq('id', selectedClient.id);
-
-        if (pointsEarned > 0) {
-          await supabase.from('loyalty_transactions').insert({
-            tenant_id: tenant!.id, client_id: selectedClient.id,
-            transaction_id: txn.id, type: 'earn',
-            points: pointsEarned, balance_after: currentBalance + pointsEarned,
-            note: `Earned from sale ${txn.id.slice(0,8)}`,
+      // Package redemption: for any service line flagged for package
+      // redemption, call the idempotent server function with the matching
+      // transaction_item_id. Mirrors the GL/loyalty pattern — fire after
+      // child rows are committed so the server can validate the line.
+      const insertedItems: { id: string; item_id: string; item_type: string }[] = (txn as any).__insertedItems || [];
+      const usedItemIds = new Set<string>();
+      for (const cartItem of items) {
+        if (!cartItem.redeem_from_package_id || cartItem.item_type !== 'service') continue;
+        const match = insertedItems.find(
+          (ti) => ti.item_type === 'service' && ti.item_id === cartItem.item_id && !usedItemIds.has(ti.id)
+        );
+        if (!match) continue;
+        usedItemIds.add(match.id);
+        try {
+          const { data: ok, error } = await supabase.rpc('redeem_package_for_item', {
+            p_transaction_item_id: match.id,
+            p_client_package_id:   cartItem.redeem_from_package_id,
           });
-        }
-        if (pointsSpent > 0) {
-          await supabase.from('loyalty_transactions').insert({
-            tenant_id: tenant!.id, client_id: selectedClient.id,
-            transaction_id: txn.id, type: 'redeem',
-            points: -pointsSpent, balance_after: newBalance,
-            note: `Redeemed for ${loyaltyDiscount.toFixed(3)} ${tenant?.currency || 'KWD'} discount`,
-          });
-        }
-        if (pointsShort > 0) {
-          toast({
-            title: 'Loyalty adjustment',
-            description: `Only ${pointsSpent} of the ${redeemPoints} requested points were available — balance had changed.`,
-          });
-        }
+          if (error) console.warn('[package] redeem error', error);
+          else if (ok === false) {
+            toast({
+              title: 'Package not redeemed',
+              description: `${cartItem.item_name} was charged at full price — package no longer eligible.`,
+              variant: 'destructive',
+            });
+          }
+        } catch (e) { console.warn('[package] redeem exception', e); }
       }
 
       // Mark promo code usage — atomic, max_uses-aware RPC.
@@ -512,6 +508,7 @@ export default function POS() {
           onDiscountApproved={bookingAlreadyPaid ? () => {} : setDiscountApprovedBy}
           onCheckout={bookingAlreadyPaid ? () => {} : handleCheckout}
           checkoutDisabled={bookingAlreadyPaid}
+          clientId={selectedClient?.id || null}
         />
 
         {/* ── Promo Code + Loyalty Panel ── */}

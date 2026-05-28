@@ -79,6 +79,10 @@ export interface CartItem {
   total_price: number;
   staff_commission_id?: string;
   current_stock?: number; // for products only
+  /** When set, this service line will be redeemed from the given client_package after checkout. */
+  redeem_from_package_id?: string;
+  /** Snapshot of original price before redemption zeroed it (for UI display). */
+  original_unit_price?: number;
 }
 
 export interface PaymentEntry {
@@ -193,9 +197,10 @@ export const useCreateTransaction = () => {
         staff_commission_id: item.staff_commission_id || null,
       }));
 
-      const { error: itemsError } = await supabase
+      const { data: insertedItems, error: itemsError } = await supabase
         .from('transaction_items')
-        .insert(items);
+        .insert(items)
+        .select('id, item_id, item_type');
 
       if (itemsError) throw itemsError;
 
@@ -319,6 +324,9 @@ export const useCreateTransaction = () => {
       // Stash the warnings on the returned object so the caller's
       // onSuccess can surface them.  The txn stays the primary return.
       (txn as any).__stockWarnings = stockWarnings;
+      // Stash inserted item rows so the caller can map cart lines → transaction_item_id
+      // (used by POS for package-session redemption).
+      (txn as any).__insertedItems = insertedItems || [];
 
       // 6. Mark linked booking as completed
       if (input.booking_id) {
