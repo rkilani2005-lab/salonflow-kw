@@ -2206,21 +2206,30 @@ export type Database = {
           client_package_id: string
           id: string
           redeemed_at: string
+          reversed_at: string | null
+          tenant_id: string | null
           transaction_id: string | null
+          transaction_item_id: string | null
         }
         Insert: {
           booking_id?: string | null
           client_package_id: string
           id?: string
           redeemed_at?: string
+          reversed_at?: string | null
+          tenant_id?: string | null
           transaction_id?: string | null
+          transaction_item_id?: string | null
         }
         Update: {
           booking_id?: string | null
           client_package_id?: string
           id?: string
           redeemed_at?: string
+          reversed_at?: string | null
+          tenant_id?: string | null
           transaction_id?: string | null
+          transaction_item_id?: string | null
         }
         Relationships: [
           {
@@ -2235,6 +2244,13 @@ export type Database = {
             columns: ["client_package_id"]
             isOneToOne: false
             referencedRelation: "client_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "package_redemptions_transaction_item_id_fkey"
+            columns: ["transaction_item_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_items"
             referencedColumns: ["id"]
           },
         ]
@@ -4956,7 +4972,15 @@ export type Database = {
         Args: { p_transaction_id: string }
         Returns: string
       }
+      redeem_package_for_item: {
+        Args: { p_client_package_id: string; p_transaction_item_id: string }
+        Returns: boolean
+      }
       reverse_loyalty: {
+        Args: { p_refund_transaction_id: string }
+        Returns: number
+      }
+      reverse_package_redemptions: {
         Args: { p_refund_transaction_id: string }
         Returns: number
       }
