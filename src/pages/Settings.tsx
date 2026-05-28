@@ -25,6 +25,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'react-router-dom';
 import { useChannelAccounts } from '@/hooks/useChannelAccounts';
+import { DataExportCard } from '@/components/settings/DataExportCard';
 
 const DAYS = [
   { key: 'sun', en: 'Sunday',    ar: 'الأحد' },
