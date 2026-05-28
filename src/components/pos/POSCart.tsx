@@ -46,11 +46,53 @@ export function POSCart({
   onDiscountApproved,
   onCheckout,
   checkoutDisabled = false,
+  clientId,
 }: POSCartProps) {
   const [showDiscountApproval, setShowDiscountApproval] = useState(false);
   const [pendingDiscount, setPendingDiscount] = useState<{ type: string; value: number; reason: string } | null>(null);
   const { tenant } = useAuth();
   const { data: staffList } = useStaff();
+  const { data: clientPackages } = useClientPackages(clientId || null);
+
+  // Active, non-expired packages with sessions remaining, indexed by covered service_id
+  const eligibleByService = useMemo(() => {
+    const map = new Map<string, ClientPackage[]>();
+    const today = new Date().toISOString().slice(0, 10);
+    (clientPackages || []).forEach((cp) => {
+      if (cp.status !== 'active') return;
+      if ((cp.sessions_remaining ?? 0) <= 0) return;
+      if (cp.expires_at && cp.expires_at < today) return;
+      const svcId = (cp.package as any)?.service_id;
+      if (!svcId) return;
+      if (!map.has(svcId)) map.set(svcId, []);
+      map.get(svcId)!.push(cp);
+    });
+    // Sort each bucket: soonest expiry first (nulls last)
+    map.forEach((arr) =>
+      arr.sort((a, b) => {
+        if (!a.expires_at && !b.expires_at) return 0;
+        if (!a.expires_at) return 1;
+        if (!b.expires_at) return -1;
+        return a.expires_at.localeCompare(b.expires_at);
+      }),
+    );
+    return map;
+  }, [clientPackages]);
+
+  const toggleRedeem = (index: number, packageId: string | null) => {
+    onItemsChange(items.map((it, idx) => {
+      if (idx !== index) return it;
+      if (packageId) {
+        // Snapshot original price, then zero the line
+        const orig = it.original_unit_price ?? it.unit_price;
+        return { ...it, redeem_from_package_id: packageId, original_unit_price: orig, unit_price: 0, total_price: 0 };
+      } else {
+        // Restore original price
+        const orig = it.original_unit_price ?? it.unit_price;
+        return { ...it, redeem_from_package_id: undefined, original_unit_price: undefined, unit_price: orig, total_price: orig * it.quantity };
+      }
+    }));
+  };
   const updateStaff = (index: number, staffId: string | null) => {
     onItemsChange(items.map((i, idx) =>
       idx === index ? { ...i, staff_commission_id: staffId || undefined } : i
