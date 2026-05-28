@@ -324,6 +324,9 @@ export const useCreateTransaction = () => {
       // Stash the warnings on the returned object so the caller's
       // onSuccess can surface them.  The txn stays the primary return.
       (txn as any).__stockWarnings = stockWarnings;
+      // Stash inserted item rows so the caller can map cart lines → transaction_item_id
+      // (used by POS for package-session redemption).
+      (txn as any).__insertedItems = insertedItems || [];
 
       // 6. Mark linked booking as completed
       if (input.booking_id) {
