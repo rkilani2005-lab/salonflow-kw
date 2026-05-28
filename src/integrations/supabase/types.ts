@@ -1910,6 +1910,8 @@ export type Database = {
           is_active: boolean | null
           min_redemption: number | null
           points_per_kwd: number | null
+          points_per_kwd_product: number | null
+          points_per_kwd_service: number | null
           redemption_rate: number | null
           tenant_id: string
           tier_vip_threshold: number | null
@@ -1923,6 +1925,8 @@ export type Database = {
           is_active?: boolean | null
           min_redemption?: number | null
           points_per_kwd?: number | null
+          points_per_kwd_product?: number | null
+          points_per_kwd_service?: number | null
           redemption_rate?: number | null
           tenant_id: string
           tier_vip_threshold?: number | null
@@ -1936,6 +1940,8 @@ export type Database = {
           is_active?: boolean | null
           min_redemption?: number | null
           points_per_kwd?: number | null
+          points_per_kwd_product?: number | null
+          points_per_kwd_service?: number | null
           redemption_rate?: number | null
           tenant_id?: string
           tier_vip_threshold?: number | null
@@ -1963,6 +1969,7 @@ export type Database = {
           note: string | null
           points: number
           tenant_id: string
+          transaction_id: string | null
           type: string
         }
         Insert: {
@@ -1974,6 +1981,7 @@ export type Database = {
           note?: string | null
           points?: number
           tenant_id: string
+          transaction_id?: string | null
           type?: string
         }
         Update: {
@@ -1985,6 +1993,7 @@ export type Database = {
           note?: string | null
           points?: number
           tenant_id?: string
+          transaction_id?: string | null
           type?: string
         }
         Relationships: [
@@ -3156,6 +3165,7 @@ export type Database = {
           deposit_amount: number | null
           deposit_required: boolean
           duration: number
+          gl_category: string
           id: string
           is_active: boolean
           name: string
@@ -3172,6 +3182,7 @@ export type Database = {
           deposit_amount?: number | null
           deposit_required?: boolean
           duration?: number
+          gl_category?: string
           id?: string
           is_active?: boolean
           name: string
@@ -3188,6 +3199,7 @@ export type Database = {
           deposit_amount?: number | null
           deposit_required?: boolean
           duration?: number
+          gl_category?: string
           id?: string
           is_active?: boolean
           name?: string
@@ -4076,6 +4088,7 @@ export type Database = {
           grand_total: number
           id: string
           notes: string | null
+          refund_of_id: string | null
           staff_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           subtotal: number
@@ -4096,6 +4109,7 @@ export type Database = {
           grand_total?: number
           id?: string
           notes?: string | null
+          refund_of_id?: string | null
           staff_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           subtotal?: number
@@ -4116,6 +4130,7 @@ export type Database = {
           grand_total?: number
           id?: string
           notes?: string | null
+          refund_of_id?: string | null
           staff_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           subtotal?: number
@@ -4137,6 +4152,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_refund_of_id_fkey"
+            columns: ["refund_of_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
           {
@@ -4880,6 +4902,11 @@ export type Database = {
       }
     }
     Functions: {
+      _next_je_number: {
+        Args: { p_prefix: string; p_tenant_id: string }
+        Returns: string
+      }
+      award_loyalty: { Args: { p_transaction_id: string }; Returns: number }
       count_tenant_users: { Args: { p_tenant_id: string }; Returns: number }
       current_salon_id: { Args: never; Returns: string }
       find_similar_clients: {
@@ -4920,6 +4947,18 @@ export type Database = {
       merge_clients: {
         Args: { p_duplicate: string; p_primary: string }
         Returns: Json
+      }
+      post_service_consumption_to_gl: {
+        Args: { p_transaction_id: string }
+        Returns: string
+      }
+      post_transaction_to_gl: {
+        Args: { p_transaction_id: string }
+        Returns: string
+      }
+      reverse_loyalty: {
+        Args: { p_refund_transaction_id: string }
+        Returns: number
       }
       seed_salon_chart_of_accounts: {
         Args: { p_tenant_id: string }
