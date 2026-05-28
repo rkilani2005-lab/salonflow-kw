@@ -508,6 +508,7 @@ export default function POS() {
           onDiscountApproved={bookingAlreadyPaid ? () => {} : setDiscountApprovedBy}
           onCheckout={bookingAlreadyPaid ? () => {} : handleCheckout}
           checkoutDisabled={bookingAlreadyPaid}
+          clientId={selectedClient?.id || null}
         />
 
         {/* ── Promo Code + Loyalty Panel ── */}
