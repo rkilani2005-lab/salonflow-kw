@@ -4915,6 +4915,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_promo_usage: { Args: { p_promo_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       merge_clients: {
         Args: { p_duplicate: string; p_primary: string }

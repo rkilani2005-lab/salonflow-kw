@@ -32,6 +32,15 @@ interface PaymentDialogProps {
   currency?: string;
   tipAmount?: number;
   items?: CartItem[];
+  // Gift-card-by-code lookup, surfaced inline when 'gift_card' is selected
+  // and no card is linked yet.  All props optional — if not supplied,
+  // the inline lookup section is hidden (legacy behaviour).
+  giftCardCode?: string;
+  giftCardError?: string;
+  giftCardLinked?: { code: string; balance: number } | null;
+  onGiftCardCodeChange?: (v: string) => void;
+  onLookupGiftCard?: () => void | Promise<void>;
+  onClearGiftCard?: () => void;
 }
 
 const PAYMENT_METHODS: { method: PaymentMethod; label: string; icon: React.ElementType; color: string }[] = [
@@ -63,7 +72,20 @@ export function PaymentDialog({
   currency = 'KWD',
   tipAmount = 0,
   items = [],
+  giftCardCode = '',
+  giftCardError = '',
+  giftCardLinked = null,
+  onGiftCardCodeChange,
+  onLookupGiftCard,
+  onClearGiftCard,
 }: PaymentDialogProps) {
+  const [giftCardLookupBusy, setGiftCardLookupBusy] = useState(false);
+  const handleGiftCardLookup = async () => {
+    if (!onLookupGiftCard) return;
+    setGiftCardLookupBusy(true);
+    try { await onLookupGiftCard(); }
+    finally { setGiftCardLookupBusy(false); }
+  };
 
   const [splitCount, setSplitCount] = useState(1);
   const [payerIndex, setPayerIndex] = useState(0);
@@ -299,6 +321,53 @@ export function PaymentDialog({
                   );
                 })}
               </div>
+
+              {/* Inline gift card lookup — only when the parent wired it. */}
+              {onLookupGiftCard && (
+                <div className="rounded-lg border p-3 bg-amber-50/40 dark:bg-amber-950/10">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                    <Gift className="h-3.5 w-3.5" /> GIFT CARD
+                  </p>
+                  {giftCardLinked ? (
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-xs">
+                        <div className="font-semibold">{giftCardLinked.code}</div>
+                        <div className="text-muted-foreground">
+                          Balance: {giftCardLinked.balance.toFixed(3)} {currency}
+                        </div>
+                      </div>
+                      {onClearGiftCard && (
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onClearGiftCard}>
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex gap-2">
+                        <Input
+                          value={giftCardCode}
+                          onChange={(e) => onGiftCardCodeChange?.(e.target.value)}
+                          placeholder="Enter gift card code"
+                          className="h-9 text-sm font-mono uppercase"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleGiftCardLookup}
+                          disabled={!giftCardCode.trim() || giftCardLookupBusy}
+                          className="h-9"
+                        >
+                          {giftCardLookupBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
+                        </Button>
+                      </div>
+                      {giftCardError && (
+                        <p className="text-[11px] text-destructive mt-1.5">{giftCardError}</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

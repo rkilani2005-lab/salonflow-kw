@@ -170,15 +170,22 @@ export const useCreateGiftCard = () => {
   });
 };
 
-// Validate + look up a gift card balance
+// Validate + look up a gift card balance.
+// Returns the row only when it has a positive current_balance and is
+// not expired.  Earlier code selected loyalty_config columns from the
+// gift_cards table (typo carry-over), which silently returned NaN at
+// checkout. Fix: use the real schema (initial_balance / current_balance).
 export const validateGiftCard = async (tenantId: string, code: string) => {
   const { data } = await supabase
     .from('gift_cards')
-    .select('id, tenant_id, points_per_kwd, vip_threshold, vvip_threshold, redemption_rate, is_active, tiers')
+    .select('id, tenant_id, code, initial_balance, current_balance, status, expires_at')
     .eq('tenant_id', tenantId)
-    .eq('code', code.toUpperCase())
+    .eq('code', code.toUpperCase().trim())
     .eq('status', 'active')
     .maybeSingle();
+  if (!data) return null;
+  if (data.expires_at && new Date(data.expires_at) < new Date()) return null;
+  if (Number(data.current_balance) <= 0) return null;
   return data as GiftCard | null;
 };
 
