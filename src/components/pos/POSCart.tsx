@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,11 +8,12 @@ import { ProductSearch } from './ProductSearch';
 import { TipInput } from './TipInput';
 import { DiscountApprovalDialog } from './DiscountApprovalDialog';
 import { cn } from '@/lib/utils';
-import { Minus, Plus, Trash2, Tag, Percent, User } from 'lucide-react';
+import { Minus, Plus, Trash2, Tag, Percent, User, Package as PackageIcon } from 'lucide-react';
 import type { CartItem } from '@/hooks/useTransactions';
 import type { Product } from '@/hooks/useProducts';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStaff } from '@/hooks/useStaff';
+import { useClientPackages, type ClientPackage } from '@/hooks/usePackages';
 
 interface POSCartProps {
   items: CartItem[];
@@ -28,6 +29,7 @@ interface POSCartProps {
   onDiscountApproved: (approverUserId: string) => void;
   onCheckout: () => void;
   checkoutDisabled?: boolean;
+  clientId?: string | null;
 }
 
 export function POSCart({
