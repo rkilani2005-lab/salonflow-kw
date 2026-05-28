@@ -321,40 +321,53 @@ export default function POS() {
         }
       }
 
-      // Mark promo code usage
+      // Mark promo code usage — atomic, max_uses-aware RPC.
+      // increment_promo_usage returns FALSE when the promo is already
+      // at max_uses; the validate step should have caught that earlier,
+      // but if a race happens between two concurrent sales we surface a
+      // cashier toast rather than silently letting it through.
       if (promoResult?.is_valid && promoResult.id) {
-        await supabase.from('promo_codes')
-          .update({ usage_count: supabase.rpc as any })
-          .eq('id', promoResult.id);
-        // Use raw SQL increment via rpc workaround
-        await supabase.rpc('increment_promo_usage' as any, { p_id: promoResult.id }).catch(() => {
-          // Fallback: fetch and increment manually
-          supabase.from('promo_codes').select('usage_count').eq('id', promoResult.id).single()
-            .then(({ data }) => {
-              if (data) supabase.from('promo_codes')
-                .update({ usage_count: data.usage_count + 1 }).eq('id', promoResult.id);
-            });
-        });
+        const { data: ok, error: promoErr } = await supabase
+          .rpc('increment_promo_usage', { p_promo_id: promoResult.id });
+        if (promoErr) console.warn('[promo] increment failed', promoErr);
+        else if (ok === false) {
+          toast({
+            title: 'Promo not applied',
+            description: 'Promo code reached its usage limit on another sale just now.',
+            variant: 'destructive',
+          });
+        }
       }
 
-      // Deduct gift card balance — sum ALL gift_card payment rows, not
-      // just the first one (a split could reasonably contain more than
-      // one).  Also, only deduct if we actually have a validated card
-      // in scope; the PaymentDialog's maxByMethod already prevents a
-      // gift_card payment from being added without one, but we guard
-      // here as defence-in-depth against prop bypass.
+      // Deduct gift card balance — uses real schema column `current_balance`.
+      // Previous code wrote to a non-existent `balance` column and read
+      // `giftCardResult.balance` (also non-existent), so every redemption
+      // produced NaN and silently no-op'd the deduction.
       const giftCardPayments = payments.filter(p => p.payment_method === 'gift_card');
       const giftCardTotal = giftCardPayments.reduce((s, p) => s + p.amount, 0);
       if (giftCardResult && giftCardTotal > 0) {
-        const prevBal = Number(giftCardResult.balance);
-        const newBal  = Math.max(0, prevBal - giftCardTotal);
+        const prevBal = Number(giftCardResult.current_balance);
+        const newBal  = Math.max(0, Math.round((prevBal - giftCardTotal) * 1000) / 1000);
         await supabase.from('gift_cards').update({
-          balance: newBal, status: newBal <= 0 ? 'depleted' : 'active',
+          current_balance: newBal,
+          status: newBal <= 0 ? 'depleted' : 'active',
         }).eq('id', giftCardResult.id);
         await supabase.from('gift_card_transactions').insert({
           gift_card_id: giftCardResult.id, transaction_id: txn.id,
           type: 'redeemed', amount: -giftCardTotal, balance_after: newBal,
         });
+      }
+
+      // Cashier warning: loyalty points were earnable but no client linked,
+      // so nothing was awarded.  Quiet otherwise.
+      if (!selectedClient?.id && loyaltyConfig?.is_active && grandTotal > 0) {
+        const wouldEarn = Math.floor(grandTotal * Number(loyaltyConfig.points_per_kwd || 0));
+        if (wouldEarn > 0) {
+          toast({
+            title: 'No client linked',
+            description: `${wouldEarn} loyalty points were not awarded — link a client before checkout to earn them.`,
+          });
+        }
       }
 
       setCompletedTxnId(txn.id);
@@ -727,8 +740,17 @@ export default function POS() {
         tipAmount={tipAmount}
         items={items}
         maxByMethod={{
-          gift_card: Number(giftCardResult?.balance ?? 0),
+          gift_card: Number(giftCardResult?.current_balance ?? 0),
         }}
+        giftCardCode={giftCardCode}
+        giftCardError={giftCardError}
+        giftCardLinked={giftCardResult ? {
+          code: giftCardResult.code,
+          balance: Number(giftCardResult.current_balance),
+        } : null}
+        onGiftCardCodeChange={setGiftCardCode}
+        onLookupGiftCard={handleApplyGiftCard}
+        onClearGiftCard={() => { setGiftCardResult(null); setGiftCardCode(''); setGiftCardError(''); }}
       />
 
       {/* Receipt dialog */}
