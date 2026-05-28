@@ -195,9 +195,8 @@ export const useChartOfAccounts = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('chart_of_accounts')
-        .select('id, code, name, name_ar, type, normal_balance, is_active, parent_id, tenant_id')
+        .select('id, tenant_id, code, name, name_ar, account_type, account_subtype, parent_id, is_system, is_active, description, opening_balance, created_at')
         .eq('tenant_id', tenant!.id)
-        .eq('is_active', true)
         .order('code');
       if (error) throw error;
       return (data || []) as Account[];
