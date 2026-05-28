@@ -190,6 +190,7 @@ export function RefundDialog({ open, onOpenChange, transaction, onRefundComplete
           tenant_id: tenant.id,
           client_id: transaction.client_id,
           booking_id: transaction.booking_id, // keep link to booking
+          refund_of_id: transaction.id,       // link to original — drives loyalty reversal trigger
           subtotal:       -(refundAmount),
           discount_amount: 0,
           tax_amount:      0,
