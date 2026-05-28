@@ -1,211 +1,206 @@
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Check, X, Sparkles, Crown, Zap, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Check, Sparkles, Crown, Zap, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { differenceInDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useEntitlements } from '@/hooks/useEntitlements';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-const PLANS = [
-  {
-    id: 'starter', icon: Sparkles, price: 15,
-    name: { en: 'Starter', ar: 'المبتدئ' },
-    desc: { en: 'For solo stylists & small salons', ar: 'للمستقلين والصالونات الصغيرة' },
-    color: 'border-border',
-    features: {
-      en: ['1 branch','Up to 3 staff','Bookings & calendar','Client management','Basic POS','WhatsApp reminders'],
-      ar: ['فرع واحد','حتى 3 موظفات','حجوزات وتقويم','إدارة العميلات','نقطة بيع أساسية','تذكيرات واتساب'],
-    },
-    notIncluded: { en: ['Multiple branches','Inventory','Advanced reports','AI features'], ar: ['فروع متعددة','مخزون','تقارير متقدمة','ميزات AI'] },
-  },
-  {
-    id: 'professional', icon: Crown, price: 35, popular: true,
-    name: { en: 'Professional', ar: 'المحترف' },
-    desc: { en: 'For growing salons with teams', ar: 'للصالونات النامية مع فرق عمل' },
-    color: 'border-primary',
-    features: {
-      en: ['Up to 3 branches','Unlimited staff','Full POS & inventory','Staff commissions','Advanced analytics','Online booking page','Priority support'],
-      ar: ['حتى 3 فروع','موظفات غير محدودات','نقطة بيع ومخزون كامل','عمولات الموظفات','تحليلات متقدمة','صفحة حجز أونلاين','دعم ذو أولوية'],
-    },
-    notIncluded: { en: ['AI features'], ar: ['ميزات AI'] },
-  },
-  {
-    id: 'ai', icon: Zap, price: 75,
-    name: { en: 'AI Premium', ar: 'AI الأقصى' },
-    desc: { en: 'Full AI power for ambitious salons', ar: 'قوة AI الكاملة للصالونات الطموحة' },
-    color: 'border-accent/60',
-    features: {
-      en: ['Unlimited branches','Everything in Professional','WhatsApp AI Agent','Smart Scheduling AI','Client Intelligence AI','AI Inventory Assistant','Revenue Forecasting','24/7 dedicated support'],
-      ar: ['فروع غير محدودة','كل ما في المحترف','وكيل واتساب AI','جدولة ذكية AI','ذكاء العميلات AI','مساعد مخزون AI','توقع الإيرادات','دعم 24/7 مخصص'],
-    },
-    notIncluded: { en: [], ar: [] },
-  },
-];
+const PLAN_ICON: Record<string, any> = { starter: Sparkles, professional: Crown, ai: Zap };
+
+interface PlanRow {
+  id: string; code: string; name: string; name_ar: string | null;
+  price_kwd: number; period: string; features: Record<string, any>;
+  seat_limit: number | null; sort_order: number;
+}
+interface InvoiceRow {
+  id: string; amount_kwd: number; status: string; issued_at: string;
+  paid_at: string | null; plan_code: string | null; provider_ref: string | null;
+}
 
 const Subscription = () => {
   const { tenant } = useAuth();
   const { language } = useLanguage();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
   const ar = language === 'ar';
-  const currency = tenant?.currency || 'KWD';
+  const ent = useEntitlements();
 
-  const currentPlan = tenant?.subscription_plan || 'starter';
-  const isTrialActive = tenant?.is_trial && tenant?.trial_ends_at && new Date(tenant.trial_ends_at) > new Date();
+  const [plans, setPlans] = useState<PlanRow[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  // Show toast on return from MyFatoorah
+  useEffect(() => {
+    const s = params.get('status');
+    if (s === 'success') {
+      toast({ title: ar ? 'تمت عملية الدفع' : 'Payment received', description: ar ? 'يتم تفعيل اشتراكك...' : 'Activating your subscription...' });
+      // Re-fetch after a beat (webhook may take a moment)
+      setTimeout(() => { ent.refresh(); fetchInvoices(); }, 3000);
+    } else if (s === 'failed') {
+      toast({ title: ar ? 'فشل الدفع' : 'Payment failed', variant: 'destructive' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any).from('subscription_plans')
+        .select('*').eq('is_active', true).order('sort_order');
+      setPlans((data ?? []) as PlanRow[]);
+    })();
+    fetchInvoices();
+  }, [tenant?.id]);
+
+  const fetchInvoices = async () => {
+    if (!tenant?.id) return;
+    const { data } = await (supabase as any).from('tenant_invoices')
+      .select('id,amount_kwd,status,issued_at,paid_at,plan_code,provider_ref')
+      .eq('tenant_id', tenant.id).order('issued_at', { ascending: false }).limit(12);
+    setInvoices((data ?? []) as InvoiceRow[]);
+  };
+
+  const handleUpgrade = async (planCode: string) => {
+    setLoadingPlan(planCode);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-subscription-checkout', {
+        body: { plan_code: planCode },
+      });
+      if (error || !data?.payment_url) throw new Error((data as any)?.error || error?.message || 'Failed');
+      window.location.href = data.payment_url;
+    } catch (e: any) {
+      toast({ title: ar ? 'خطأ' : 'Error', description: e.message, variant: 'destructive' });
+      setLoadingPlan(null);
+    }
+  };
+
+  const isTrialActive = ent.status === 'trialing' && tenant?.trial_ends_at && new Date(tenant.trial_ends_at) > new Date();
   const trialDaysLeft = tenant?.trial_ends_at ? Math.max(0, differenceInDays(new Date(tenant.trial_ends_at), new Date())) : 0;
   const trialEndsAt = tenant?.trial_ends_at ? new Date(tenant.trial_ends_at) : null;
-
-  const planLevel = (id: string) => ({ starter: 1, professional: 2, ai: 3 }[id] || 0);
-  const canUpgrade = (id: string) => planLevel(id) > planLevel(currentPlan);
-
-  const handleUpgrade = (planId: string) => {
-    toast({ title: `Upgrading to ${planId}`, description: 'Payment integration coming soon. Contact support@zaina.ai to upgrade manually.' });
-  };
+  const currentPlan = ent.plan_code;
+  const planLevel = (c: string) => ({ starter: 1, professional: 2, ai: 3 }[c] || 0);
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-1">{ar ? 'الاشتراك' : 'Subscription'}</p>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
-            {ar ? 'خطتك الحالية' : 'Your Plan'}
-          </h1>
-        </div>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-1">{ar ? 'الاشتراك' : 'Subscription'}</p>
+        <h1 className="text-3xl font-bold tracking-tight">{ar ? 'خطتك الحالية' : 'Your Plan'}</h1>
       </div>
 
-      {/* Trial / Current plan banner */}
-      {isTrialActive ? (
-        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800">
+      {ent.status === 'expired' && (
+        <Card className="border-destructive bg-destructive/10">
           <CardContent className="p-4 flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+            <AlertTriangle className="h-5 w-5 text-destructive" />
             <div>
-              <p className="font-semibold text-amber-800 dark:text-amber-200 text-sm">
-                {ar ? `تجربتك المجانية تنتهي خلال ${trialDaysLeft} يوم` : `Your free trial ends in ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''}`}
-              </p>
-              <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
-                {ar
-                  ? `اختاري خطة للاستمرار في استخدام ZAINA بعد ${trialEndsAt ? format(trialEndsAt, 'MMM d, yyyy') : ''}`
-                  : `Choose a plan to continue after ${trialEndsAt ? format(trialEndsAt, 'MMMM d, yyyy') : ''}`}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800">
-          <CardContent className="p-4 flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0" />
-            <div>
-              <p className="font-semibold text-emerald-800 dark:text-emerald-200 text-sm">
-                {ar ? `أنت على خطة ${currentPlan}` : `You're on the ${currentPlan} plan`}
-              </p>
-              <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
-                {ar ? 'اشتراكك نشط. شكراً لاستخدامك ZAINA!' : 'Your subscription is active. Thank you for using ZAINA!'}
-              </p>
+              <p className="font-semibold text-sm">{ar ? 'انتهت تجربتك المجانية' : 'Your trial has ended'}</p>
+              <p className="text-xs text-muted-foreground">{ar ? 'اختر خطة للاستمرار في استخدام ZAINA.' : 'Choose a plan to continue using ZAINA.'}</p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Plan cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {PLANS.map(plan => {
-          const Icon = plan.icon;
-          const isCurrent = currentPlan === plan.id;
-          const upgradable = canUpgrade(plan.id);
-          const features = ar ? plan.features.ar : plan.features.en;
-          const notIncluded = ar ? plan.notIncluded.ar : plan.notIncluded.en;
-
-          return (
-            <div key={plan.id} className={cn(
-              'relative rounded-2xl border-2 p-5 flex flex-col transition-all duration-200 bg-card',
-              isCurrent ? 'border-primary shadow-md shadow-primary/10' :
-              plan.popular && upgradable ? `${plan.color} hover:border-primary/60` :
-              `${plan.color} hover:border-primary/30`
-            )}>
-              {plan.popular && upgradable && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="px-3 py-1 text-[11px] font-bold bg-primary text-primary-foreground">
-                    {ar ? 'الأكثر شعبية' : 'Most Popular'}
-                  </Badge>
-                </div>
-              )}
-              {isCurrent && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="px-3 py-1 text-[11px] font-bold bg-emerald-500 text-white">
-                    {ar ? 'خطتك الحالية' : 'Current Plan'}
-                  </Badge>
-                </div>
-              )}
-
-              <div className="mb-4">
-                <div className={cn('h-9 w-9 rounded-xl flex items-center justify-center mb-3',
-                  isCurrent ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                )}>
-                  <Icon className="h-4.5 w-4.5" />
-                </div>
-                <h3 className="font-bold text-base" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
-                  {ar ? plan.name.ar : plan.name.en}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">{ar ? plan.desc.ar : plan.desc.en}</p>
-              </div>
-
-              <div className="mb-4">
-                <span className="text-3xl font-bold stat-number">{plan.price}</span>
-                <span className="text-muted-foreground text-sm ml-1">{currency}/mo</span>
-              </div>
-
-              <div className="space-y-1.5 flex-1 mb-5">
-                {features.map(f => (
-                  <div key={f} className="flex items-start gap-2 text-xs">
-                    <Check className="h-3.5 w-3.5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-muted-foreground">{f}</span>
-                  </div>
-                ))}
-                {notIncluded.map(f => (
-                  <div key={f} className="flex items-start gap-2 text-xs opacity-40">
-                    <X className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <span className="text-muted-foreground line-through">{f}</span>
-                  </div>
-                ))}
-              </div>
-
-              {isCurrent ? (
-                <Button variant="outline" disabled className="w-full text-xs h-9">
-                  {ar ? '✓ خطتك الحالية' : '✓ Current Plan'}
-                </Button>
-              ) : upgradable ? (
-                <Button onClick={() => handleUpgrade(plan.id)} className="w-full text-xs h-9 gap-1.5">
-                  {ar ? `ترقية إلى ${plan.name.ar}` : `Upgrade to ${plan.name.en}`}
-                  <Zap className="h-3 w-3" />
-                </Button>
-              ) : (
-                <Button variant="outline" disabled className="w-full text-xs h-9 opacity-40">
-                  {ar ? 'خطة سابقة' : 'Lower plan'}
-                </Button>
+      {isTrialActive ? (
+        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-900/20">
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <div>
+              <p className="font-semibold text-amber-800 dark:text-amber-200 text-sm">
+                {ar ? `تجربتك المجانية تنتهي خلال ${trialDaysLeft} يوم` : `Your free trial ends in ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''}`}
+              </p>
+              {trialEndsAt && (
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                  {ar ? `حتى ${format(trialEndsAt, 'MMM d, yyyy')}` : `Until ${format(trialEndsAt, 'MMMM d, yyyy')}`}
+                </p>
               )}
             </div>
+          </CardContent>
+        </Card>
+      ) : ent.status === 'active' && ent.current_period_end ? (
+        <Card className="border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20">
+          <CardContent className="p-4 flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+            <div>
+              <p className="font-semibold text-emerald-800 dark:text-emerald-200 text-sm">
+                {ar ? 'اشتراكك نشط' : 'Your subscription is active'}
+              </p>
+              <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
+                {ar ? 'يتجدد في ' : 'Renews on '}{format(new Date(ent.current_period_end), 'MMMM d, yyyy')}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Plan cards */}
+      <div className="grid md:grid-cols-3 gap-4">
+        {plans.map(p => {
+          const Icon = PLAN_ICON[p.code] || Sparkles;
+          const isCurrent = p.code === currentPlan && (ent.status === 'active' || ent.status === 'trialing');
+          const isUpgrade = planLevel(p.code) > planLevel(currentPlan);
+          const featureList = Object.entries(p.features || {})
+            .filter(([, v]) => v === true || (typeof v === 'number' && v !== 0))
+            .map(([k]) => k.replace(/_/g, ' '));
+          return (
+            <Card key={p.code} className={cn('relative', isCurrent && 'border-primary')}>
+              {isCurrent && <Badge className="absolute -top-2 right-3">{ar ? 'الحالية' : 'Current'}</Badge>}
+              <CardContent className="p-5 space-y-4">
+                <div className="flex items-center gap-2"><Icon className="h-5 w-5 text-primary" /><h3 className="font-bold text-lg">{ar ? (p.name_ar || p.name) : p.name}</h3></div>
+                <div><span className="text-3xl font-bold">{Number(p.price_kwd).toFixed(3)}</span> <span className="text-sm text-muted-foreground">KWD/{p.period === 'monthly' ? (ar ? 'شهر' : 'mo') : p.period}</span></div>
+                <ul className="space-y-1.5 text-sm">
+                  {featureList.slice(0, 8).map(f => <li key={f} className="flex items-start gap-2"><Check className="h-4 w-4 text-emerald-500 mt-0.5" /><span className="capitalize">{f}</span></li>)}
+                </ul>
+                <Button
+                  className="w-full"
+                  disabled={isCurrent || loadingPlan === p.code}
+                  variant={isUpgrade ? 'default' : 'outline'}
+                  onClick={() => handleUpgrade(p.code)}
+                >
+                  {loadingPlan === p.code ? <Loader2 className="h-4 w-4 animate-spin" /> :
+                   isCurrent ? (ar ? 'خطتك الحالية' : 'Current plan') :
+                   isUpgrade ? (ar ? 'ترقية' : 'Upgrade') : (ar ? 'تبديل' : 'Switch')}
+                </Button>
+              </CardContent>
+            </Card>
           );
         })}
       </div>
 
-      {/* FAQ */}
-      <Card className="border">
-        <CardContent className="p-5 space-y-3">
-          <h3 className="font-bold text-sm" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>
-            {ar ? 'أسئلة شائعة' : 'Frequently Asked Questions'}
-          </h3>
-          {[
-            { q: { en: 'Can I cancel anytime?', ar: 'هل يمكنني الإلغاء في أي وقت؟' }, a: { en: 'Yes. Cancel anytime, no questions asked. You keep access until the end of your billing period.', ar: 'نعم. ألغي في أي وقت بدون أسئلة. تحتفظين بالوصول حتى نهاية فترة الفوترة.' } },
-            { q: { en: 'How does the 14-day trial work?', ar: 'كيف تعمل التجربة المجانية 14 يوم؟' }, a: { en: 'Full access to all features for 14 days. No credit card required. Upgrade to a paid plan before trial ends to continue.', ar: 'وصول كامل لجميع الميزات لمدة 14 يوماً. لا تحتاجين بطاقة ائتمان. قومي بالترقية قبل انتهاء التجربة للاستمرار.' } },
-            { q: { en: 'What payment methods are accepted?', ar: 'ما طرق الدفع المقبولة؟' }, a: { en: 'KNET, Visa, Mastercard. All payments in KWD for Kuwait accounts.', ar: 'كي نت، فيزا، ماستركارد. جميع المدفوعات بالدينار الكويتي للحسابات الكويتية.' } },
-          ].map(item => (
-            <div key={item.q.en} className="py-2 border-t border-border/50 first:border-0 first:pt-0">
-              <p className="text-xs font-semibold mb-1">{ar ? item.q.ar : item.q.en}</p>
-              <p className="text-xs text-muted-foreground">{ar ? item.a.ar : item.a.en}</p>
-            </div>
-          ))}
+      {/* Invoice history */}
+      <Card>
+        <CardContent className="p-5">
+          <h3 className="font-semibold mb-3">{ar ? 'سجل الفواتير' : 'Invoice history'}</h3>
+          {invoices.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{ar ? 'لا توجد فواتير حتى الآن' : 'No invoices yet'}</p>
+          ) : (
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>{ar ? 'التاريخ' : 'Date'}</TableHead>
+                <TableHead>{ar ? 'الخطة' : 'Plan'}</TableHead>
+                <TableHead>{ar ? 'المبلغ' : 'Amount'}</TableHead>
+                <TableHead>{ar ? 'الحالة' : 'Status'}</TableHead>
+                <TableHead className="text-xs">Ref</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {invoices.map(inv => (
+                  <TableRow key={inv.id}>
+                    <TableCell className="text-sm">{format(new Date(inv.issued_at), 'MMM d, yyyy')}</TableCell>
+                    <TableCell className="text-sm capitalize">{inv.plan_code}</TableCell>
+                    <TableCell className="text-sm">{Number(inv.amount_kwd).toFixed(3)} KWD</TableCell>
+                    <TableCell><Badge variant={inv.status === 'paid' ? 'default' : inv.status === 'failed' ? 'destructive' : 'secondary'}>{inv.status}</Badge></TableCell>
+                    <TableCell className="text-xs text-muted-foreground font-mono">{inv.provider_ref?.slice(0, 10)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
