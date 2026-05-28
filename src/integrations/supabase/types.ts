@@ -1045,7 +1045,7 @@ export type Database = {
           notes: string | null
           phone: string
           phone_norm: string | null
-          tenant_id: string | null
+          tenant_id: string
           tier: string
           updated_at: string
         }
@@ -1057,7 +1057,7 @@ export type Database = {
           notes?: string | null
           phone: string
           phone_norm?: string | null
-          tenant_id?: string | null
+          tenant_id: string
           tier?: string
           updated_at?: string
         }
@@ -1069,7 +1069,7 @@ export type Database = {
           notes?: string | null
           phone?: string
           phone_norm?: string | null
-          tenant_id?: string | null
+          tenant_id?: string
           tier?: string
           updated_at?: string
         }
@@ -4417,7 +4417,7 @@ export type Database = {
           payload: Json
           processed: boolean
           provider: string
-          tenant_id: string | null
+          tenant_id: string
         }
         Insert: {
           account_id?: string | null
@@ -4428,7 +4428,7 @@ export type Database = {
           payload: Json
           processed?: boolean
           provider: string
-          tenant_id?: string | null
+          tenant_id: string
         }
         Update: {
           account_id?: string | null
@@ -4439,7 +4439,7 @@ export type Database = {
           payload?: Json
           processed?: boolean
           provider?: string
-          tenant_id?: string | null
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -4881,6 +4881,7 @@ export type Database = {
     }
     Functions: {
       count_tenant_users: { Args: { p_tenant_id: string }; Returns: number }
+      current_salon_id: { Args: never; Returns: string }
       find_similar_clients: {
         Args: {
           p_email?: string

@@ -25,6 +25,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'react-router-dom';
 import { useChannelAccounts } from '@/hooks/useChannelAccounts';
+import { DataExportCard } from '@/components/settings/DataExportCard';
 
 const DAYS = [
   { key: 'sun', en: 'Sunday',    ar: 'الأحد' },
@@ -505,7 +506,9 @@ export default function Settings() {
             </CardContent>
           </Card>
           <SaveBar tab="business" onSave={handleSaveBusiness} />
+          <DataExportCard />
         </TabsContent>
+
 
         {/* ── Working Hours ── */}
         <TabsContent value="hours" className="space-y-5">

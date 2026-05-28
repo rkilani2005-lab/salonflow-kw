@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.create-public-booking]
 verify_jwt = false
+
+[functions.export-salon-data]
+verify_jwt = false
