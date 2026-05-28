@@ -505,7 +505,9 @@ export default function Settings() {
             </CardContent>
           </Card>
           <SaveBar tab="business" onSave={handleSaveBusiness} />
+          <DataExportCard />
         </TabsContent>
+
 
         {/* ── Working Hours ── */}
         <TabsContent value="hours" className="space-y-5">
