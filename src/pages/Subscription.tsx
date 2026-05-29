@@ -154,11 +154,18 @@ const Subscription = () => {
               <CardContent className="p-5 space-y-4">
                 <div className="flex items-center gap-2"><Icon className="h-5 w-5 text-primary" /><h3 className="font-bold text-lg">{ar ? (p.name_ar || p.name) : p.name}</h3></div>
                 <div><span className="text-3xl font-bold">{Number(p.price_kwd).toFixed(3)}</span> <span className="text-sm text-muted-foreground">KWD/{p.period === 'monthly' ? (ar ? 'شهر' : 'mo') : p.period}</span></div>
-                <ul className="space-y-1.5 text-sm">
-                  {featureList.slice(0, 8).map(f => <li key={f} className="flex items-start gap-2"><Check className="h-4 w-4 text-emerald-500 mt-0.5" /><span className="capitalize">{f}</span></li>)}
+                <ul className="space-y-2 text-sm">
+                  {featureList.slice(0, 8).map(f => (
+                    <li key={f} className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-accent/10 flex items-center justify-center mt-0.5 shrink-0">
+                        <span className="w-2 h-2 rounded-full bg-accent" />
+                      </span>
+                      <span className="capitalize">{f}</span>
+                    </li>
+                  ))}
                 </ul>
                 <Button
-                  className="w-full"
+                  className={cn('w-full', isUpgrade && 'bg-accent text-accent-foreground hover:bg-accent/90')}
                   disabled={isCurrent || loadingPlan === p.code}
                   variant={isUpgrade ? 'default' : 'outline'}
                   onClick={() => handleUpgrade(p.code)}
