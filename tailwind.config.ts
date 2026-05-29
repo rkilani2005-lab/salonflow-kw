@@ -14,9 +14,12 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["DM Sans", "system-ui", "sans-serif"],
-        display: ["Syne", "system-ui", "sans-serif"],
-        arabic: ["Noto Kufi Arabic", "system-ui", "sans-serif"],
+        sans: ["Inter", "system-ui", "sans-serif"],
+        display: ["Playfair Display", "Georgia", "serif"],
+        heading: ["Playfair Display", "Georgia", "serif"],
+        body: ["Inter", "system-ui", "sans-serif"],
+        arabic: ["IBM Plex Sans Arabic", "system-ui", "sans-serif"],
+        "arabic-heading": ["Markazi Text", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",
