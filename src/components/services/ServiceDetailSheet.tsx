@@ -317,7 +317,36 @@ import {
                          </FormItem>
                        )}
                      />
-                   </div>
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="gl_category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>GL Revenue Category / تصنيف الإيراد المحاسبي</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {GL_CATEGORIES.map((c) => (
+                              <SelectItem key={c.value} value={c.value}>
+                                {c.label_en} · {c.label_ar}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Routes revenue to the matching GL account when posted.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
  
                    <div className="grid grid-cols-2 gap-4">
                      <FormField
