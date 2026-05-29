@@ -53,30 +53,32 @@ const formSchema = z.object({
    const form = useForm<FormData>({
      resolver: zodResolver(formSchema),
      defaultValues: {
-       name: '',
-       name_ar: '',
-       category: 'other',
-       price: 0,
-       duration: 30,
-       color: '#6366f1',
-       deposit_required: false,
-       deposit_amount: 0,
-     },
-   });
- 
-   const watchDepositRequired = form.watch('deposit_required');
- 
-   const onSubmit = async (data: FormData) => {
-     await createService.mutateAsync({
-       name: data.name,
-       name_ar: data.name_ar,
-       category: data.category as ServiceCategory,
-       price: data.price,
-       duration: data.duration,
-       color: data.color,
-       deposit_required: data.deposit_required,
-       deposit_amount: data.deposit_required ? data.deposit_amount : 0,
-     });
+      name: '',
+      name_ar: '',
+      category: 'other',
+      gl_category: 'other',
+      price: 0,
+      duration: 30,
+      color: '#6366f1',
+      deposit_required: false,
+      deposit_amount: 0,
+    },
+  });
+
+  const watchDepositRequired = form.watch('deposit_required');
+
+  const onSubmit = async (data: FormData) => {
+    await createService.mutateAsync({
+      name: data.name,
+      name_ar: data.name_ar,
+      category: data.category as ServiceCategory,
+      gl_category: data.gl_category,
+      price: data.price,
+      duration: data.duration,
+      color: data.color,
+      deposit_required: data.deposit_required,
+      deposit_amount: data.deposit_required ? data.deposit_amount : 0,
+    });
      form.reset();
      onOpenChange(false);
    };
