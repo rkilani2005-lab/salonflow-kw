@@ -18,6 +18,12 @@ export interface LoyaltyConfig {
   /** Points earned per 1 currency unit of grand total.  e.g. 1.0 means
    *  1 point per KWD.  Whole points are floored at award time. */
   points_per_kwd: number;
+  /** Optional per-type override: points per KWD spent on services.
+   *  When null, server-side award_loyalty falls back to points_per_kwd. */
+  points_per_kwd_service: number | null;
+  /** Optional per-type override: points per KWD spent on products.
+   *  When null, server-side award_loyalty falls back to points_per_kwd. */
+  points_per_kwd_product: number | null;
   /** Currency value of 1 point.  e.g. 0.01 means 1 point = 0.010 KWD,
    *  so 100 points redeems for 1 KWD.  Previously referred to as
    *  kwd_per_point in code — that name does not exist in the schema. */
@@ -73,7 +79,7 @@ export const useLoyaltyConfig = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from('loyalty_config')
-        .select('id, tenant_id, points_per_kwd, redemption_rate, min_redemption, tier_vip_threshold, tier_vvip_threshold, is_active')
+        .select('id, tenant_id, points_per_kwd, points_per_kwd_service, points_per_kwd_product, redemption_rate, min_redemption, tier_vip_threshold, tier_vvip_threshold, is_active')
         .eq('tenant_id', tenant!.id)
         .maybeSingle();
       return data as LoyaltyConfig | null;

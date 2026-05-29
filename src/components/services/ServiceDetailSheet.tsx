@@ -35,13 +35,14 @@ import {
  import { Skeleton } from '@/components/ui/skeleton';
  import { ScrollArea } from '@/components/ui/scroll-area';
  import { Clock, DollarSign, Tag, Palette, CreditCard } from 'lucide-react';
- import { useServiceById, useUpdateService, SERVICE_CATEGORIES, ServiceCategory } from '@/hooks/useServices';
+ import { useServiceById, useUpdateService, SERVICE_CATEGORIES, GL_CATEGORIES, ServiceCategory } from '@/hooks/useServices';
  import { useState } from 'react';
  
  const formSchema = z.object({
    name: z.string().min(2),
    name_ar: z.string().optional(),
    category: z.enum(['hair', 'nails', 'facial', 'makeup', 'waxing', 'massage', 'other'] as const),
+   gl_category: z.string().default('other'),
    price: z.coerce.number().min(0),
    duration: z.coerce.number().min(5),
    color: z.string().optional(),
@@ -68,34 +69,36 @@ import {
    const form = useForm<FormData>({
      resolver: zodResolver(formSchema),
      defaultValues: {
-       name: '',
-       name_ar: '',
-       category: 'other',
-       price: 0,
-       duration: 30,
-       color: '#6366f1',
-       deposit_required: false,
-       deposit_amount: 0,
-       is_active: true,
-     },
-   });
+      name: '',
+      name_ar: '',
+      category: 'other',
+      gl_category: 'other',
+      price: 0,
+      duration: 30,
+      color: '#6366f1',
+      deposit_required: false,
+      deposit_amount: 0,
+      is_active: true,
+    },
+  });
  
    const watchDepositRequired = form.watch('deposit_required');
  
    useEffect(() => {
-     if (service) {
-       form.reset({
-         name: service.name,
-         name_ar: service.name_ar || '',
-         category: service.category as ServiceCategory,
-         price: Number(service.price),
-         duration: service.duration,
-         color: service.color || '#6366f1',
-         deposit_required: service.deposit_required,
-         deposit_amount: Number(service.deposit_amount) || 0,
-         is_active: service.is_active,
-       });
-     }
+    if (service) {
+      form.reset({
+        name: service.name,
+        name_ar: service.name_ar || '',
+        category: service.category as ServiceCategory,
+        gl_category: (service as any).gl_category || 'other',
+        price: Number(service.price),
+        duration: service.duration,
+        color: service.color || '#6366f1',
+        deposit_required: service.deposit_required,
+        deposit_amount: Number(service.deposit_amount) || 0,
+        is_active: service.is_active,
+      });
+    }
    }, [service, form]);
  
    const onSubmit = async (data: FormData) => {
@@ -314,7 +317,36 @@ import {
                          </FormItem>
                        )}
                      />
-                   </div>
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="gl_category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>GL Revenue Category / تصنيف الإيراد المحاسبي</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {GL_CATEGORIES.map((c) => (
+                              <SelectItem key={c.value} value={c.value}>
+                                {c.label_en} · {c.label_ar}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Routes revenue to the matching GL account when posted.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
  
                    <div className="grid grid-cols-2 gap-4">
                      <FormField

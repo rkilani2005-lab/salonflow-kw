@@ -26,18 +26,19 @@
  import { Input } from '@/components/ui/input';
  import { Button } from '@/components/ui/button';
  import { Switch } from '@/components/ui/switch';
- import { useCreateService, SERVICE_CATEGORIES, ServiceCategory } from '@/hooks/useServices';
- 
- const formSchema = z.object({
-   name: z.string().min(2, 'Name must be at least 2 characters'),
-   name_ar: z.string().optional(),
-   category: z.enum(['hair', 'nails', 'facial', 'makeup', 'waxing', 'massage', 'other'] as const),
-   price: z.coerce.number().min(0, 'Price must be positive'),
-   duration: z.coerce.number().min(5, 'Duration must be at least 5 minutes'),
-   color: z.string().optional(),
-   deposit_required: z.boolean().default(false),
-   deposit_amount: z.coerce.number().min(0).optional(),
- });
+import { useCreateService, SERVICE_CATEGORIES, GL_CATEGORIES, ServiceCategory } from '@/hooks/useServices';
+
+const formSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  name_ar: z.string().optional(),
+  category: z.enum(['hair', 'nails', 'facial', 'makeup', 'waxing', 'massage', 'other'] as const),
+  gl_category: z.string().default('other'),
+  price: z.coerce.number().min(0, 'Price must be positive'),
+  duration: z.coerce.number().min(5, 'Duration must be at least 5 minutes'),
+  color: z.string().optional(),
+  deposit_required: z.boolean().default(false),
+  deposit_amount: z.coerce.number().min(0).optional(),
+});
  
  type FormData = z.infer<typeof formSchema>;
  
@@ -52,30 +53,32 @@
    const form = useForm<FormData>({
      resolver: zodResolver(formSchema),
      defaultValues: {
-       name: '',
-       name_ar: '',
-       category: 'other',
-       price: 0,
-       duration: 30,
-       color: '#6366f1',
-       deposit_required: false,
-       deposit_amount: 0,
-     },
-   });
- 
-   const watchDepositRequired = form.watch('deposit_required');
- 
-   const onSubmit = async (data: FormData) => {
-     await createService.mutateAsync({
-       name: data.name,
-       name_ar: data.name_ar,
-       category: data.category as ServiceCategory,
-       price: data.price,
-       duration: data.duration,
-       color: data.color,
-       deposit_required: data.deposit_required,
-       deposit_amount: data.deposit_required ? data.deposit_amount : 0,
-     });
+      name: '',
+      name_ar: '',
+      category: 'other',
+      gl_category: 'other',
+      price: 0,
+      duration: 30,
+      color: '#6366f1',
+      deposit_required: false,
+      deposit_amount: 0,
+    },
+  });
+
+  const watchDepositRequired = form.watch('deposit_required');
+
+  const onSubmit = async (data: FormData) => {
+    await createService.mutateAsync({
+      name: data.name,
+      name_ar: data.name_ar,
+      category: data.category as ServiceCategory,
+      gl_category: data.gl_category,
+      price: data.price,
+      duration: data.duration,
+      color: data.color,
+      deposit_required: data.deposit_required,
+      deposit_amount: data.deposit_required ? data.deposit_amount : 0,
+    });
      form.reset();
      onOpenChange(false);
    };
@@ -163,7 +166,35 @@
                    </FormItem>
                  )}
                />
-             </div>
+            </div>
+
+            <FormField
+              control={form.control}
+              name="gl_category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>GL Revenue Category / تصنيف الإيراد المحاسبي</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {GL_CATEGORIES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>
+                          {c.label_en} · {c.label_ar}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Routes revenue to the matching GL account when posted.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
  
              <div className="grid grid-cols-2 gap-4">
                <FormField

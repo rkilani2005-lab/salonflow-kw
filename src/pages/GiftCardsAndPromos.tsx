@@ -71,6 +71,8 @@ function LoyaltyTab({ currency, ar }: { currency: string; ar: boolean }) {
 
   const [enabled,         setEnabled]         = useState<boolean | null>(null);
   const [pointsPerKwd,    setPointsPerKwd]    = useState('');
+  const [pointsPerKwdSvc, setPointsPerKwdSvc] = useState('');  // per-type override (services)
+  const [pointsPerKwdProd,setPointsPerKwdProd]= useState('');  // per-type override (products)
   const [kwdPerPoint,     setKwdPerPoint]     = useState('');  // local UI name; persisted as redemption_rate
   const [minRedeem,       setMinRedeem]       = useState('');
   const [maxRedeemPct,    setMaxRedeemPct]    = useState('');  // currently UI-only — not persisted (no column)
@@ -79,6 +81,8 @@ function LoyaltyTab({ currency, ar }: { currency: string; ar: boolean }) {
   if (cfg && !initialized) {
     setEnabled(cfg.is_active);
     setPointsPerKwd(String(cfg.points_per_kwd ?? 1));
+    setPointsPerKwdSvc(cfg.points_per_kwd_service == null ? '' : String(cfg.points_per_kwd_service));
+    setPointsPerKwdProd(cfg.points_per_kwd_product == null ? '' : String(cfg.points_per_kwd_product));
     setKwdPerPoint(String(cfg.redemption_rate ?? 0.01));
     setMinRedeem(String(cfg.min_redemption ?? 100));
     // MAX_REDEEM_PCT is a code-side constant until schema migration adds it.
@@ -87,6 +91,7 @@ function LoyaltyTab({ currency, ar }: { currency: string; ar: boolean }) {
   }
   if (!cfg && !initialized && !isLoading) {
     setEnabled(true); setPointsPerKwd('1'); setKwdPerPoint('0.01');
+    setPointsPerKwdSvc(''); setPointsPerKwdProd('');
     setMinRedeem('100'); setMaxRedeemPct('50'); setInitialized(true);
   }
 
@@ -97,6 +102,8 @@ function LoyaltyTab({ currency, ar }: { currency: string; ar: boolean }) {
   const handleSave = () => save.mutate({
     is_active:       isEnabledVal,
     points_per_kwd:  Number(pointsPerKwd),
+    points_per_kwd_service: pointsPerKwdSvc.trim() === '' ? null : Number(pointsPerKwdSvc),
+    points_per_kwd_product: pointsPerKwdProd.trim() === '' ? null : Number(pointsPerKwdProd),
     redemption_rate: Number(kwdPerPoint),
     min_redemption:  Number(minRedeem),
     // max_redeem_pct intentionally omitted — no column.  Pending migration.
@@ -150,6 +157,29 @@ function LoyaltyTab({ currency, ar }: { currency: string; ar: boolean }) {
             <p>On a <strong>20.000 {currency}</strong> service → client earns <strong>{exampleEarn} points</strong></p>
             <p><strong>100 points</strong> = <strong>{exampleRedeem} {currency}</strong> off the bill</p>
             <p>Minimum to redeem: <strong>{minRedeem} points</strong> · Max: <strong>{maxRedeemPct}%</strong> of bill</p>
+          </div>
+
+          {/* Per-type overrides — leave blank to fall back to the base rate above */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">
+                {ar ? 'نقاط لكل KWD — الخدمات' : 'Points per KWD on services'}
+              </Label>
+              <Input type="number" min="0" step="0.1" placeholder={ar ? 'افتراضي (نفس الأساس)' : 'Default (base rate)'}
+                value={pointsPerKwdSvc} onChange={e => setPointsPerKwdSvc(e.target.value)} className="h-10"/>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">
+                {ar ? 'نقاط لكل KWD — المنتجات' : 'Points per KWD on products'}
+              </Label>
+              <Input type="number" min="0" step="0.1" placeholder={ar ? 'افتراضي (نفس الأساس)' : 'Default (base rate)'}
+                value={pointsPerKwdProd} onChange={e => setPointsPerKwdProd(e.target.value)} className="h-10"/>
+            </div>
+            <p className="col-span-2 text-[11px] text-muted-foreground">
+              {ar
+                ? 'اتركه فارغاً لاستخدام المعدل الأساسي أعلاه. عند تحديده، يُستخدم بدلاً منه لهذا النوع.'
+                : 'Leave blank to use the base rate above. When set, this overrides the base rate for that line type.'}
+            </p>
           </div>
         </>
       )}

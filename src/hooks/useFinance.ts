@@ -381,7 +381,7 @@ export const useProfitLoss = (from: string, to: string) => {
         const totalCogs    = cogs.reduce((s, a) => s + a.amount, 0);
         const grossProfit  = totalRevenue - totalCogs;
         const totalOpex    = opex.reduce((s, a) => s + a.amount, 0);
-        return { revenue, cogs, opex, totalRevenue, totalCogs, grossProfit, totalOpex, netIncome: grossProfit - totalOpex, source: 'journal' };
+        return { revenue, cogs, opex, totalRevenue, totalCogs, grossProfit, totalOpex, netIncome: grossProfit - totalOpex, source: 'journal', is_estimated: false };
       }
 
       // ── Step 2: Fallback — read directly from transactions + expenses ──
@@ -430,7 +430,7 @@ export const useProfitLoss = (from: string, to: string) => {
       const totalCogs    = cogsArr.reduce((s, a) => s + a.amount, 0);
       const grossProfit  = totalRevenue - totalCogs;
       const totalOpex    = opexArr.reduce((s, a) => s + a.amount, 0);
-      return { revenue, cogs: cogsArr, opex: opexArr, totalRevenue, totalCogs, grossProfit, totalOpex, netIncome: grossProfit - totalOpex, source: 'transactions' };
+      return { revenue, cogs: cogsArr, opex: opexArr, totalRevenue, totalCogs, grossProfit, totalOpex, netIncome: grossProfit - totalOpex, source: 'transactions', is_estimated: true };
     },
     enabled: !!tenant?.id && !!from && !!to,
   });
