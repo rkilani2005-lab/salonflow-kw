@@ -25,10 +25,18 @@ serve(async (req) => {
   if (req.method === "DELETE") return await handleDisconnect(req);
 
   try {
-    const { channel = "whatsapp" } = await req.json().catch(() => ({}));
-    if (channel !== "whatsapp") {
-      return json({ error: "only whatsapp is supported on the baileys backend" }, 400);
+    const body0 = await req.json().catch(() => ({}));
+    const channel = body0?.channel ?? "whatsapp";
+
+    // ── Instagram OAuth branch — see handleInstagramConnect below ──
+    if (channel === "instagram") {
+      return await handleInstagramConnect(req, body0);
     }
+
+    if (channel !== "whatsapp") {
+      return json({ error: "unsupported channel" }, 400);
+    }
+
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const sb = createClient(
