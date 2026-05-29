@@ -181,14 +181,6 @@ function LoyaltyTab({ currency, ar }: { currency: string; ar: boolean }) {
                 : 'Leave blank to use the base rate above. When set, this overrides the base rate for that line type.'}
             </p>
           </div>
-
-          {/* Live example */}
-          <div className="p-4 rounded-md bg-primary/5 border border-primary/20 text-sm space-y-1.5">
-            <p className="font-semibold text-xs uppercase tracking-wider text-primary/70">Preview</p>
-            <p>On a <strong>20.000 {currency}</strong> service → client earns <strong>{exampleEarn} points</strong></p>
-            <p><strong>100 points</strong> = <strong>{exampleRedeem} {currency}</strong> off the bill</p>
-            <p>Minimum to redeem: <strong>{minRedeem} points</strong> · Max: <strong>{maxRedeemPct}%</strong> of bill</p>
-          </div>
         </>
       )}
 
