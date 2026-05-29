@@ -39,7 +39,7 @@ serve(async (req) => {
       .select(`
         id, tenant_id, external_id, provider_chat_id, channel,
         channel_account:channel_accounts!inner (
-          id, provider, status, provider_account_id, access_token
+          id, provider, status
         )
       `)
       .eq("id", conversation_id)
@@ -52,61 +52,10 @@ serve(async (req) => {
       return json({ error: `channel is not connected (${chAcc?.status ?? "missing"})` }, 400);
     }
 
-    // ── Instagram / Meta Graph branch ─────────────────────────────
-    if (chAcc.provider === "meta_cloud" && conv.channel === "instagram") {
-      const pageId = chAcc.provider_account_id;
-      const token  = chAcc.access_token;
-      if (!pageId || !token) {
-        return json({ error: "instagram account missing page id or access token" }, 400);
-      }
-      const recipientId = conv.provider_chat_id ?? conv.external_id;
-      const graphRes = await fetch(
-        `https://graph.facebook.com/v20.0/${pageId}/messages?access_token=${encodeURIComponent(token)}`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            recipient: { id: recipientId },
-            message: media_url
-              ? { attachment: { type: media_type ?? "image", payload: { url: media_url, is_reusable: true } } }
-              : { text },
-          }),
-        },
-      );
-      const gBody = await graphRes.json().catch(() => ({}));
-      if (!graphRes.ok) {
-        await sb.from("messages").insert({
-          tenant_id: conv.tenant_id,
-          conversation_id: conv.id,
-          direction: "outbound",
-          sender_type,
-          content_type: media_url ? (media_type ?? "image") : "text",
-          content: text ?? "[media]",
-          status: "failed",
-          error_message: gBody?.error?.message ?? `HTTP ${graphRes.status}`,
-          metadata: { meta_response: gBody },
-        });
-        return json({ error: gBody?.error?.message ?? "instagram send failed" }, 502);
-      }
-      await sb.from("messages").insert({
-        tenant_id: conv.tenant_id,
-        conversation_id: conv.id,
-        direction: "outbound",
-        sender_type,
-        content_type: media_url ? (media_type ?? "image") : "text",
-        content: text ?? null,
-        media_url: media_url ?? null,
-        external_message_id: gBody?.message_id ?? null,
-        status: "sent",
-        metadata: { meta_response: gBody },
-      });
-      await sb.from("conversations").update({ unread_count: 0, status: "open" }).eq("id", conv.id);
-      return json({ ok: true, message_id: gBody?.message_id });
-    }
-
     if (chAcc.provider !== "baileys") {
       return json({ error: `provider ${chAcc.provider} not supported by this function` }, 400);
     }
+
 
 
     const BAILEYS_URL    = Deno.env.get("BAILEYS_SERVICE_URL");
