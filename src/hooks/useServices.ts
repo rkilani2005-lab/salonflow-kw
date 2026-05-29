@@ -121,13 +121,13 @@ export const GL_CATEGORIES: { value: string; label_en: string; label_ar: string 
    const { toast } = useToast();
  
    return useMutation({
-     mutationFn: async ({ id, ...data }: Partial<Service> & { id: string }) => {
-       const { data: service, error } = await supabase
-         .from('services')
-         .update({ ...data, updated_at: new Date().toISOString() })
-         .eq('id', id)
-         .select()
-         .single();
+    mutationFn: async ({ id, ...data }: Partial<Service> & { id: string; gl_category?: string }) => {
+      const { data: service, error } = await (supabase as any)
+        .from('services')
+        .update({ ...data, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
  
        if (error) throw error;
        return service;
