@@ -71,6 +71,8 @@ function LoyaltyTab({ currency, ar }: { currency: string; ar: boolean }) {
 
   const [enabled,         setEnabled]         = useState<boolean | null>(null);
   const [pointsPerKwd,    setPointsPerKwd]    = useState('');
+  const [pointsPerKwdSvc, setPointsPerKwdSvc] = useState('');  // per-type override (services)
+  const [pointsPerKwdProd,setPointsPerKwdProd]= useState('');  // per-type override (products)
   const [kwdPerPoint,     setKwdPerPoint]     = useState('');  // local UI name; persisted as redemption_rate
   const [minRedeem,       setMinRedeem]       = useState('');
   const [maxRedeemPct,    setMaxRedeemPct]    = useState('');  // currently UI-only — not persisted (no column)
@@ -79,6 +81,8 @@ function LoyaltyTab({ currency, ar }: { currency: string; ar: boolean }) {
   if (cfg && !initialized) {
     setEnabled(cfg.is_active);
     setPointsPerKwd(String(cfg.points_per_kwd ?? 1));
+    setPointsPerKwdSvc(cfg.points_per_kwd_service == null ? '' : String(cfg.points_per_kwd_service));
+    setPointsPerKwdProd(cfg.points_per_kwd_product == null ? '' : String(cfg.points_per_kwd_product));
     setKwdPerPoint(String(cfg.redemption_rate ?? 0.01));
     setMinRedeem(String(cfg.min_redemption ?? 100));
     // MAX_REDEEM_PCT is a code-side constant until schema migration adds it.
@@ -87,6 +91,7 @@ function LoyaltyTab({ currency, ar }: { currency: string; ar: boolean }) {
   }
   if (!cfg && !initialized && !isLoading) {
     setEnabled(true); setPointsPerKwd('1'); setKwdPerPoint('0.01');
+    setPointsPerKwdSvc(''); setPointsPerKwdProd('');
     setMinRedeem('100'); setMaxRedeemPct('50'); setInitialized(true);
   }
 
@@ -97,6 +102,8 @@ function LoyaltyTab({ currency, ar }: { currency: string; ar: boolean }) {
   const handleSave = () => save.mutate({
     is_active:       isEnabledVal,
     points_per_kwd:  Number(pointsPerKwd),
+    points_per_kwd_service: pointsPerKwdSvc.trim() === '' ? null : Number(pointsPerKwdSvc),
+    points_per_kwd_product: pointsPerKwdProd.trim() === '' ? null : Number(pointsPerKwdProd),
     redemption_rate: Number(kwdPerPoint),
     min_redemption:  Number(minRedeem),
     // max_redeem_pct intentionally omitted — no column.  Pending migration.
