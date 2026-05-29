@@ -38,7 +38,7 @@ export const GL_CATEGORIES: { value: string; label_en: string; label_ar: string 
      queryFn: async () => {
        let query = supabase
          .from('services')
-         .select('id, name, name_ar, category, duration, price, color, is_active, deposit_required, deposit_amount, tenant_id')
+          .select('id, name, name_ar, category, duration, price, color, is_active, deposit_required, deposit_amount, tenant_id, gl_category')
          .order('category', { ascending: true })
          .order('name', { ascending: true });
  
