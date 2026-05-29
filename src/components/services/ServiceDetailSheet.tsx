@@ -69,17 +69,18 @@ import {
    const form = useForm<FormData>({
      resolver: zodResolver(formSchema),
      defaultValues: {
-       name: '',
-       name_ar: '',
-       category: 'other',
-       price: 0,
-       duration: 30,
-       color: '#6366f1',
-       deposit_required: false,
-       deposit_amount: 0,
-       is_active: true,
-     },
-   });
+      name: '',
+      name_ar: '',
+      category: 'other',
+      gl_category: 'other',
+      price: 0,
+      duration: 30,
+      color: '#6366f1',
+      deposit_required: false,
+      deposit_amount: 0,
+      is_active: true,
+    },
+  });
  
    const watchDepositRequired = form.watch('deposit_required');
  
