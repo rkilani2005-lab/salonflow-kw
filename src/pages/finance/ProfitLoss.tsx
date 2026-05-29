@@ -76,6 +76,13 @@ export default function ProfitLoss() {
               </span>
             )}
           </div>
+          {(data as any)?.is_estimated && (
+            <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+              {ar
+                ? 'تقديري — لم تُرحّل القيود إلى الأستاذ بعد'
+                : 'Estimated — GL not posted yet'}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Select value={period} onValueChange={v => setPeriod(v as Period)}>
