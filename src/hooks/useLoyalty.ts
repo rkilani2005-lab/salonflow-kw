@@ -79,7 +79,7 @@ export const useLoyaltyConfig = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from('loyalty_config')
-        .select('id, tenant_id, points_per_kwd, redemption_rate, min_redemption, tier_vip_threshold, tier_vvip_threshold, is_active')
+        .select('id, tenant_id, points_per_kwd, points_per_kwd_service, points_per_kwd_product, redemption_rate, min_redemption, tier_vip_threshold, tier_vvip_threshold, is_active')
         .eq('tenant_id', tenant!.id)
         .maybeSingle();
       return data as LoyaltyConfig | null;
