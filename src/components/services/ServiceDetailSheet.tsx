@@ -35,13 +35,14 @@ import {
  import { Skeleton } from '@/components/ui/skeleton';
  import { ScrollArea } from '@/components/ui/scroll-area';
  import { Clock, DollarSign, Tag, Palette, CreditCard } from 'lucide-react';
- import { useServiceById, useUpdateService, SERVICE_CATEGORIES, ServiceCategory } from '@/hooks/useServices';
+ import { useServiceById, useUpdateService, SERVICE_CATEGORIES, GL_CATEGORIES, ServiceCategory } from '@/hooks/useServices';
  import { useState } from 'react';
  
  const formSchema = z.object({
    name: z.string().min(2),
    name_ar: z.string().optional(),
    category: z.enum(['hair', 'nails', 'facial', 'makeup', 'waxing', 'massage', 'other'] as const),
+   gl_category: z.string().default('other'),
    price: z.coerce.number().min(0),
    duration: z.coerce.number().min(5),
    color: z.string().optional(),
