@@ -223,7 +223,7 @@
 
 /* ── Stat numbers — numbers do the heavy lifting ── */
 .stat-number {
-  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: 'tnum','lnum';
   font-weight: 800;
@@ -318,7 +318,7 @@ select:focus-visible {
 
 /* ── Button font ── */
 button, [role="button"] {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 /* ── Skeleton shimmer ── */
@@ -407,7 +407,7 @@ button, [role="button"] {
   border-radius: 3px;
   font-size: 0.625rem;
   font-weight: 800;
-  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 /* ─────────────────────────────────────────────────────────────
