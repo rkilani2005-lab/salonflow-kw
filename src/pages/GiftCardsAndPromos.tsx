@@ -158,6 +158,37 @@ function LoyaltyTab({ currency, ar }: { currency: string; ar: boolean }) {
             <p><strong>100 points</strong> = <strong>{exampleRedeem} {currency}</strong> off the bill</p>
             <p>Minimum to redeem: <strong>{minRedeem} points</strong> · Max: <strong>{maxRedeemPct}%</strong> of bill</p>
           </div>
+
+          {/* Per-type overrides — leave blank to fall back to the base rate above */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">
+                {ar ? 'نقاط لكل KWD — الخدمات' : 'Points per KWD on services'}
+              </Label>
+              <Input type="number" min="0" step="0.1" placeholder={ar ? 'افتراضي (نفس الأساس)' : 'Default (base rate)'}
+                value={pointsPerKwdSvc} onChange={e => setPointsPerKwdSvc(e.target.value)} className="h-10"/>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">
+                {ar ? 'نقاط لكل KWD — المنتجات' : 'Points per KWD on products'}
+              </Label>
+              <Input type="number" min="0" step="0.1" placeholder={ar ? 'افتراضي (نفس الأساس)' : 'Default (base rate)'}
+                value={pointsPerKwdProd} onChange={e => setPointsPerKwdProd(e.target.value)} className="h-10"/>
+            </div>
+            <p className="col-span-2 text-[11px] text-muted-foreground">
+              {ar
+                ? 'اتركه فارغاً لاستخدام المعدل الأساسي أعلاه. عند تحديده، يُستخدم بدلاً منه لهذا النوع.'
+                : 'Leave blank to use the base rate above. When set, this overrides the base rate for that line type.'}
+            </p>
+          </div>
+
+          {/* Live example */}
+          <div className="p-4 rounded-md bg-primary/5 border border-primary/20 text-sm space-y-1.5">
+            <p className="font-semibold text-xs uppercase tracking-wider text-primary/70">Preview</p>
+            <p>On a <strong>20.000 {currency}</strong> service → client earns <strong>{exampleEarn} points</strong></p>
+            <p><strong>100 points</strong> = <strong>{exampleRedeem} {currency}</strong> off the bill</p>
+            <p>Minimum to redeem: <strong>{minRedeem} points</strong> · Max: <strong>{maxRedeemPct}%</strong> of bill</p>
+          </div>
         </>
       )}
 
