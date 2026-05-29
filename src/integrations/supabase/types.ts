@@ -624,6 +624,7 @@ export type Database = {
       }
       channel_accounts: {
         Row: {
+          access_token: string | null
           ai_agent_enabled: boolean
           auto_reply_enabled: boolean
           channel: string
@@ -638,11 +639,13 @@ export type Database = {
           profile_pic_url: string | null
           provider: string
           provider_account_id: string | null
+          provider_metadata: Json
           status: string
           tenant_id: string
           updated_at: string
         }
         Insert: {
+          access_token?: string | null
           ai_agent_enabled?: boolean
           auto_reply_enabled?: boolean
           channel: string
@@ -657,11 +660,13 @@ export type Database = {
           profile_pic_url?: string | null
           provider?: string
           provider_account_id?: string | null
+          provider_metadata?: Json
           status?: string
           tenant_id: string
           updated_at?: string
         }
         Update: {
+          access_token?: string | null
           ai_agent_enabled?: boolean
           auto_reply_enabled?: boolean
           channel?: string
@@ -676,6 +681,7 @@ export type Database = {
           profile_pic_url?: string | null
           provider?: string
           provider_account_id?: string | null
+          provider_metadata?: Json
           status?: string
           tenant_id?: string
           updated_at?: string
@@ -5117,6 +5123,19 @@ export type Database = {
       award_loyalty: { Args: { p_transaction_id: string }; Returns: number }
       count_tenant_users: { Args: { p_tenant_id: string }; Returns: number }
       current_salon_id: { Args: never; Returns: string }
+      find_channel_account_by_provider: {
+        Args: { p_provider: string; p_provider_account_id: string }
+        Returns: {
+          ai_agent_enabled: boolean
+          auto_reply_enabled: boolean
+          channel: string
+          id: string
+          provider: string
+          provider_account_id: string
+          status: string
+          tenant_id: string
+        }[]
+      }
       find_similar_clients: {
         Args: {
           p_email?: string
