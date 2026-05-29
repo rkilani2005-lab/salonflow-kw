@@ -430,7 +430,7 @@ export const useProfitLoss = (from: string, to: string) => {
       const totalCogs    = cogsArr.reduce((s, a) => s + a.amount, 0);
       const grossProfit  = totalRevenue - totalCogs;
       const totalOpex    = opexArr.reduce((s, a) => s + a.amount, 0);
-      return { revenue, cogs: cogsArr, opex: opexArr, totalRevenue, totalCogs, grossProfit, totalOpex, netIncome: grossProfit - totalOpex, source: 'transactions' };
+      return { revenue, cogs: cogsArr, opex: opexArr, totalRevenue, totalCogs, grossProfit, totalOpex, netIncome: grossProfit - totalOpex, source: 'transactions', is_estimated: true };
     },
     enabled: !!tenant?.id && !!from && !!to,
   });
