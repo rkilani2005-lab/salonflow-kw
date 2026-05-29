@@ -83,24 +83,25 @@ export const GL_CATEGORIES: { value: string; label_en: string; label_ar: string 
    const { toast } = useToast();
  
    return useMutation({
-     mutationFn: async (data: {
-       name: string;
-       name_ar?: string;
-       category: ServiceCategory;
-       price: number;
-       duration: number;
-       color?: string;
-       deposit_required?: boolean;
-       deposit_amount?: number;
-     }) => {
-       const { data: service, error } = await supabase
-         .from('services')
-         .insert({
-           ...data,
-           tenant_id: tenant?.id,
-         })
-         .select()
-         .single();
+    mutationFn: async (data: {
+      name: string;
+      name_ar?: string;
+      category: ServiceCategory;
+      price: number;
+      duration: number;
+      color?: string;
+      deposit_required?: boolean;
+      deposit_amount?: number;
+      gl_category?: string;
+    }) => {
+      const { data: service, error } = await (supabase as any)
+        .from('services')
+        .insert({
+          ...data,
+          tenant_id: tenant?.id,
+        })
+        .select()
+        .single();
  
        if (error) throw error;
        return service;
