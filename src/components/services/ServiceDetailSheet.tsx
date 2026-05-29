@@ -85,19 +85,20 @@ import {
    const watchDepositRequired = form.watch('deposit_required');
  
    useEffect(() => {
-     if (service) {
-       form.reset({
-         name: service.name,
-         name_ar: service.name_ar || '',
-         category: service.category as ServiceCategory,
-         price: Number(service.price),
-         duration: service.duration,
-         color: service.color || '#6366f1',
-         deposit_required: service.deposit_required,
-         deposit_amount: Number(service.deposit_amount) || 0,
-         is_active: service.is_active,
-       });
-     }
+    if (service) {
+      form.reset({
+        name: service.name,
+        name_ar: service.name_ar || '',
+        category: service.category as ServiceCategory,
+        gl_category: (service as any).gl_category || 'other',
+        price: Number(service.price),
+        duration: service.duration,
+        color: service.color || '#6366f1',
+        deposit_required: service.deposit_required,
+        deposit_amount: Number(service.deposit_amount) || 0,
+        is_active: service.is_active,
+      });
+    }
    }, [service, form]);
  
    const onSubmit = async (data: FormData) => {
