@@ -8,6 +8,7 @@ import { AppointmentDetailSheet } from '@/components/calendar/AppointmentDetailS
 import { ReceptionCommandBar } from '@/components/calendar/ReceptionCommandBar';
 import { WalkInDialog } from '@/components/calendar/WalkInDialog';
 import { TodayScheduleList } from '@/components/calendar/TodayScheduleList';
+import { CalendarLegend } from '@/components/calendar/CalendarLegend';
 import { Appointment, AppointmentStatus, Staff, Service, Client, SERVICE_CATEGORY_COLORS } from '@/types/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { useStaff } from '@/hooks/useStaff';
