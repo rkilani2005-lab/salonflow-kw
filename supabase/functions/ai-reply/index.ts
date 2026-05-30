@@ -130,14 +130,17 @@ serve(async (req) => {
     // 3. Build tenant context for the system prompt.
     const ctx = await loadTenantContext(msg.tenant_id, conv.client_id);
 
-    // 4. Load conversation history (last 10 messages, oldest first).
+    // 4. Load full conversation history for this customer's number.
+    //    Pulled in DESC and reversed so we keep the most recent turns
+    //    when capped, while still feeding Claude in chronological order.
     const { data: history } = await sb
       .from("messages")
       .select("direction, sender_type, content")
       .eq("conversation_id", conv.id)
       .eq("content_type", "text")
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(100);
+
     const claudeHistory: { role: "user" | "assistant"; content: string }[] =
       (history ?? [])
         .reverse()
