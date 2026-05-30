@@ -10,6 +10,7 @@
    isSameDay,
  } from 'date-fns';
  import { cn } from '@/lib/utils';
+ import { STATUS_META } from './statusMeta';
  
  interface MonthViewProps {
    appointments: Appointment[];
