@@ -437,8 +437,14 @@ export default function POS() {
     setSelectedClient(null);
     setIsGuest(false);
     setShowReceipt(false);
+    setShowPayment(false);
     setCompletedTxnId(null);
     setCompletedPayments([]);
+    // Clear promo, gift card, and loyalty redemption so the next sale
+    // starts from a clean slate.
+    setPromoCode(''); setPromoResult(null); setPromoError('');
+    setGiftCardCode(''); setGiftCardResult(null); setGiftCardError('');
+    setRedeemPoints(0);
   };
 
   return (
