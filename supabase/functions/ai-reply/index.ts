@@ -430,9 +430,18 @@ async function runAgent(input: AgentInput): Promise<string> {
       body: JSON.stringify({
         model:      "claude-haiku-4-5-20251001",  // cheap, fast — fine for this use
         max_tokens: 800,
-        system:     input.systemPrompt,
+        // System sent as an array of blocks so we can mark the large
+        // static persona prompt as cache_control:"ephemeral".
+        // Anthropic caches it across turns within the cache TTL, which
+        // cuts latency and input-token cost for every follow-up
+        // message in the same WhatsApp conversation.
+        system: [
+          { type: "text", text: ZAINA_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+          { type: "text", text: input.systemPrompt },
+        ],
         tools:      TOOLS,
         messages,
+
       }),
     });
 
