@@ -45,7 +45,10 @@ serve(async (req: Request) => {
     }
 
     const MF_KEY = Deno.env.get("MYFATOORAH_SAAS_API_KEY") || Deno.env.get("MYFATOORAH_API_KEY");
-    if (!MF_KEY) return json({ error: "MyFatoorah key not configured" }, 503);
+    if (!MF_KEY) {
+      console.error("subscription-webhook: MyFatoorah key not configured; acknowledging without action");
+      return json({ ok: true, ignored: true, reason: "billing_not_configured" });
+    }
 
     // If we only have paymentId, resolve to invoiceId + status via GetPaymentStatus
     let status = "Pending";
