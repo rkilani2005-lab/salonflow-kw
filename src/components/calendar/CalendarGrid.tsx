@@ -156,6 +156,7 @@ import { useToast } from '@/hooks/use-toast';
  
    return (
      <DndContext
+       sensors={sensors}
        collisionDetection={pointerWithin}
        onDragStart={handleDragStart}
        onDragEnd={handleDragEnd}

@@ -16,9 +16,10 @@
    appointments: Appointment[];
    date: Date;
    onDateClick: (date: Date) => void;
+   onAppointmentClick?: (appointment: Appointment) => void;
  }
  
- export function MonthView({ appointments, date, onDateClick }: MonthViewProps) {
+ export function MonthView({ appointments, date, onDateClick, onAppointmentClick }: MonthViewProps) {
    const monthStart = startOfMonth(date);
    const monthEnd = endOfMonth(date);
    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });

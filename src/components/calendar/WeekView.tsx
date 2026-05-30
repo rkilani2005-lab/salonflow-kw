@@ -12,6 +12,7 @@ import { STATUS_META } from './statusMeta';
    endHour: number;
    date: Date;
    onSlotClick: (staffId: string, time: string) => void;
+   onAppointmentClick?: (appointment: Appointment) => void;
  }
  
  const SLOT_HEIGHT = 48;
@@ -24,6 +25,7 @@ import { STATUS_META } from './statusMeta';
    endHour,
    date,
    onSlotClick,
+   onAppointmentClick,
  }: WeekViewProps) {
   const weekStart = startOfWeek(date, { weekStartsOn: 0 });
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
