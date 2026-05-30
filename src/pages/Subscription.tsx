@@ -74,10 +74,61 @@ const Subscription = () => {
       const { data, error } = await supabase.functions.invoke('create-subscription-checkout', {
         body: { plan_code: planCode },
       });
-      if (error || !data?.payment_url) throw new Error((data as any)?.error || error?.message || 'Failed');
-      window.location.href = data.payment_url;
-    } catch (e: any) {
-      toast({ title: ar ? 'خطأ' : 'Error', description: e.message, variant: 'destructive' });
+
+      if (error) {
+        toast({
+          title: ar ? 'تعذّر الاتصال' : 'Connection error',
+          description: ar
+            ? 'تعذّر الوصول إلى خدمة الفوترة. تحقق من اتصالك وحاول مرة أخرى.'
+            : "Couldn't reach the billing service. Check your connection and try again.",
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (data?.ok === false) {
+        const msgs: Record<string, { en: string; ar: string }> = {
+          billing_not_configured: {
+            en: 'Subscription billing is not yet activated. Please contact support.',
+            ar: 'الفوترة غير مفعّلة بعد. يرجى التواصل مع الدعم.',
+          },
+          provider_error: {
+            en: 'Payment provider error. Please try again in a moment.',
+            ar: 'خطأ في مزود الدفع. حاول مرة أخرى بعد قليل.',
+          },
+          already_on_plan: {
+            en: "You're already on this plan.",
+            ar: 'أنت بالفعل على هذه الخطة.',
+          },
+          plan_not_found: {
+            en: 'The selected plan is no longer available.',
+            ar: 'الخطة المختارة لم تعد متاحة.',
+          },
+          no_tenant: {
+            en: 'Your account is not linked to a workspace.',
+            ar: 'حسابك غير مرتبط بمساحة عمل.',
+          },
+        };
+        const m = msgs[data.error as string];
+        toast({
+          title: ar ? 'تنبيه' : 'Notice',
+          description: m ? (ar ? m.ar : m.en) : (data.message || (ar ? 'حدث خطأ' : 'Something went wrong')),
+          variant: data.error === 'already_on_plan' ? 'default' : 'destructive',
+        });
+        return;
+      }
+
+      if (data?.ok && data?.payment_url) {
+        window.location.href = data.payment_url;
+        return;
+      }
+
+      toast({
+        title: ar ? 'خطأ' : 'Error',
+        description: ar ? 'استجابة غير متوقعة من الخادم.' : 'Unexpected response from server.',
+        variant: 'destructive',
+      });
+    } finally {
       setLoadingPlan(null);
     }
   };
