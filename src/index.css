@@ -139,6 +139,19 @@
     --sidebar-accent-foreground:  30 15% 92%;
     --sidebar-border:             0 0% 14%;
     --sidebar-ring:               0 72% 55%;
+
+    /* Appointment status — slightly brighter for dark surfaces. */
+    --status-scheduled:  220 10% 58%;
+    --status-confirmed:  205 50% 56%;
+    --status-arrived:     33 78% 56%;
+    --status-in-service: 152 46% 48%;
+    --status-completed:  152 32% 42%;
+    --status-no-show:      0 60% 58%;
+    --status-cancelled:    0  0% 50%;
+
+    --pay-paid:          152 48% 48%;
+    --pay-partial:        33 78% 56%;
+    --pay-unpaid:          0  0% 55%;
   }
 }
 
