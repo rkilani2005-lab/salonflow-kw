@@ -119,6 +119,8 @@ function mapBookingToAppointment(b: any): Appointment {
     status: b.status,
     notes: b.notes,
     price: Number(b.price),
+    isPaid: !!b.__payment,
+    paidAmount: b.__payment ? Number(b.__payment.grand_total) : 0,
   };
 }
 
