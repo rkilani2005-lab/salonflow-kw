@@ -87,22 +87,31 @@
  
                    {/* Appointment indicators */}
                    <div className="space-y-0.5 overflow-hidden">
-                     {dayAppointments.slice(0, 3).map((apt) => (
-                       <div
-                         key={apt.id}
-                         className="text-xs px-1 py-0.5 rounded truncate text-white"
-                         style={{
-                           backgroundColor:
-                             apt.serviceCategory === 'hair'
-                               ? 'hsl(340, 82%, 52%)'
-                               : apt.serviceCategory === 'nails'
-                               ? 'hsl(280, 68%, 60%)'
-                               : 'hsl(200, 98%, 48%)',
-                         }}
-                       >
-                         {apt.clientName}
-                       </div>
-                     ))}
+                      {dayAppointments.slice(0, 3).map((apt) => {
+                        const k = STATUS_META[apt.status].key;
+                        const STATUS_BG: Record<typeof k, string> = {
+                          scheduled:    'bg-status-scheduled',
+                          confirmed:    'bg-status-confirmed',
+                          arrived:      'bg-status-arrived',
+                          'in-service': 'bg-status-in-service',
+                          completed:    'bg-status-completed',
+                          'no-show':    'bg-status-no-show',
+                          cancelled:    'bg-status-cancelled',
+                        };
+                        return (
+                          <div
+                            key={apt.id}
+                            className={cn(
+                              'text-xs px-1 py-0.5 rounded truncate text-white',
+                              STATUS_BG[k],
+                              (apt.status === 'cancelled' || apt.status === 'no_show') && 'opacity-70',
+                              apt.status === 'cancelled' && 'line-through',
+                            )}
+                          >
+                            {apt.clientName}
+                          </div>
+                        );
+                      })}
                      {dayAppointments.length > 3 && (
                        <p className="text-xs text-muted-foreground">
                          +{dayAppointments.length - 3} more
