@@ -378,7 +378,25 @@ export default function POS() {
       setCompletedTxnId(txn.id);
       setCompletedPayments(payments);
       setShowPayment(false);
-      setShowReceipt(true);
+
+      // Friendly confirmation for both flows.
+      toast({
+        title: 'Payment recorded',
+        description: `${grandTotal.toFixed(3)} KWD`,
+      });
+
+      if (returnTo) {
+        // Came from Calendar (or any explicit returnTo). Skip the receipt
+        // overlay and bounce back so the receptionist's flow stays in
+        // the calendar view. Clear the router state on the way out so a
+        // future direct visit to /pos isn't pinned to this returnTo.
+        navigate(returnTo, { replace: false });
+      } else {
+        // Walk-in / direct visit: reset everything so the cashier can
+        // start the next sale immediately. No receipt overlay — the
+        // transaction is still accessible from Reports / refund flow.
+        handleNewSale();
+      }
 
       // ── Auto-post journal entry to GL ─────────────────────
       // Fire-and-forget: doesn't block checkout if it fails.
