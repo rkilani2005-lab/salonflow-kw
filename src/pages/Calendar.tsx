@@ -416,6 +416,11 @@ export default function CalendarPage() {
         date={date}
       />
 
+      {/* Status / payment colour legend — quick reference, not the focus. */}
+      <CalendarLegend />
+
+
+
       {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Staff sidebar */}
