@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Staff, Appointment } from '@/types/calendar';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { STATUS_META } from './statusMeta';
  
  interface WeekViewProps {
    staff: Staff[];
