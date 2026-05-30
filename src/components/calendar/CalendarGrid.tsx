@@ -1,4 +1,4 @@
- import { DndContext, DragEndEvent, DragOverlay, pointerWithin } from '@dnd-kit/core';
+ import { DndContext, DragEndEvent, DragOverlay, pointerWithin, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
  import { Staff, Appointment } from '@/types/calendar';
  import { StaffColumn } from './StaffColumn';
 import { WeekView } from './WeekView';
@@ -38,6 +38,13 @@ import { useToast } from '@/hooks/use-toast';
     const [now, setNow] = useState(new Date());
     const { toast } = useToast();
 
+    // Activation distance prevents a plain click from being interpreted
+    // as a drag — so AppointmentCard onClick can fire and open the sheet.
+    const sensors = useSensors(
+      useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+      useSensor(KeyboardSensor),
+    );
+
     useEffect(() => {
       const timer = setInterval(() => setNow(new Date()), 60000);
       return () => clearInterval(timer);
@@ -56,6 +63,7 @@ import { useToast } from '@/hooks/use-toast';
         endHour={endHour}
         date={date}
         onSlotClick={onSlotClick}
+        onAppointmentClick={onAppointmentClick}
       />
     );
   }
@@ -66,6 +74,7 @@ import { useToast } from '@/hooks/use-toast';
         appointments={appointments}
         date={date}
         onDateClick={(clickedDate) => onSlotClick(visibleStaffIds[0] || '', '09:00')}
+        onAppointmentClick={onAppointmentClick}
       />
     );
   }
@@ -147,6 +156,7 @@ import { useToast } from '@/hooks/use-toast';
  
    return (
      <DndContext
+       sensors={sensors}
        collisionDetection={pointerWithin}
        onDragStart={handleDragStart}
        onDragEnd={handleDragEnd}

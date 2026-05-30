@@ -12,6 +12,7 @@ import { STATUS_META } from './statusMeta';
    endHour: number;
    date: Date;
    onSlotClick: (staffId: string, time: string) => void;
+   onAppointmentClick?: (appointment: Appointment) => void;
  }
  
  const SLOT_HEIGHT = 48;
@@ -24,6 +25,7 @@ import { STATUS_META } from './statusMeta';
    endHour,
    date,
    onSlotClick,
+   onAppointmentClick,
  }: WeekViewProps) {
   const weekStart = startOfWeek(date, { weekStartsOn: 0 });
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -126,13 +128,19 @@ import { STATUS_META } from './statusMeta';
                   return (
                     <div
                       key={apt.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Appointment: ${apt.clientName} — ${apt.serviceName} at ${apt.startTime}`}
                       className={cn(
-                        'absolute left-1 right-1 rounded px-1 py-0.5 text-white text-xs overflow-hidden cursor-pointer hover:opacity-90 transition-opacity border-l-4',
+                        'absolute left-1 right-1 rounded px-1 py-0.5 text-white text-xs overflow-hidden cursor-pointer hover:opacity-90 transition-opacity border-l-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                         STATUS_BG[k],
                         (apt.status === 'cancelled' || apt.status === 'no_show') && 'opacity-70',
                       )}
                       style={getAppointmentStyle(apt)}
-                      onClick={() => onSlotClick(apt.staffId, apt.startTime)}
+                      onClick={(e) => { e.stopPropagation(); onAppointmentClick?.(apt); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onAppointmentClick?.(apt); }
+                      }}
                     >
                       <p className={cn('font-medium truncate', apt.status === 'cancelled' && 'line-through')}>{apt.clientName}</p>
                       <p className="truncate opacity-90">{apt.serviceName}</p>

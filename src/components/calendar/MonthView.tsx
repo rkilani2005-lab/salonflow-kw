@@ -16,9 +16,10 @@
    appointments: Appointment[];
    date: Date;
    onDateClick: (date: Date) => void;
+   onAppointmentClick?: (appointment: Appointment) => void;
  }
  
- export function MonthView({ appointments, date, onDateClick }: MonthViewProps) {
+ export function MonthView({ appointments, date, onDateClick, onAppointmentClick }: MonthViewProps) {
    const monthStart = startOfMonth(date);
    const monthEnd = endOfMonth(date);
    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
@@ -101,8 +102,15 @@
                         return (
                           <div
                             key={apt.id}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Appointment: ${apt.clientName} — ${apt.serviceName} at ${apt.startTime}`}
+                            onClick={(e) => { e.stopPropagation(); onAppointmentClick?.(apt); }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onAppointmentClick?.(apt); }
+                            }}
                             className={cn(
-                              'text-xs px-1 py-0.5 rounded truncate text-white',
+                              'text-xs px-1 py-0.5 rounded truncate text-white cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                               STATUS_BG[k],
                               (apt.status === 'cancelled' || apt.status === 'no_show') && 'opacity-70',
                               apt.status === 'cancelled' && 'line-through',

@@ -76,18 +76,42 @@ export function AppointmentCard({ appointment, columnHeight, startHour, onAppoin
   // ── Service-color accent (demoted from primary cue → 2px underline) ─
   const serviceColor = servicesList?.find(s => s.id === appointment.serviceId)?.color;
 
+  // Bilingual aria-label for screen readers.
+  const ariaLabel = language === 'ar'
+    ? `موعد: ${appointment.clientName} — ${appointment.serviceName} في ${appointment.startTime}، الحالة ${statusLabel}`
+    : `Appointment: ${appointment.clientName} — ${appointment.serviceName} at ${appointment.startTime}, status ${statusLabel}`;
+
+  // Suppress click that immediately follows a drag (dnd-kit can leave a
+  // residual click event on pointerup). 200ms window is enough.
+  const handleClick = (e: React.MouseEvent) => {
+    if (isDragging) return;
+    onAppointmentClick?.(appointment);
+  };
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onAppointmentClick?.(appointment);
+    }
+  };
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <div
           ref={setNodeRef}
           style={style}
+          role="button"
+          tabIndex={0}
+          aria-label={ariaLabel}
+          onClick={handleClick}
+          onKeyDown={handleKeyDown}
           className={cn(
-            'absolute left-1 right-1 rounded-md px-2 py-1 cursor-grab active:cursor-grabbing',
+            'absolute left-1 right-1 rounded-md px-2 py-1 cursor-pointer',
             'border border-border bg-card shadow-sm overflow-hidden transition-shadow',
             'border-l-4', c.border, c.tint,
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
             isDimmed && 'bg-muted/60',
-            isDragging && 'opacity-50 shadow-lg z-50',
+            isDragging && 'opacity-50 shadow-lg z-50 cursor-grabbing',
             appointment.groupId && 'ring-2 ring-primary/30 ring-offset-1 ring-offset-transparent',
           )}
           {...listeners}
