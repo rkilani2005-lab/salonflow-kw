@@ -23,14 +23,17 @@ const NEXT_STATUS: Partial<Record<AppointmentStatus, AppointmentStatus>> = {
   in_service: 'completed',
 };
 
+// Status palette pulled from the shared design tokens (see statusMeta.ts
+// + tailwind status.* colours). Keeping the shape the same so callers
+// don't need to change.
 const STATUS_CONFIG: Record<AppointmentStatus, { label: string; color: string; dot: string }> = {
-  planned:    { label: 'Planned',   color: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',          dot: 'bg-slate-400' },
-  confirmed:  { label: 'Confirmed', color: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300',               dot: 'bg-blue-500' },
-  checked_in: { label: 'Arrived',   color: 'bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300',       dot: 'bg-violet-500' },
-  in_service: { label: 'In Chair',  color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',   dot: 'bg-emerald-500 animate-pulse' },
-  completed:  { label: 'Done',      color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',  dot: 'bg-emerald-600' },
-  cancelled:  { label: 'Cancelled', color: 'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-300',                  dot: 'bg-red-500' },
-  no_show:    { label: 'No-Show',   color: 'bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300',       dot: 'bg-orange-500' },
+  planned:    { label: 'Scheduled', color: 'bg-status-scheduled/15 text-status-scheduled',                       dot: 'bg-status-scheduled' },
+  confirmed:  { label: 'Confirmed', color: 'bg-status-confirmed/15 text-status-confirmed',                       dot: 'bg-status-confirmed' },
+  checked_in: { label: 'Arrived',   color: 'bg-status-arrived/15 text-status-arrived',                           dot: 'bg-status-arrived' },
+  in_service: { label: 'In Service',color: 'bg-status-in-service/15 text-status-in-service',                     dot: 'bg-status-in-service animate-pulse' },
+  completed:  { label: 'Completed', color: 'bg-status-completed/15 text-status-completed',                       dot: 'bg-status-completed' },
+  cancelled:  { label: 'Cancelled', color: 'bg-status-cancelled/15 text-status-cancelled',                       dot: 'bg-status-cancelled' },
+  no_show:    { label: 'No-Show',   color: 'bg-status-no-show/15 text-status-no-show',                           dot: 'bg-status-no-show' },
 };
 
 const ADVANCE_LABEL: Partial<Record<AppointmentStatus, string>> = {
