@@ -47,7 +47,24 @@ function useBookings(date: Date) {
         .lte('booking_date', endOfMonth)
         .order('start_time');
       if (error) throw error;
-      return data || [];
+      const rows = data || [];
+
+      // Batched payment lookup: pull every completed transaction for
+      // these bookings in a single query so each AppointmentCard can
+      // surface a paid/unpaid dot without N round-trips.
+      const ids = rows.map(r => r.id);
+      let paymentMap: Record<string, { grand_total: number }> = {};
+      if (ids.length > 0) {
+        const { data: txns } = await supabase
+          .from('transactions')
+          .select('booking_id, grand_total, status')
+          .in('booking_id', ids)
+          .eq('status', 'completed');
+        for (const t of (txns || [])) {
+          if (t.booking_id) paymentMap[t.booking_id] = { grand_total: Number(t.grand_total) };
+        }
+      }
+      return rows.map(r => ({ ...r, __payment: paymentMap[r.id] || null }));
     },
     refetchInterval: 60_000,
   });
