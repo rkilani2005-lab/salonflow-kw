@@ -806,7 +806,7 @@ export function AppointmentDetailSheet({
             <Button
               className="flex-1 gap-1.5"
               variant="outline"
-              onClick={() => navigate(`/pos?bookingId=${appointment.id}`)}
+              onClick={() => navigate(`/pos?bookingId=${appointment.id}&from=calendar`, { state: { returnTo: '/calendar', fromAppointmentId: appointment.id } })}
             >
               <CreditCard className="h-4 w-4" />
               View Receipt
@@ -819,7 +819,7 @@ export function AppointmentDetailSheet({
               </Button>
               <Button
                 className="flex-1 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
-                onClick={() => navigate(`/pos?bookingId=${appointment.id}`)}
+                onClick={() => navigate(`/pos?bookingId=${appointment.id}&from=calendar`, { state: { returnTo: '/calendar', fromAppointmentId: appointment.id } })}
               >
                 <CreditCard className="h-4 w-4" />
                 Collect Payment
@@ -840,7 +840,7 @@ export function AppointmentDetailSheet({
               {(apt.status === 'in_service' || apt.status === 'completed') && (
                 <Button
                   className="gap-1.5"
-                  onClick={() => navigate(`/pos?bookingId=${appointment.id}`)}
+                  onClick={() => navigate(`/pos?bookingId=${appointment.id}&from=calendar`, { state: { returnTo: '/calendar', fromAppointmentId: appointment.id } })}
                 >
                   <CreditCard className="h-4 w-4" />
                   Checkout

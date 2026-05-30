@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ClientSelector } from '@/components/pos/ClientSelector';
@@ -24,6 +24,15 @@ export default function POS() {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const bookingId = searchParams.get('bookingId');
+  const location = useLocation();
+  const navigate = useNavigate();
+  // "Where should we go after a successful sale?" — set by Calendar via
+  // router state, with a ?from=calendar query-param fallback for hard
+  // refreshes. If bookingId is present we always assume calendar origin.
+  const returnTo: string | null =
+    (location.state as any)?.returnTo
+    || (searchParams.get('from') === 'calendar' ? '/calendar' : null)
+    || (bookingId ? '/calendar' : null);
   const { tenant, profile, hasRole } = useAuth();
   // Money-out gate — see ReceiptView for rationale.
   const canRefund = hasRole('owner') || hasRole('manager') || hasRole('cashier') || hasRole('inventory_clerk');
@@ -369,7 +378,25 @@ export default function POS() {
       setCompletedTxnId(txn.id);
       setCompletedPayments(payments);
       setShowPayment(false);
-      setShowReceipt(true);
+
+      // Friendly confirmation for both flows.
+      toast({
+        title: 'Payment recorded',
+        description: `${grandTotal.toFixed(3)} KWD`,
+      });
+
+      if (returnTo) {
+        // Came from Calendar (or any explicit returnTo). Skip the receipt
+        // overlay and bounce back so the receptionist's flow stays in
+        // the calendar view. Clear the router state on the way out so a
+        // future direct visit to /pos isn't pinned to this returnTo.
+        navigate(returnTo, { replace: false });
+      } else {
+        // Walk-in / direct visit: reset everything so the cashier can
+        // start the next sale immediately. No receipt overlay — the
+        // transaction is still accessible from Reports / refund flow.
+        handleNewSale();
+      }
 
       // ── Auto-post journal entry to GL ─────────────────────
       // Fire-and-forget: doesn't block checkout if it fails.
@@ -410,8 +437,14 @@ export default function POS() {
     setSelectedClient(null);
     setIsGuest(false);
     setShowReceipt(false);
+    setShowPayment(false);
     setCompletedTxnId(null);
     setCompletedPayments([]);
+    // Clear promo, gift card, and loyalty redemption so the next sale
+    // starts from a clean slate.
+    setPromoCode(''); setPromoResult(null); setPromoError('');
+    setGiftCardCode(''); setGiftCardResult(null); setGiftCardError('');
+    setRedeemPoints(0);
   };
 
   return (

@@ -126,7 +126,7 @@ export function AppointmentCard({ appointment, columnHeight, startHour, onAppoin
                  className="flex-1"
                  onClick={(e) => {
                    e.stopPropagation();
-                   navigate(`/pos?bookingId=${appointment.id}`);
+                   navigate(`/pos?bookingId=${appointment.id}&from=calendar`, { state: { returnTo: '/calendar', fromAppointmentId: appointment.id } });
                  }}
                >
                  <CreditCard className="mr-1 h-3 w-3" />
