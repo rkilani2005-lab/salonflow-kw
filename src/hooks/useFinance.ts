@@ -385,14 +385,25 @@ export const useProfitLoss = (from: string, to: string) => {
       }
 
       // ── Step 2: Fallback — read directly from transactions + expenses ──
-      // This ensures P&L is never empty even without manual journal entries
-      const [txnsRes, expensesRes] = await Promise.all([
+      // Sums grand_total per transaction, then categorises revenue via
+      // transaction_items joined to services.gl_category. The transactions
+      // table has no service_category column — this previously silently
+      // returned null and showed 0.000.
+      const [txnsRes, itemsRes, expensesRes] = await Promise.all([
         supabase.from('transactions')
-          .select('grand_total, service_category, service_name, created_at')
+          .select('id, grand_total, created_at')
           .eq('tenant_id', tenant!.id)
           .eq('status', 'completed')
+          .is('refund_of_id', null)
           .gte('created_at', from + 'T00:00:00')
           .lte('created_at', to   + 'T23:59:59'),
+        supabase.from('transaction_items')
+          .select('transaction_id, item_type, item_id, total_price, transaction:transaction_id!inner(tenant_id, status, refund_of_id, created_at)')
+          .eq('transaction.tenant_id', tenant!.id)
+          .eq('transaction.status', 'completed')
+          .is('transaction.refund_of_id', null)
+          .gte('transaction.created_at', from + 'T00:00:00')
+          .lte('transaction.created_at', to   + 'T23:59:59'),
         supabase.from('expense_entries')
           .select('total_amount, category, cost_type, description')
           .eq('tenant_id', tenant!.id)
@@ -401,14 +412,27 @@ export const useProfitLoss = (from: string, to: string) => {
           .lte('expense_date', to),
       ]);
 
-      // Group revenue by service category
+      const serviceIds = Array.from(new Set((itemsRes.data || [])
+        .filter((i: any) => i.item_type === 'service' && i.item_id)
+        .map((i: any) => i.item_id)));
+      let svcCat: Record<string, string> = {};
+      if (serviceIds.length) {
+        const { data: svcs } = await supabase
+          .from('services').select('id, gl_category').in('id', serviceIds);
+        svcCat = Object.fromEntries((svcs || []).map((s: any) => [s.id, s.gl_category || 'other']));
+      }
+
+      const validTxnIds = new Set((txnsRes.data || []).map((t: any) => t.id));
       const revByCategory: Record<string, number> = {};
-      (txnsRes.data || []).forEach((t: any) => {
-        const key = t.service_category || 'other';
-        revByCategory[key] = (revByCategory[key] || 0) + Number(t.grand_total);
+      (itemsRes.data || []).forEach((i: any) => {
+        if (!validTxnIds.has(i.transaction_id)) return;
+        const key = i.item_type === 'service'
+          ? (svcCat[i.item_id] || 'other')
+          : 'retail';
+        revByCategory[key] = (revByCategory[key] || 0) + Number(i.total_price || 0);
       });
       const revenue = Object.entries(revByCategory).map(([cat, amount]) => ({
-        id: cat, code: cat, name: cat.charAt(0).toUpperCase() + cat.slice(1) + ' Revenue',
+        id: cat, code: cat, name: cat.charAt(0).toUpperCase() + cat.slice(1) + (cat === 'retail' ? ' Sales' : ' Revenue'),
         name_ar: null, account_type: 'revenue', account_subtype: 'service_revenue', amount,
       }));
 
