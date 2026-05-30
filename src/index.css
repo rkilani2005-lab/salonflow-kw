@@ -77,6 +77,23 @@
     --sidebar-accent-foreground:  30 15% 92%;
     --sidebar-border:             0 0% 18%;
     --sidebar-ring:               0 72% 51%;
+
+    /* ── Appointment status palette ──
+       Single source of truth for the calendar status colour system.
+       Muted, low-saturation HSLs designed to sit alongside the
+       charcoal/beige/red palette without competing with it. */
+    --status-scheduled:  220 12% 62%;   /* calm slate — booked, not yet here */
+    --status-confirmed:  205 48% 48%;   /* soft steel blue — client confirmed */
+    --status-arrived:     33 78% 50%;   /* warm amber — checked in, waiting */
+    --status-in-service: 152 48% 38%;   /* emerald — being served right now */
+    --status-completed:  152 32% 30%;   /* deep emerald — service done */
+    --status-no-show:      0 55% 48%;   /* muted brand red — missed appointment */
+    --status-cancelled:    0  0% 55%;   /* mid grey — cancelled, voided */
+
+    /* Payment-state dot (separate axis) */
+    --pay-paid:          152 50% 38%;   /* emerald — fully paid */
+    --pay-partial:        33 78% 50%;   /* amber — partial (reserved) */
+    --pay-unpaid:          0  0% 60%;   /* grey ring — unpaid */
   }
 
   .dark {
@@ -122,6 +139,19 @@
     --sidebar-accent-foreground:  30 15% 92%;
     --sidebar-border:             0 0% 14%;
     --sidebar-ring:               0 72% 55%;
+
+    /* Appointment status — slightly brighter for dark surfaces. */
+    --status-scheduled:  220 10% 58%;
+    --status-confirmed:  205 50% 56%;
+    --status-arrived:     33 78% 56%;
+    --status-in-service: 152 46% 48%;
+    --status-completed:  152 32% 42%;
+    --status-no-show:      0 60% 58%;
+    --status-cancelled:    0  0% 50%;
+
+    --pay-paid:          152 48% 48%;
+    --pay-partial:        33 78% 56%;
+    --pay-unpaid:          0  0% 55%;
   }
 }
 

@@ -8,6 +8,7 @@ import { AppointmentDetailSheet } from '@/components/calendar/AppointmentDetailS
 import { ReceptionCommandBar } from '@/components/calendar/ReceptionCommandBar';
 import { WalkInDialog } from '@/components/calendar/WalkInDialog';
 import { TodayScheduleList } from '@/components/calendar/TodayScheduleList';
+import { CalendarLegend } from '@/components/calendar/CalendarLegend';
 import { Appointment, AppointmentStatus, Staff, Service, Client, SERVICE_CATEGORY_COLORS } from '@/types/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { useStaff } from '@/hooks/useStaff';
@@ -47,7 +48,24 @@ function useBookings(date: Date) {
         .lte('booking_date', endOfMonth)
         .order('start_time');
       if (error) throw error;
-      return data || [];
+      const rows = data || [];
+
+      // Batched payment lookup: pull every completed transaction for
+      // these bookings in a single query so each AppointmentCard can
+      // surface a paid/unpaid dot without N round-trips.
+      const ids = rows.map(r => r.id);
+      let paymentMap: Record<string, { grand_total: number }> = {};
+      if (ids.length > 0) {
+        const { data: txns } = await supabase
+          .from('transactions')
+          .select('booking_id, grand_total, status')
+          .in('booking_id', ids)
+          .eq('status', 'completed');
+        for (const t of (txns || [])) {
+          if (t.booking_id) paymentMap[t.booking_id] = { grand_total: Number(t.grand_total) };
+        }
+      }
+      return rows.map(r => ({ ...r, __payment: paymentMap[r.id] || null }));
     },
     refetchInterval: 60_000,
   });
@@ -102,6 +120,8 @@ function mapBookingToAppointment(b: any): Appointment {
     status: b.status,
     notes: b.notes,
     price: Number(b.price),
+    isPaid: !!b.__payment,
+    paidAmount: b.__payment ? Number(b.__payment.grand_total) : 0,
   };
 }
 
@@ -395,6 +415,11 @@ export default function CalendarPage() {
         onWalkIn={() => setWalkInOpen(true)}
         date={date}
       />
+
+      {/* Status / payment colour legend — quick reference, not the focus. */}
+      <CalendarLegend />
+
+
 
       {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">

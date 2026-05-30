@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Staff, Appointment } from '@/types/calendar';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { STATUS_META } from './statusMeta';
  
  interface WeekViewProps {
    staff: Staff[];
@@ -111,22 +112,32 @@ import { cn } from '@/lib/utils';
                ))}
  
                {/* Appointments */}
-               {dayAppointments.map((apt) => {
-                 const staffMember = getStaffForAppointment(apt);
-                 return (
-                   <div
-                     key={apt.id}
-                     className="absolute left-1 right-1 rounded px-1 py-0.5 text-white text-xs overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-                     style={{
-                       ...getAppointmentStyle(apt),
-                       backgroundColor: staffMember?.color || 'hsl(var(--primary))',
-                     }}
-                     onClick={() => onSlotClick(apt.staffId, apt.startTime)}
-                   >
-                     <p className="font-medium truncate">{apt.clientName}</p>
-                     <p className="truncate opacity-80">{apt.serviceName}</p>
-                   </div>
-                 );
+                {dayAppointments.map((apt) => {
+                  const k = STATUS_META[apt.status].key;
+                  const STATUS_BG: Record<typeof k, string> = {
+                    scheduled:    'bg-status-scheduled border-l-status-scheduled',
+                    confirmed:    'bg-status-confirmed border-l-status-confirmed',
+                    arrived:      'bg-status-arrived border-l-status-arrived',
+                    'in-service': 'bg-status-in-service border-l-status-in-service',
+                    completed:    'bg-status-completed border-l-status-completed',
+                    'no-show':    'bg-status-no-show border-l-status-no-show',
+                    cancelled:    'bg-status-cancelled border-l-status-cancelled',
+                  };
+                  return (
+                    <div
+                      key={apt.id}
+                      className={cn(
+                        'absolute left-1 right-1 rounded px-1 py-0.5 text-white text-xs overflow-hidden cursor-pointer hover:opacity-90 transition-opacity border-l-4',
+                        STATUS_BG[k],
+                        (apt.status === 'cancelled' || apt.status === 'no_show') && 'opacity-70',
+                      )}
+                      style={getAppointmentStyle(apt)}
+                      onClick={() => onSlotClick(apt.staffId, apt.startTime)}
+                    >
+                      <p className={cn('font-medium truncate', apt.status === 'cancelled' && 'line-through')}>{apt.clientName}</p>
+                      <p className="truncate opacity-90">{apt.serviceName}</p>
+                    </div>
+                  );
                 })}
 
                 {/* Current Time Indicator */}

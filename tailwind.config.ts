@@ -77,6 +77,24 @@ export default {
           red: "hsl(var(--brand-red))",
           "red-dark": "hsl(var(--brand-red-dark))",
         },
+        // Appointment status palette — driven by tokens in index.css so
+        // the calendar's "status at a glance" colour system is tuned in
+        // a single place. Use `bg-status-arrived/15`, `text-status-arrived`,
+        // `border-l-status-arrived` etc.
+        status: {
+          scheduled:    "hsl(var(--status-scheduled))",
+          confirmed:    "hsl(var(--status-confirmed))",
+          arrived:      "hsl(var(--status-arrived))",
+          "in-service": "hsl(var(--status-in-service))",
+          completed:    "hsl(var(--status-completed))",
+          "no-show":    "hsl(var(--status-no-show))",
+          cancelled:    "hsl(var(--status-cancelled))",
+        },
+        pay: {
+          paid:    "hsl(var(--pay-paid))",
+          partial: "hsl(var(--pay-partial))",
+          unpaid:  "hsl(var(--pay-unpaid))",
+        },
       },
       boxShadow: {
         soft: "var(--shadow-soft)",
