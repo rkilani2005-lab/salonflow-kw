@@ -24,6 +24,15 @@ export default function POS() {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const bookingId = searchParams.get('bookingId');
+  const location = useLocation();
+  const navigate = useNavigate();
+  // "Where should we go after a successful sale?" — set by Calendar via
+  // router state, with a ?from=calendar query-param fallback for hard
+  // refreshes. If bookingId is present we always assume calendar origin.
+  const returnTo: string | null =
+    (location.state as any)?.returnTo
+    || (searchParams.get('from') === 'calendar' ? '/calendar' : null)
+    || (bookingId ? '/calendar' : null);
   const { tenant, profile, hasRole } = useAuth();
   // Money-out gate — see ReceiptView for rationale.
   const canRefund = hasRole('owner') || hasRole('manager') || hasRole('cashier') || hasRole('inventory_clerk');
