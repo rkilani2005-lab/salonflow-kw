@@ -80,7 +80,10 @@ serve(async (req: Request) => {
       }
     }
 
-    if (!invoiceId) return json({ error: "no invoice id resolvable" }, 400);
+    if (!invoiceId) {
+      console.error("subscription-webhook: no invoice id resolvable", { raw });
+      return json({ ok: true, ignored: true, reason: "no_invoice_id" });
+    }
 
     const sb = createClient(
       Deno.env.get("SUPABASE_URL")!,
