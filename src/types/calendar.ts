@@ -71,6 +71,11 @@ export interface Appointment {
   status: AppointmentStatus;
   notes?: string;
   price: number;
+  /** Whether a completed transaction is linked to this booking.
+   *  Only meaningful for in_service / completed statuses. */
+  isPaid?: boolean;
+  /** Amount actually collected on the linked completed transaction. */
+  paidAmount?: number;
 }
  
  export interface CalendarViewState {
