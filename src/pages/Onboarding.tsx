@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,104 +6,243 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Building2, MapPin, User, Check, Sparkles, ArrowRight, ArrowLeft, Scissors } from 'lucide-react';
+import {
+  Check, Sparkles, ArrowRight, ArrowLeft, Scissors, Flower2, Crown, Eye,
+  Loader2, Store, Users, ListChecks, Wallet, CalendarDays, Rocket,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import confetti from 'canvas-confetti';
 
+/* ------------------------------------------------------------------ *
+ * Onboarding Agent — tappable, template-driven setup.
+ * Flow: agent asks up to 8 questions (mostly one tap each), then
+ * provisions services + staff + GL mapping via a single RPC.
+ * Preserves the proven completion path: tenant -> branch -> profile ->
+ * role -> refreshProfile() BEFORE navigate (the loop-bug fix) + confetti.
+ * ------------------------------------------------------------------ */
+
+type TemplateService = {
+  id: string; name: string; name_ar: string; category: string;
+  base_price: number; duration: number; is_default: boolean; sort_order: number;
+};
+type Template = {
+  id: string; template_key: string; name: string; name_ar: string;
+  icon: string | null; sort_order: number;
+  services: TemplateService[];
+};
+
+const TEMPLATE_ICONS: Record<string, any> = {
+  Scissors, Sparkles, Flower2, Crown, Eye,
+};
+
+const KW_AREAS = ['Salmiya', 'Hawally', 'Kuwait City', 'Jahra', 'Ahmadi', 'Farwaniya', 'Mangaf', 'Fahaheel', 'Other'];
+
+const PRICE_TIERS = [
+  { key: 'budget',  label: 'Budget-friendly', labelAr: 'اقتصادي', note: '−20%', icon: '💰' },
+  { key: 'mid',     label: 'Mid-range',       labelAr: 'متوسط',  note: 'Recommended', icon: '⚖️' },
+  { key: 'premium', label: 'Premium',         labelAr: 'فاخر',   note: '+30%', icon: '💎' },
+];
+
+const COMMISSION_OPTS = [
+  { key: 0,  label: 'No commission' },
+  { key: 10, label: '10%' },
+  { key: 15, label: '15%' },
+  { key: 20, label: '20%' },
+];
+
+const STAFF_OPTS = [
+  { key: 1,  label: 'Just me' },
+  { key: 3,  label: '2–3' },
+  { key: 6,  label: '4–6' },
+  { key: 10, label: '7–10' },
+  { key: 12, label: '10+' },
+];
+
+const DAYS = [
+  { key: 'sat', label: 'Sat' }, { key: 'sun', label: 'Sun' }, { key: 'mon', label: 'Mon' },
+  { key: 'tue', label: 'Tue' }, { key: 'wed', label: 'Wed' }, { key: 'thu', label: 'Thu' },
+  { key: 'fri', label: 'Fri' },
+];
+
+const HOURS_PRESETS = [
+  { key: 'standard', label: 'Morning–Evening', open: '10:00', close: '22:00' },
+  { key: 'late',     label: 'Afternoon–Late',  open: '14:00', close: '23:00' },
+];
+
+const TIER_MULT: Record<string, number> = { budget: 0.8, mid: 1.0, premium: 1.3, custom: 1.0 };
+
 const STEPS = [
-  { id: 1, title: 'Salon Details', titleAr: 'تفاصيل الصالون', icon: Building2, desc: 'Tell us about your business',   descAr: 'أخبرينا عن عملك' },
-  { id: 2, title: 'First Branch',  titleAr: 'الفرع الأول',    icon: MapPin,    desc: 'Set up your main location',    descAr: 'أعدّي موقعك الرئيسي' },
-  { id: 3, title: 'First Staff',   titleAr: 'أول موظفة',      icon: User,      desc: 'Add your first team member',   descAr: 'أضيفي أول عضو في الفريق' },
+  { id: 1, title: 'Salon Type',  icon: Scissors,    desc: 'What kind of salon?' },
+  { id: 2, title: 'Business',    icon: Store,       desc: 'Name & location' },
+  { id: 3, title: 'Team',        icon: Users,       desc: 'How many staff?' },
+  { id: 4, title: 'Services',    icon: ListChecks,  desc: 'What you offer' },
+  { id: 5, title: 'Pricing',     icon: Wallet,      desc: 'Price tier & commission' },
+  { id: 6, title: 'Hours',       icon: CalendarDays,desc: 'When you’re open' },
+  { id: 7, title: 'Launch',      icon: Rocket,      desc: 'Review & go live' },
 ];
 
 const Onboarding = () => {
-  const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
   const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
 
-  const [salon,  setSalon]  = useState({ name: '', defaultTaxRate: '0', currency: 'KWD' });
-  const [branch, setBranch] = useState({ name: 'Main Branch', address: '', phone: '', openingTime: '09:00', closingTime: '21:00' });
-  const [staff,  setStaff]  = useState({ name: '', phone: '', email: '' });
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+
+  // ---- answers ----
+  const [templateKey, setTemplateKey] = useState<string | null>(null);
+  const [salonName, setSalonName] = useState('');
+  const [area, setArea] = useState('Salmiya');
+  const [currency] = useState('KWD');
+  const [staffCount, setStaffCount] = useState<number>(3);
+  const [deselected, setDeselected] = useState<Set<string>>(new Set()); // service names unchecked
+  const [priceTier, setPriceTier] = useState<string>('mid');
+  const [commission, setCommission] = useState<number>(10);
+  const [workingDays, setWorkingDays] = useState<string[]>(['sat', 'sun', 'mon', 'tue', 'wed', 'thu']);
+  const [hours, setHours] = useState(HOURS_PRESETS[0]);
+
+  const selectedTemplate = useMemo(
+    () => templates.find(t => t.template_key === templateKey) || null,
+    [templates, templateKey]
+  );
+
+  // services that are currently selected (default minus deselected)
+  const selectedServices = useMemo(() => {
+    if (!selectedTemplate) return [];
+    return selectedTemplate.services
+      .filter(s => s.is_default && !deselected.has(s.name));
+  }, [selectedTemplate, deselected]);
+
+  // ---- load templates + their services ----
+  useEffect(() => {
+    (async () => {
+      setLoadingTemplates(true);
+      const { data: tpl, error } = await supabase
+        .from('salon_templates')
+        .select('id, template_key, name, name_ar, icon, sort_order')
+        .eq('is_active', true)
+        .order('sort_order');
+      if (error || !tpl) { setLoadingTemplates(false); return; }
+
+      const { data: svc } = await supabase
+        .from('salon_template_services')
+        .select('id, template_id, name, name_ar, category, base_price, duration, is_default, sort_order')
+        .order('sort_order');
+
+      const merged: Template[] = tpl.map((t: any) => ({
+        ...t,
+        services: (svc || []).filter((s: any) => s.template_id === t.id),
+      }));
+      setTemplates(merged);
+      setLoadingTemplates(false);
+    })();
+  }, []);
+
+  const priceOf = (base: number) =>
+    (base * (TIER_MULT[priceTier] ?? 1)).toFixed(3);
 
   const canProceed = () => {
-    if (step === 1) return salon.name.trim().length >= 2;
-    if (step === 2) return branch.name.trim().length >= 2;
-    if (step === 3) return staff.name.trim().length >= 2;
-    return false;
+    if (step === 1) return !!templateKey;
+    if (step === 2) return salonName.trim().length >= 2;
+    if (step === 4) return selectedServices.length >= 1;
+    if (step === 6) return workingDays.length >= 1;
+    return true;
   };
 
-  const handleComplete = async () => {
-    if (!user) return;
+  const toggleService = (name: string) => {
+    setDeselected(prev => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+  };
+
+  const toggleDay = (key: string) => {
+    setWorkingDays(prev =>
+      prev.includes(key) ? prev.filter(d => d !== key) : [...prev, key]
+    );
+  };
+
+  const handleLaunch = async () => {
+    if (!user || !templateKey) return;
     setLoading(true);
     try {
-      // 1. Create tenant with onboarding_completed = true and 14-day trial
+      // 1. Tenant (preserve trial + onboarding_completed=true, loop-fix)
       const trialEnd = new Date(Date.now() + 14 * 86_400_000).toISOString();
-      const { data: tenantData, error: tenantError } = await supabase
+      const { data: tenantData, error: tenantErr } = await supabase
         .from('tenants')
         .insert({
-          name: salon.name.trim(),
-          default_tax_rate: parseFloat(salon.defaultTaxRate) || 0,
-          currency: salon.currency,
-          onboarding_completed: true,   // ← explicitly true
+          name: salonName.trim(),
+          currency,
+          default_tax_rate: 0,
+          onboarding_completed: true,
           is_trial: true,
           trial_ends_at: trialEnd,
         })
         .select()
         .single();
-      if (tenantError) throw tenantError;
+      if (tenantErr) throw tenantErr;
 
-      // 2. Create first branch
-      const { data: branchData, error: branchError } = await supabase
+      // 2. First branch
+      const { data: branchData, error: branchErr } = await supabase
         .from('branches')
         .insert({
           tenant_id: tenantData.id,
-          name: branch.name.trim(),
-          address: branch.address || null,
-          phone: branch.phone || null,
-          opening_time: branch.openingTime + ':00',
-          closing_time: branch.closingTime + ':00',
+          name: `${area} Branch`,
+          address: area === 'Other' ? null : `${area}, Kuwait`,
+          opening_time: `${hours.open}:00`,
+          closing_time: `${hours.close}:00`,
+          working_days: workingDays,
           is_active: true,
         })
         .select()
         .single();
-      if (branchError) throw branchError;
+      if (branchErr) throw branchErr;
 
-      // 3. Link profile to tenant + branch
-      const { error: profileError } = await supabase
+      // 3. Link profile
+      const { error: profErr } = await supabase
         .from('profiles')
         .update({ tenant_id: tenantData.id, branch_id: branchData.id })
         .eq('user_id', user.id);
-      if (profileError) throw profileError;
+      if (profErr) throw profErr;
 
-      // 4. Assign owner role
-      const { error: roleError } = await supabase
+      // 4. Owner role
+      const { error: roleErr } = await supabase
         .from('user_roles')
         .insert({ user_id: user.id, tenant_id: tenantData.id, role: 'owner' });
-      if (roleError) throw roleError;
+      if (roleErr) throw roleErr;
 
-      // 5. Create first staff member
-      if (staff.name.trim()) {
-        await supabase.from('staff').insert({
-          tenant_id: tenantData.id,
-          name: staff.name.trim(),
-          phone: staff.phone || null,
-          email: staff.email || null,
-          working_hours_start: branch.openingTime + ':00',
-          working_hours_end:   branch.closingTime + ':00',
-          is_active: true,
+      // 5. Provision services + staff + GL mapping via RPC
+      const answers = {
+        template_key: templateKey,
+        selected_services: selectedServices.map(s => s.name),
+        price_tier: priceTier,
+        commission_pct: commission,
+        branch_id: branchData.id,
+        working_days: workingDays,
+        opening_time: hours.open,
+        closing_time: hours.close,
+        staff_count: staffCount,
+      };
+      const { data: provision, error: provErr } = await supabase
+        .rpc('provision_tenant_from_template', {
+          p_tenant_id: tenantData.id,
+          p_answers: answers,
         });
+      if (provErr) {
+        // Non-fatal: tenant is usable; surface a soft warning.
+        console.error('provision error:', provErr);
+        toast.warning('Salon created — some services need manual setup. You can add them from the Services page.');
       }
 
-      // 6. Refresh context so tenant & onboarding_completed are current
-      //    Wait for it to settle before navigating — this is the key fix
-      //    for the "onboarding loop" bug.
+      // 6. Refresh context BEFORE navigating (the loop-bug fix)
       await refreshProfile();
 
-      confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 }, colors: ['#C0395E', '#D4956A', '#ffffff'] });
-      toast.success('Welcome to ZAINA! Your 14-day trial has started 🎉');
+      const made = (provision as any)?.services_created ?? selectedServices.length;
+      confetti({ particleCount: 140, spread: 75, origin: { y: 0.6 }, colors: ['#C0395E', '#D4956A', '#ffffff'] });
+      toast.success(`Welcome to ZAINA! ${made} services ready · 14-day trial started 🎉`);
 
-      // Navigate AFTER profile is refreshed — avoids the loop
       navigate('/dashboard', { replace: true });
     } catch (err: any) {
       console.error('Onboarding error:', err);
@@ -114,6 +253,31 @@ const Onboarding = () => {
   };
 
   const progress = ((step - 1) / (STEPS.length - 1)) * 100;
+  const StepIcon = STEPS[step - 1].icon;
+
+  // reusable option-card button (Claude-style tappable)
+  const OptionCard = ({
+    active, onClick, children, className,
+  }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'relative text-left rounded-xl border p-3.5 transition-all duration-150 active:scale-[0.98]',
+        active
+          ? 'border-primary bg-primary/8 ring-2 ring-primary/25'
+          : 'border-border/70 bg-card hover:border-primary/40 hover:bg-primary/[0.03]',
+        className
+      )}
+    >
+      {active && (
+        <span className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+          <Check className="h-3 w-3 text-primary-foreground" />
+        </span>
+      )}
+      {children}
+    </button>
+  );
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -127,138 +291,195 @@ const Onboarding = () => {
         <div className="ml-auto text-xs text-muted-foreground font-medium">Step {step} of {STEPS.length}</div>
       </header>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        <div className="w-full max-w-lg">
-
-          {/* Progress */}
-          <div className="mb-8">
+      <div className="flex-1 grid lg:grid-cols-[1fr_320px] max-w-5xl w-full mx-auto px-6 py-10 gap-8">
+        {/* ---- main column ---- */}
+        <div className="w-full max-w-lg mx-auto lg:mx-0">
+          {/* progress */}
+          <div className="mb-7">
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${progress + 50}%` }} />
-            </div>
-            <div className="flex justify-between mt-3">
-              {STEPS.map(s => {
-                const Icon = s.icon;
-                const done = step > s.id;
-                const active = step === s.id;
-                return (
-                  <div key={s.id} className="flex flex-col items-center gap-1.5">
-                    <div className={cn(
-                      'h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300',
-                      done ? 'bg-primary text-primary-foreground' :
-                      active ? 'bg-primary/15 text-primary ring-2 ring-primary/30' :
-                      'bg-muted text-muted-foreground'
-                    )}>
-                      {done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
-                    </div>
-                    <span className={cn('text-[10px] font-medium hidden sm:block', active ? 'text-primary' : 'text-muted-foreground')}>
-                      {s.title}
-                    </span>
-                  </div>
-                );
-              })}
+              <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
             </div>
           </div>
 
-          {/* Card */}
           <div className="bg-card border border-border/60 rounded-2xl overflow-hidden shadow-sm">
-            <div className="px-6 pt-6 pb-5 border-b border-border/50">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  {(() => { const Icon = STEPS[step-1].icon; return <Icon className="h-5 w-5 text-primary" />; })()}
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>{STEPS[step-1].title}</h2>
-                  <p className="text-sm text-muted-foreground">{STEPS[step-1].desc}</p>
-                </div>
+            <div className="px-6 pt-6 pb-5 border-b border-border/50 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <StepIcon className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>{STEPS[step - 1].title}</h2>
+                <p className="text-sm text-muted-foreground">{STEPS[step - 1].desc}</p>
               </div>
             </div>
 
             <div className="p-6 space-y-4">
+              {/* Q1 — salon type */}
               {step === 1 && (
-                <>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="salonName">Salon Name *</Label>
-                    <Input id="salonName" placeholder="e.g., Glam Studio Kuwait" value={salon.name}
-                      onChange={e => setSalon({ ...salon, name: e.target.value })} className="h-10" autoFocus />
+                loadingTemplates ? (
+                  <div className="flex items-center justify-center py-10 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading salon types…
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="currency">Currency</Label>
-                      <select id="currency" value={salon.currency} onChange={e => setSalon({ ...salon, currency: e.target.value })}
-                        className="w-full h-10 rounded-md border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-                        <option value="KWD">KWD - Kuwaiti Dinar</option>
-                        <option value="SAR">SAR - Saudi Riyal</option>
-                        <option value="AED">AED - UAE Dirham</option>
-                        <option value="QAR">QAR - Qatari Riyal</option>
-                        <option value="BHD">BHD - Bahraini Dinar</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="taxRate">Tax Rate (%)</Label>
-                      <Input id="taxRate" type="number" min="0" max="30" step="0.1" placeholder="0"
-                        value={salon.defaultTaxRate} onChange={e => setSalon({ ...salon, defaultTaxRate: e.target.value })} className="h-10" />
-                      <p className="text-[11px] text-muted-foreground">Kuwait: 0% VAT</p>
-                    </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {templates.map(t => {
+                      const Icon = TEMPLATE_ICONS[t.icon || 'Sparkles'] || Sparkles;
+                      return (
+                        <OptionCard key={t.id} active={templateKey === t.template_key}
+                          onClick={() => { setTemplateKey(t.template_key); setDeselected(new Set()); }}>
+                          <Icon className="h-5 w-5 text-primary mb-2" />
+                          <div className="font-semibold text-sm">{t.name}</div>
+                          <div className="text-xs text-muted-foreground" dir="rtl">{t.name_ar}</div>
+                        </OptionCard>
+                      );
+                    })}
                   </div>
-                </>
+                )
               )}
 
+              {/* Q2 — business */}
               {step === 2 && (
                 <>
                   <div className="space-y-1.5">
-                    <Label htmlFor="branchName">Branch Name *</Label>
-                    <Input id="branchName" placeholder="e.g., Salmiya Branch" value={branch.name}
-                      onChange={e => setBranch({ ...branch, name: e.target.value })} className="h-10" autoFocus />
+                    <Label htmlFor="salonName">Salon Name *</Label>
+                    <Input id="salonName" placeholder="e.g., Glam Studio Kuwait" value={salonName}
+                      onChange={e => setSalonName(e.target.value)} className="h-10" autoFocus />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="branchAddress">Address</Label>
-                    <Input id="branchAddress" placeholder="Block 5, Street 10, Salmiya, Kuwait" value={branch.address}
-                      onChange={e => setBranch({ ...branch, address: e.target.value })} className="h-10" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="branchPhone">Branch Phone</Label>
-                    <Input id="branchPhone" placeholder="+965 9XXX XXXX" value={branch.phone}
-                      onChange={e => setBranch({ ...branch, phone: e.target.value })} className="h-10" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="openTime">Opening Time</Label>
-                      <Input id="openTime" type="time" value={branch.openingTime}
-                        onChange={e => setBranch({ ...branch, openingTime: e.target.value })} className="h-10" />
+                    <Label>Area</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {KW_AREAS.map(a => (
+                        <button key={a} type="button" onClick={() => setArea(a)}
+                          className={cn('rounded-lg border px-2 py-2 text-xs font-medium transition-all',
+                            area === a ? 'border-primary bg-primary/10 text-primary' : 'border-border/70 hover:border-primary/40')}>
+                          {a}
+                        </button>
+                      ))}
                     </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="closeTime">Closing Time</Label>
-                      <Input id="closeTime" type="time" value={branch.closingTime}
-                        onChange={e => setBranch({ ...branch, closingTime: e.target.value })} className="h-10" />
+                  </div>
+                  <div className="p-3 rounded-xl bg-primary/6 border border-primary/20 text-xs text-primary">
+                    💡 Currency is set to KWD. You can change tax & currency later in Settings.
+                  </div>
+                </>
+              )}
+
+              {/* Q3 — staff count */}
+              {step === 3 && (
+                <div className="grid grid-cols-2 gap-3">
+                  {STAFF_OPTS.map(o => (
+                    <OptionCard key={o.key} active={staffCount === o.key} onClick={() => setStaffCount(o.key)}>
+                      <Users className="h-4 w-4 text-primary mb-1.5" />
+                      <div className="font-semibold text-sm">{o.label}</div>
+                    </OptionCard>
+                  ))}
+                </div>
+              )}
+
+              {/* Q4 — services */}
+              {step === 4 && selectedTemplate && (
+                <>
+                  <p className="text-xs text-muted-foreground">Tap to remove any you don’t offer. Prices reflect your tier.</p>
+                  <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+                    {selectedTemplate.services.filter(s => s.is_default).map(s => {
+                      const on = !deselected.has(s.name);
+                      return (
+                        <button key={s.id} type="button" onClick={() => toggleService(s.name)}
+                          className={cn('w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-all',
+                            on ? 'border-primary/50 bg-primary/[0.04]' : 'border-border/60 opacity-55')}>
+                          <span className={cn('h-5 w-5 rounded-md flex items-center justify-center shrink-0',
+                            on ? 'bg-primary text-primary-foreground' : 'border border-border')}>
+                            {on && <Check className="h-3 w-3" />}
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-sm font-medium truncate">{s.name}</span>
+                            <span className="block text-xs text-muted-foreground">{s.duration} min</span>
+                          </span>
+                          <span className="text-sm font-semibold text-primary tabular-nums">{priceOf(s.base_price)} <span className="text-[10px] font-normal text-muted-foreground">KWD</span></span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* Q5 — pricing + commission */}
+              {step === 5 && (
+                <>
+                  <div>
+                    <Label className="mb-2 block">Price tier</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {PRICE_TIERS.map(t => (
+                        <OptionCard key={t.key} active={priceTier === t.key} onClick={() => setPriceTier(t.key)} className="text-center">
+                          <div className="text-lg">{t.icon}</div>
+                          <div className="font-semibold text-xs mt-1">{t.label}</div>
+                          <div className="text-[10px] text-muted-foreground">{t.note}</div>
+                        </OptionCard>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="mb-2 block">Staff commission</Label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {COMMISSION_OPTS.map(c => (
+                        <button key={c.key} type="button" onClick={() => setCommission(c.key)}
+                          className={cn('rounded-lg border px-2 py-2.5 text-xs font-medium transition-all',
+                            commission === c.key ? 'border-primary bg-primary/10 text-primary' : 'border-border/70 hover:border-primary/40')}>
+                          {c.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </>
               )}
 
-              {step === 3 && (
+              {/* Q6 — hours */}
+              {step === 6 && (
                 <>
-                  <div className="p-3 rounded-xl bg-primary/6 border border-primary/20 text-sm text-primary mb-2">
-                    💡 Add your first stylist — you can add more from the Staff page anytime.
+                  <div>
+                    <Label className="mb-2 block">Working days</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {DAYS.map(d => (
+                        <button key={d.key} type="button" onClick={() => toggleDay(d.key)}
+                          className={cn('rounded-lg border px-3 py-2 text-xs font-medium transition-all',
+                            workingDays.includes(d.key) ? 'border-primary bg-primary/10 text-primary' : 'border-border/70 hover:border-primary/40')}>
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="staffName">Staff Name *</Label>
-                    <Input id="staffName" placeholder="e.g., Fatima Al-Sabah" value={staff.name}
-                      onChange={e => setStaff({ ...staff, name: e.target.value })} className="h-10" autoFocus />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="staffPhone">Phone (optional)</Label>
-                    <Input id="staffPhone" placeholder="+965 9XXX XXXX" value={staff.phone}
-                      onChange={e => setStaff({ ...staff, phone: e.target.value })} className="h-10" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="staffEmail">Email (optional)</Label>
-                    <Input id="staffEmail" type="email" placeholder="staff@salon.com" value={staff.email}
-                      onChange={e => setStaff({ ...staff, email: e.target.value })} className="h-10" />
+                  <div>
+                    <Label className="mb-2 block">Hours</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {HOURS_PRESETS.map(h => (
+                        <OptionCard key={h.key} active={hours.key === h.key} onClick={() => setHours(h)}>
+                          <div className="font-semibold text-sm">{h.label}</div>
+                          <div className="text-xs text-muted-foreground">{h.open} – {h.close}</div>
+                        </OptionCard>
+                      ))}
+                    </div>
                   </div>
                 </>
+              )}
+
+              {/* Q7 — review */}
+              {step === 7 && selectedTemplate && (
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-border/60 divide-y divide-border/50 text-sm">
+                    <Row label="Salon" value={salonName || '—'} />
+                    <Row label="Type" value={selectedTemplate.name} />
+                    <Row label="Area" value={area} />
+                    <Row label="Services" value={`${selectedServices.length} ready`} />
+                    <Row label="Pricing" value={PRICE_TIERS.find(t => t.key === priceTier)?.label || 'Mid'} />
+                    <Row label="Commission" value={commission === 0 ? 'None' : `${commission}%`} />
+                    <Row label="Open" value={`${workingDays.length} days · ${hours.open}–${hours.close}`} />
+                  </div>
+                  <div className="p-3 rounded-xl bg-primary/6 border border-primary/20 text-xs text-primary">
+                    ✨ Everything below maps to your finances automatically — services post to the right revenue accounts the moment you make your first sale.
+                  </div>
+                </div>
               )}
             </div>
 
+            {/* footer nav */}
             <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-muted/20">
               <Button variant="ghost" size="sm" onClick={() => setStep(s => s - 1)} disabled={step === 1} className="gap-1.5">
                 <ArrowLeft className="h-3.5 w-3.5" />Back
@@ -268,23 +489,61 @@ const Onboarding = () => {
                   Next<ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               ) : (
-                <Button size="sm" onClick={handleComplete} disabled={!canProceed() || loading} className="gap-1.5">
+                <Button size="sm" onClick={handleLaunch} disabled={loading} className="gap-1.5">
                   {loading
-                    ? <><span className="h-3.5 w-3.5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />Setting up...</>
-                    : <><Sparkles className="h-3.5 w-3.5" />Launch Dashboard</>
-                  }
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Setting up…</>
+                    : <><Rocket className="h-3.5 w-3.5" />Launch Salon</>}
                 </Button>
               )}
             </div>
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-6">
-            Your 14-day free trial starts now · No credit card required
+            14-day free trial · No credit card required
           </p>
         </div>
+
+        {/* ---- live preview ---- */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-10 rounded-2xl border border-border/60 bg-card p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>Live Preview</span>
+            </div>
+            {!selectedTemplate ? (
+              <p className="text-xs text-muted-foreground">Pick a salon type to see your starter setup build here.</p>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <div className="text-xs text-muted-foreground mb-0.5">Salon</div>
+                  <div className="text-sm font-semibold">{salonName || 'Your Salon'}</div>
+                  <div className="text-xs text-muted-foreground">{selectedTemplate.name} · {area}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1.5">Services ({selectedServices.length})</div>
+                  <div className="space-y-1 max-h-[260px] overflow-y-auto pr-1">
+                    {selectedServices.map(s => (
+                      <div key={s.id} className="flex items-center justify-between text-xs">
+                        <span className="truncate text-foreground/80">{s.name}</span>
+                        <span className="font-medium text-primary tabular-nums ml-2">{priceOf(s.base_price)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </aside>
       </div>
     </div>
   );
 };
+
+const Row = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex items-center justify-between px-3.5 py-2.5">
+    <span className="text-muted-foreground">{label}</span>
+    <span className="font-medium">{value}</span>
+  </div>
+);
 
 export default Onboarding;
