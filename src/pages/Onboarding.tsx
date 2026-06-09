@@ -168,58 +168,33 @@ const Onboarding = () => {
     if (!user || !templateKey) return;
     setLoading(true);
     try {
-      // 1. Tenant (preserve trial + onboarding_completed=true, loop-fix)
-      const trialEnd = new Date(Date.now() + 14 * 86_400_000).toISOString();
-      const { data: tenantData, error: tenantErr } = await supabase
-        .from('tenants')
-        .insert({
-          name: salonName.trim(),
-          currency,
-          default_tax_rate: 0,
-          onboarding_completed: true,
-          is_trial: true,
-          trial_ends_at: trialEnd,
-        })
-        .select()
-        .single();
-      if (tenantErr) throw tenantErr;
+      // 1. Atomically bootstrap tenant + branch + profile link + owner role.
+      //    Done in one SECURITY DEFINER RPC to avoid the tenants SELECT-policy
+      //    read-back failure (profile isn't linked to the tenant yet at the
+      //    moment of a client-side insert().select()).
+      const { data: boot, error: bootErr } = await supabase
+        .rpc('bootstrap_tenant', {
+          p_salon_name: salonName.trim(),
+          p_currency: currency,
+          p_branch_name: `${area} Branch`,
+          p_branch_address: area === 'Other' ? null : `${area}, Kuwait`,
+          p_opening_time: hours.open,
+          p_closing_time: hours.close,
+          p_working_days: workingDays,
+        });
+      if (bootErr) throw bootErr;
 
-      // 2. First branch
-      const { data: branchData, error: branchErr } = await supabase
-        .from('branches')
-        .insert({
-          tenant_id: tenantData.id,
-          name: `${area} Branch`,
-          address: area === 'Other' ? null : `${area}, Kuwait`,
-          opening_time: `${hours.open}:00`,
-          closing_time: `${hours.close}:00`,
-          working_days: workingDays,
-          is_active: true,
-        })
-        .select()
-        .single();
-      if (branchErr) throw branchErr;
+      const tenantId = (boot as any)?.tenant_id as string;
+      const branchId = (boot as any)?.branch_id as string;
+      if (!tenantId) throw new Error('Could not create salon. Please try again.');
 
-      // 3. Link profile
-      const { error: profErr } = await supabase
-        .from('profiles')
-        .update({ tenant_id: tenantData.id, branch_id: branchData.id })
-        .eq('user_id', user.id);
-      if (profErr) throw profErr;
-
-      // 4. Owner role
-      const { error: roleErr } = await supabase
-        .from('user_roles')
-        .insert({ user_id: user.id, tenant_id: tenantData.id, role: 'owner' });
-      if (roleErr) throw roleErr;
-
-      // 5. Provision services + staff + GL mapping via RPC
+      // 2. Provision services + staff + GL mapping via RPC
       const answers = {
         template_key: templateKey,
         selected_services: selectedServices.map(s => s.name),
         price_tier: priceTier,
         commission_pct: commission,
-        branch_id: branchData.id,
+        branch_id: branchId,
         working_days: workingDays,
         opening_time: hours.open,
         closing_time: hours.close,
@@ -227,7 +202,7 @@ const Onboarding = () => {
       };
       const { data: provision, error: provErr } = await supabase
         .rpc('provision_tenant_from_template', {
-          p_tenant_id: tenantData.id,
+          p_tenant_id: tenantId,
           p_answers: answers,
         });
       if (provErr) {
