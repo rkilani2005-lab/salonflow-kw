@@ -91,28 +91,58 @@ const Onboarding = () => {
   const [loadingTemplates, setLoadingTemplates] = useState(true);
 
   // ---- answers ----
-  const [templateKey, setTemplateKey] = useState<string | null>(null);
+  const [templateKeys, setTemplateKeys] = useState<string[]>([]);      // multi-select
   const [salonName, setSalonName] = useState('');
   const [area, setArea] = useState('Salmiya');
   const [currency] = useState('KWD');
   const [staffCount, setStaffCount] = useState<number>(3);
-  const [deselected, setDeselected] = useState<Set<string>>(new Set()); // service names unchecked
+  const [disabled, setDisabled] = useState<Set<string>>(new Set());    // toggle state (see isOn)
+  const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>({}); // lower-name -> custom price
   const [priceTier, setPriceTier] = useState<string>('mid');
   const [commission, setCommission] = useState<number>(10);
   const [workingDays, setWorkingDays] = useState<string[]>(['sat', 'sun', 'mon', 'tue', 'wed', 'thu']);
   const [hours, setHours] = useState(HOURS_PRESETS[0]);
 
-  const selectedTemplate = useMemo(
-    () => templates.find(t => t.template_key === templateKey) || null,
-    [templates, templateKey]
+  const selectedTemplates = useMemo(
+    () => templates.filter(t => templateKeys.includes(t.template_key)),
+    [templates, templateKeys]
   );
 
-  // services that are currently selected (default minus deselected)
-  const selectedServices = useMemo(() => {
-    if (!selectedTemplate) return [];
-    return selectedTemplate.services
-      .filter(s => s.is_default && !deselected.has(s.name));
-  }, [selectedTemplate, deselected]);
+  // Catalog: all services from every selected template, deduped by name
+  // (first occurrence wins). is_default decides initial on/off state.
+  const catalog = useMemo(() => {
+    const seen = new Set<string>();
+    const out: TemplateService[] = [];
+    for (const t of selectedTemplates) {
+      for (const s of t.services) {
+        const key = s.name.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(s);
+      }
+    }
+    return out;
+  }, [selectedTemplates]);
+
+  // base (tier-adjusted) price for a service
+  const tierPrice = (base: number) => +(base * (TIER_MULT[priceTier] ?? 1)).toFixed(3);
+  // effective price: manual override wins, else tier price
+  const effectivePrice = (s: TemplateService) => {
+    const key = s.name.toLowerCase();
+    return key in priceOverrides ? priceOverrides[key] : tierPrice(s.base_price);
+  };
+  // on/off: default-services are ON unless turned off; non-default are OFF
+  // unless explicitly turned on. We track both with one Set using a prefix.
+  const isOn = (s: TemplateService) => {
+    const key = s.name.toLowerCase();
+    return s.is_default ? !disabled.has(key) : disabled.has(`__on__${key}`);
+  };
+
+  // services the tenant will actually get
+  const selectedServices = useMemo(
+    () => catalog.filter(isOn),
+    [catalog, disabled]
+  );
 
   // ---- load templates + their services ----
   useEffect(() => {
@@ -139,21 +169,41 @@ const Onboarding = () => {
     })();
   }, []);
 
-  const priceOf = (base: number) =>
-    (base * (TIER_MULT[priceTier] ?? 1)).toFixed(3);
-
   const canProceed = () => {
-    if (step === 1) return !!templateKey;
+    if (step === 1) return templateKeys.length >= 1;
     if (step === 2) return salonName.trim().length >= 2;
     if (step === 4) return selectedServices.length >= 1;
     if (step === 6) return workingDays.length >= 1;
     return true;
   };
 
-  const toggleService = (name: string) => {
-    setDeselected(prev => {
+  const toggleTemplate = (key: string) => {
+    setTemplateKeys(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
+
+  const toggleService = (s: TemplateService) => {
+    const key = s.name.toLowerCase();
+    setDisabled(prev => {
       const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
+      if (s.is_default) {
+        next.has(key) ? next.delete(key) : next.add(key);          // default: toggle OFF marker
+      } else {
+        const onKey = `__on__${key}`;
+        next.has(onKey) ? next.delete(onKey) : next.add(onKey);    // non-default: toggle ON marker
+      }
+      return next;
+    });
+  };
+
+  const setServicePrice = (s: TemplateService, raw: string) => {
+    const key = s.name.toLowerCase();
+    const val = parseFloat(raw);
+    setPriceOverrides(prev => {
+      const next = { ...prev };
+      if (raw === '' || isNaN(val)) delete next[key];
+      else next[key] = +val.toFixed(3);
       return next;
     });
   };
@@ -165,7 +215,7 @@ const Onboarding = () => {
   };
 
   const handleLaunch = async () => {
-    if (!user || !templateKey) return;
+    if (!user || templateKeys.length === 0) return;
     setLoading(true);
     try {
       // 1. Atomically bootstrap tenant + branch + profile link + owner role.
@@ -188,10 +238,19 @@ const Onboarding = () => {
       const branchId = (boot as any)?.branch_id as string;
       if (!tenantId) throw new Error('Could not create salon. Please try again.');
 
-      // 2. Provision services + staff + GL mapping via RPC
+      // 2. Provision services + staff + GL mapping via RPC.
+      //    We send an explicit services list (selection + final price +
+      //    duration already resolved client-side), plus template_keys for
+      //    staff-role seeding. The RPC treats 'services' as authoritative.
       const answers = {
-        template_key: templateKey,
-        selected_services: selectedServices.map(s => s.name),
+        template_keys: templateKeys,
+        services: selectedServices.map(s => ({
+          name: s.name,
+          name_ar: s.name_ar,
+          category: s.category,
+          price: effectivePrice(s),
+          duration: s.duration,
+        })),
         price_tier: priceTier,
         commission_pct: commission,
         branch_id: branchId,
@@ -288,26 +347,32 @@ const Onboarding = () => {
             </div>
 
             <div className="p-6 space-y-4">
-              {/* Q1 — salon type */}
+              {/* Q1 — salon type(s), multi-select */}
               {step === 1 && (
                 loadingTemplates ? (
                   <div className="flex items-center justify-center py-10 text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading salon types…
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    {templates.map(t => {
-                      const Icon = TEMPLATE_ICONS[t.icon || 'Sparkles'] || Sparkles;
-                      return (
-                        <OptionCard key={t.id} active={templateKey === t.template_key}
-                          onClick={() => { setTemplateKey(t.template_key); setDeselected(new Set()); }}>
-                          <Icon className="h-5 w-5 text-primary mb-2" />
-                          <div className="font-semibold text-sm">{t.name}</div>
-                          <div className="text-xs text-muted-foreground" dir="rtl">{t.name_ar}</div>
-                        </OptionCard>
-                      );
-                    })}
-                  </div>
+                  <>
+                    <p className="text-xs text-muted-foreground">Pick one or more — services from each are combined for you.</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {templates.map(t => {
+                        const Icon = TEMPLATE_ICONS[t.icon || 'Sparkles'] || Sparkles;
+                        return (
+                          <OptionCard key={t.id} active={templateKeys.includes(t.template_key)}
+                            onClick={() => toggleTemplate(t.template_key)}>
+                            <Icon className="h-5 w-5 text-primary mb-2" />
+                            <div className="font-semibold text-sm">{t.name}</div>
+                            <div className="text-xs text-muted-foreground" dir="rtl">{t.name_ar}</div>
+                          </OptionCard>
+                        );
+                      })}
+                    </div>
+                    {templateKeys.length > 1 && (
+                      <p className="text-[11px] text-primary">{templateKeys.length} types selected · duplicate services are merged.</p>
+                    )}
+                  </>
                 )
               )}
 
@@ -349,27 +414,43 @@ const Onboarding = () => {
                 </div>
               )}
 
-              {/* Q4 — services */}
-              {step === 4 && selectedTemplate && (
+              {/* Q4 — services: toggle on/off + edit price */}
+              {step === 4 && catalog.length > 0 && (
                 <>
-                  <p className="text-xs text-muted-foreground">Tap to remove any you don’t offer. Prices reflect your tier.</p>
-                  <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
-                    {selectedTemplate.services.filter(s => s.is_default).map(s => {
-                      const on = !deselected.has(s.name);
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">Tap a row to add/remove · edit any price.</p>
+                    <span className="text-xs font-medium text-primary">{selectedServices.length} on</span>
+                  </div>
+                  <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                    {catalog.map(s => {
+                      const on = isOn(s);
+                      const key = s.name.toLowerCase();
+                      const overridden = key in priceOverrides;
                       return (
-                        <button key={s.id} type="button" onClick={() => toggleService(s.name)}
-                          className={cn('w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-all',
-                            on ? 'border-primary/50 bg-primary/[0.04]' : 'border-border/60 opacity-55')}>
-                          <span className={cn('h-5 w-5 rounded-md flex items-center justify-center shrink-0',
-                            on ? 'bg-primary text-primary-foreground' : 'border border-border')}>
-                            {on && <Check className="h-3 w-3" />}
-                          </span>
-                          <span className="flex-1 min-w-0">
-                            <span className="block text-sm font-medium truncate">{s.name}</span>
-                            <span className="block text-xs text-muted-foreground">{s.duration} min</span>
-                          </span>
-                          <span className="text-sm font-semibold text-primary tabular-nums">{priceOf(s.base_price)} <span className="text-[10px] font-normal text-muted-foreground">KWD</span></span>
-                        </button>
+                        <div key={s.id}
+                          className={cn('flex items-center gap-3 rounded-xl border p-3 transition-all',
+                            on ? 'border-primary/50 bg-primary/[0.04]' : 'border-border/60 opacity-60')}>
+                          <button type="button" onClick={() => toggleService(s)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                            <span className={cn('h-5 w-5 rounded-md flex items-center justify-center shrink-0',
+                              on ? 'bg-primary text-primary-foreground' : 'border border-border')}>
+                              {on && <Check className="h-3 w-3" />}
+                            </span>
+                            <span className="flex-1 min-w-0">
+                              <span className="block text-sm font-medium truncate">{s.name}</span>
+                              <span className="block text-xs text-muted-foreground">{s.duration} min{overridden ? ' · custom price' : ''}</span>
+                            </span>
+                          </button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Input
+                              type="number" min="0" step="0.5" inputMode="decimal"
+                              disabled={!on}
+                              value={effectivePrice(s)}
+                              onChange={e => setServicePrice(s, e.target.value)}
+                              className="h-8 w-20 text-right tabular-nums text-sm px-2"
+                            />
+                            <span className="text-[10px] text-muted-foreground">KWD</span>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
@@ -436,11 +517,11 @@ const Onboarding = () => {
               )}
 
               {/* Q7 — review */}
-              {step === 7 && selectedTemplate && (
+              {step === 7 && selectedTemplates.length > 0 && (
                 <div className="space-y-3">
                   <div className="rounded-xl border border-border/60 divide-y divide-border/50 text-sm">
                     <Row label="Salon" value={salonName || '—'} />
-                    <Row label="Type" value={selectedTemplate.name} />
+                    <Row label="Type" value={selectedTemplates.map(t => t.name).join(', ')} />
                     <Row label="Area" value={area} />
                     <Row label="Services" value={`${selectedServices.length} ready`} />
                     <Row label="Pricing" value={PRICE_TIERS.find(t => t.key === priceTier)?.label || 'Mid'} />
@@ -485,14 +566,14 @@ const Onboarding = () => {
               <Sparkles className="h-4 w-4 text-primary" />
               <span className="text-sm font-semibold" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>Live Preview</span>
             </div>
-            {!selectedTemplate ? (
+            {selectedTemplates.length === 0 ? (
               <p className="text-xs text-muted-foreground">Pick a salon type to see your starter setup build here.</p>
             ) : (
               <div className="space-y-4">
                 <div>
                   <div className="text-xs text-muted-foreground mb-0.5">Salon</div>
                   <div className="text-sm font-semibold">{salonName || 'Your Salon'}</div>
-                  <div className="text-xs text-muted-foreground">{selectedTemplate.name} · {area}</div>
+                  <div className="text-xs text-muted-foreground">{selectedTemplates.map(t => t.name).join(' + ')} · {area}</div>
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground mb-1.5">Services ({selectedServices.length})</div>
@@ -500,7 +581,7 @@ const Onboarding = () => {
                     {selectedServices.map(s => (
                       <div key={s.id} className="flex items-center justify-between text-xs">
                         <span className="truncate text-foreground/80">{s.name}</span>
-                        <span className="font-medium text-primary tabular-nums ml-2">{priceOf(s.base_price)}</span>
+                        <span className="font-medium text-primary tabular-nums ml-2">{effectivePrice(s).toFixed(3)}</span>
                       </div>
                     ))}
                   </div>
