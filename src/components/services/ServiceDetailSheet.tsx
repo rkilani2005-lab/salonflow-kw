@@ -34,7 +34,8 @@ import {
  import { Badge } from '@/components/ui/badge';
  import { Skeleton } from '@/components/ui/skeleton';
  import { ScrollArea } from '@/components/ui/scroll-area';
- import { Clock, DollarSign, Tag, Palette, CreditCard } from 'lucide-react';
+ import { Clock, Coins, Tag, Palette, CreditCard } from 'lucide-react';
+import { formatCurrency } from '@/lib/currency';
  import { useServiceById, useUpdateService, SERVICE_CATEGORIES, GL_CATEGORIES, ServiceCategory } from '@/hooks/useServices';
  import { useState } from 'react';
  
@@ -164,10 +165,10 @@ import {
                  <div className="grid grid-cols-2 gap-4">
                    <div className="p-4 rounded-lg bg-muted/50">
                      <div className="flex items-center gap-2 text-sm font-medium mb-1">
-                       <DollarSign className="h-4 w-4" />
+                       <Coins className="h-4 w-4" />
                        Price
                      </div>
-                     <p className="text-2xl font-bold">{Number(service.price).toFixed(2)} KWD</p>
+                     <p className="text-2xl font-bold">{formatCurrency(service.price, currency)}</p>
                    </div>
                    <div className="p-4 rounded-lg bg-muted/50">
                      <div className="flex items-center gap-2 text-sm font-medium mb-1">
@@ -210,7 +211,7 @@ import {
                      </div>
                      {service.deposit_required && (
                        <p className="mt-2 text-sm text-muted-foreground">
-                         Amount: {Number(service.deposit_amount).toFixed(2)} KWD
+                         Amount: {formatCurrency(service.deposit_amount, currency)}
                        </p>
                      )}
                    </div>

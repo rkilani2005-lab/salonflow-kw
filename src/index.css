@@ -217,8 +217,11 @@
 
 /* ── Nav active — full-height left bar, minimal fill ── */
 .nav-active {
-  background: hsl(var(--primary) / 0.08) !important;
-  color: hsl(var(--primary)) !important;
+  /* Use the sidebar's own brand token, not the global --primary (which is
+     near-black in this theme and was rendering the active label invisible
+     against the dark sidebar). */
+  background: hsl(var(--sidebar-primary) / 0.14) !important;
+  color: hsl(var(--sidebar-primary)) !important;
   font-weight: 600;
   position: relative;
 }
@@ -229,10 +232,10 @@
   top: 0;
   bottom: 0;
   width: 2px;
-  background: hsl(var(--primary));
+  background: hsl(var(--sidebar-primary));
   border-radius: 0 2px 2px 0;
 }
-.nav-active svg { color: hsl(var(--primary)) !important; opacity: 1; }
+.nav-active svg { color: hsl(var(--sidebar-primary)) !important; opacity: 1; }
 
 /* ── KPI card — the number IS the design ── */
 .kpi-card {

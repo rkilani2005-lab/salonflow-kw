@@ -11,7 +11,8 @@
    SelectValue,
  } from '@/components/ui/select';
  import { EmptyState, LoadingState } from '@/components/ui/state-primitives';
- import { Search, Plus, Scissors, Clock, DollarSign, Filter, SearchX } from 'lucide-react';
+ import { Search, Plus, Scissors, Clock, Filter, SearchX } from 'lucide-react';
+import { formatCurrency } from '@/lib/currency';
  import { useServicesManagement, SERVICE_CATEGORIES, Service } from '@/hooks/useServices';
  import AddServiceDialog from '@/components/services/AddServiceDialog';
  import ServiceDetailSheet from '@/components/services/ServiceDetailSheet';
@@ -192,9 +193,8 @@
                            )}
                          </div>
                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                           <span className="flex items-center gap-1">
-                             <DollarSign className="h-3 w-3" />
-                             {Number(service.price).toFixed(2)} KWD
+                           <span className="font-medium text-foreground">
+                             {formatCurrency(service.price)}
                            </span>
                            <span className="flex items-center gap-1">
                              <Clock className="h-3 w-3" />
@@ -241,9 +241,8 @@
                    </div>
                  </div>
                  <div className="mt-4 pt-4 border-t flex items-center justify-between text-sm">
-                   <span className="flex items-center gap-1 text-muted-foreground">
-                     <DollarSign className="h-4 w-4" />
-                     {Number(service.price).toFixed(2)} KWD
+                   <span className="font-medium text-foreground">
+                     {formatCurrency(service.price)}
                    </span>
                    <span className="flex items-center gap-1 text-muted-foreground">
                      <Clock className="h-4 w-4" />
