@@ -5265,6 +5265,18 @@ export type Database = {
         Returns: string
       }
       award_loyalty: { Args: { p_transaction_id: string }; Returns: number }
+      bootstrap_tenant: {
+        Args: {
+          p_branch_address?: string
+          p_branch_name?: string
+          p_closing_time?: string
+          p_currency?: string
+          p_opening_time?: string
+          p_salon_name: string
+          p_working_days?: Json
+        }
+        Returns: Json
+      }
       count_tenant_users: { Args: { p_tenant_id: string }; Returns: number }
       current_salon_id: { Args: never; Returns: string }
       find_similar_clients: {
