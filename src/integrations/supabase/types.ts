@@ -2858,6 +2858,118 @@ export type Database = {
           },
         ]
       }
+      salon_template_roles: {
+        Row: {
+          default_commission_pct: number
+          id: string
+          role_name: string
+          role_name_ar: string
+          sort_order: number
+          template_id: string
+        }
+        Insert: {
+          default_commission_pct?: number
+          id?: string
+          role_name: string
+          role_name_ar: string
+          sort_order?: number
+          template_id: string
+        }
+        Update: {
+          default_commission_pct?: number
+          id?: string
+          role_name?: string
+          role_name_ar?: string
+          sort_order?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salon_template_roles_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "salon_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salon_template_services: {
+        Row: {
+          base_price: number
+          category: Database["public"]["Enums"]["service_category"]
+          duration: number
+          id: string
+          is_default: boolean
+          name: string
+          name_ar: string
+          sort_order: number
+          template_id: string
+        }
+        Insert: {
+          base_price?: number
+          category?: Database["public"]["Enums"]["service_category"]
+          duration?: number
+          id?: string
+          is_default?: boolean
+          name: string
+          name_ar: string
+          sort_order?: number
+          template_id: string
+        }
+        Update: {
+          base_price?: number
+          category?: Database["public"]["Enums"]["service_category"]
+          duration?: number
+          id?: string
+          is_default?: boolean
+          name?: string
+          name_ar?: string
+          sort_order?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salon_template_services_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "salon_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salon_templates: {
+        Row: {
+          created_at: string
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          name_ar: string
+          sort_order: number
+          template_key: string
+        }
+        Insert: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          name_ar: string
+          sort_order?: number
+          template_key: string
+        }
+        Update: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_ar?: string
+          sort_order?: number
+          template_key?: string
+        }
+        Relationships: []
+      }
       service_actual_usage: {
         Row: {
           actual_qty: number
@@ -3852,6 +3964,44 @@ export type Database = {
             foreignKeyName: "tenant_invoices_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_onboarding: {
+        Row: {
+          answers: Json
+          completed_at: string | null
+          created_at: string
+          status: string
+          template_key: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json
+          completed_at?: string | null
+          created_at?: string
+          status?: string
+          template_key?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json
+          completed_at?: string | null
+          created_at?: string
+          status?: string
+          template_key?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_onboarding_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -5164,6 +5314,10 @@ export type Database = {
         Args: { p_transaction_id: string }
         Returns: string
       }
+      provision_tenant_from_template: {
+        Args: { p_answers: Json; p_tenant_id: string }
+        Returns: Json
+      }
       record_pending_invoice: {
         Args: {
           p_amount: number
@@ -5184,6 +5338,10 @@ export type Database = {
       reverse_package_redemptions: {
         Args: { p_refund_transaction_id: string }
         Returns: number
+      }
+      save_onboarding_progress: {
+        Args: { p_answers: Json; p_tenant_id: string }
+        Returns: undefined
       }
       seed_salon_chart_of_accounts: {
         Args: { p_tenant_id: string }
