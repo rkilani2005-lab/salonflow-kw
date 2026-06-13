@@ -27,8 +27,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Staff, Service, Client, SERVICE_CATEGORY_COLORS } from '@/types/calendar';
-import { Plus, Trash2, Users, UserPlus } from 'lucide-react';
+import { Plus, Trash2, Users } from 'lucide-react';
 import AddClientDialog from '@/components/clients/AddClientDialog';
+import ClientSearchSelect from '@/components/calendar/ClientSearchSelect';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
@@ -81,6 +82,8 @@ export function BookingFormDialog({
   const isMobile = useIsMobile();
   const [clientId, setClientId] = useState('');
   const [addClientOpen, setAddClientOpen] = useState(false);
+  // Carries the term typed in the search picker into the create dialog.
+  const [createPrefill, setCreatePrefill] = useState('');
   // Client created/picked inline; merged into options to avoid a flash
   // before the parent's ['clients'] query refetches.
   const [justAdded, setJustAdded] = useState<{ id: string; name: string } | null>(null);
@@ -175,43 +178,22 @@ export function BookingFormDialog({
           {/* Client */}
           <div className="space-y-2">
             <Label>Client</Label>
-            <div className="flex items-center gap-2">
-              <Select value={clientId} onValueChange={setClientId}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Select client..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {/* Merge any just-added client that may not yet be in the
-                      refetched list, de-duplicated by id. */}
-                  {(justAdded && !clients.some((c) => c.id === justAdded.id)
-                    ? [{ id: justAdded.id, name: justAdded.name, tier: 'normal' } as Client, ...clients]
-                    : clients
-                  ).map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name} {client.tier === 'vip' && '⭐'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="shrink-0"
-                onClick={() => setAddClientOpen(true)}
-                aria-label="Add new client"
-              >
-                <UserPlus className="h-4 w-4" />
-              </Button>
-            </div>
+            <ClientSearchSelect
+              value={clientId}
+              onChange={(id) => setClientId(id)}
+              selectedName={justAdded && justAdded.id === clientId ? justAdded.name : undefined}
+              onCreateNew={(term) => { setCreatePrefill(term); setAddClientOpen(true); }}
+            />
           </div>
 
           {/* Inline new-client creation with phone/email duplicate detection.
               Selecting a detected duplicate (onPickExisting) or creating a
-              new client (onCreated) both auto-select that client here. */}
+              new client (onCreated) both auto-select that client here. The
+              search term is carried in as a prefill (name or phone). */}
           <AddClientDialog
             open={addClientOpen}
             onOpenChange={setAddClientOpen}
+            prefillName={createPrefill}
             onCreated={(c) => { setJustAdded(c); setClientId(c.id); }}
             onPickExisting={(id) => setClientId(id)}
           />

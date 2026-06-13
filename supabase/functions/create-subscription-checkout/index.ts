@@ -56,10 +56,30 @@ serve(async (req: Request) => {
 
     const { data: profile } = await sb.from("profiles")
       .select("tenant_id, email, full_name").eq("user_id", user.id).maybeSingle();
-    if (!profile?.tenant_id) return fail("no_tenant", "Your account is not linked to a tenant.");
+
+    // Resolve tenant. Some accounts created by the older (non-atomic)
+    // onboarding have a user_roles row but a null profiles.tenant_id, which
+    // would wrongly read as "not linked to a workspace". Fall back to
+    // user_roles and self-heal the profile link.
+    let tenantId: string | null = profile?.tenant_id ?? null;
+    if (!tenantId) {
+      const { data: roleRow } = await sb.from("user_roles")
+        .select("tenant_id").eq("user_id", user.id)
+        .not("tenant_id", "is", null)
+        .order("created_at", { ascending: true })
+        .limit(1).maybeSingle();
+      if (roleRow?.tenant_id) {
+        tenantId = roleRow.tenant_id;
+        // Backfill so every other tenant-scoped feature works too.
+        await sb.from("profiles")
+          .update({ tenant_id: tenantId })
+          .eq("user_id", user.id);
+      }
+    }
+    if (!tenantId) return fail("no_tenant", "Your account is not linked to a tenant.");
 
     const { data: tenant } = await sb.from("tenants")
-      .select("id, name, owner_whatsapp").eq("id", profile.tenant_id).maybeSingle();
+      .select("id, name, owner_whatsapp").eq("id", tenantId).maybeSingle();
     if (!tenant) return fail("no_tenant", "Tenant not found.");
 
     const { data: plan } = await sb.from("subscription_plans")

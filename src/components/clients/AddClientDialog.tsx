@@ -1,4 +1,4 @@
- import { useState } from 'react';
+ import { useState, useEffect } from 'react';
  import { useForm } from 'react-hook-form';
  import { zodResolver } from '@hookform/resolvers/zod';
  import { z } from 'zod';
@@ -45,9 +45,13 @@
    /** Called with the new client after a successful create. Lets callers
     *  (e.g. the booking form) auto-select the new client. */
    onCreated?: (client: { id: string; name: string }) => void;
+   /** Optional initial values, e.g. carry the search term the user typed
+    *  in the booking client picker into the create form. */
+   prefillName?: string;
+   prefillPhone?: string;
  }
  
- const AddClientDialog = ({ open, onOpenChange, onPickExisting, onCreated }: AddClientDialogProps) => {
+ const AddClientDialog = ({ open, onOpenChange, onPickExisting, onCreated, prefillName, prefillPhone }: AddClientDialogProps) => {
    const createClient = useCreateClient();
    const [tier, setTier] = useState<ClientTier>('normal');
  
@@ -66,6 +70,21 @@
    const watchedName  = watch('name');
    const watchedPhone = watch('phone');
    const watchedEmail = watch('email');
+
+   // When opened with a prefill (e.g. the search term from the booking
+   // picker), seed the right field: digit-heavy terms are treated as a
+   // phone, everything else as a name.
+   useEffect(() => {
+     if (!open) return;
+     const term = (prefillPhone ?? prefillName ?? '').trim();
+     if (!term) return;
+     const looksLikePhone = /^[+\d][\d\s+()-]{3,}$/.test(term);
+     if (prefillPhone || looksLikePhone) {
+       setValue('phone', formatPhoneInput(term.startsWith('+') ? term : `+965 ${term}`), { shouldValidate: true });
+     } else {
+       setValue('name', term, { shouldValidate: true });
+     }
+   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
  
    const handlePickExisting = (c: SimilarClient) => {
      onPickExisting?.(c.id);
