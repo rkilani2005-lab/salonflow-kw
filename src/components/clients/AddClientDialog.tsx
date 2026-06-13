@@ -42,9 +42,12 @@
     *  instead of creating a new row.  Use this to open the client detail
     *  sheet for that client.  If omitted, the dialog will simply close. */
    onPickExisting?: (clientId: string) => void;
+   /** Called with the new client after a successful create. Lets callers
+    *  (e.g. the booking form) auto-select the new client. */
+   onCreated?: (client: { id: string; name: string }) => void;
  }
  
- const AddClientDialog = ({ open, onOpenChange, onPickExisting }: AddClientDialogProps) => {
+ const AddClientDialog = ({ open, onOpenChange, onPickExisting, onCreated }: AddClientDialogProps) => {
    const createClient = useCreateClient();
    const [tier, setTier] = useState<ClientTier>('normal');
  
@@ -72,13 +75,14 @@
    };
  
    const onSubmit = async (data: ClientFormData) => {
-     await createClient.mutateAsync({
+     const created = await createClient.mutateAsync({
       name: data.name,
       phone: data.phone,
        tier,
        email: data.email || undefined,
       notes: data.notes || undefined,
      });
+     if (created?.id) onCreated?.({ id: created.id, name: created.name ?? data.name });
      reset();
      setTier('normal');
      onOpenChange(false);

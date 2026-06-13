@@ -27,7 +27,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Staff, Service, Client, SERVICE_CATEGORY_COLORS } from '@/types/calendar';
-import { Plus, Trash2, Users } from 'lucide-react';
+import { Plus, Trash2, Users, UserPlus } from 'lucide-react';
+import AddClientDialog from '@/components/clients/AddClientDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
@@ -79,6 +80,10 @@ export function BookingFormDialog({
 }: BookingFormDialogProps) {
   const isMobile = useIsMobile();
   const [clientId, setClientId] = useState('');
+  const [addClientOpen, setAddClientOpen] = useState(false);
+  // Client created/picked inline; merged into options to avoid a flash
+  // before the parent's ['clients'] query refetches.
+  const [justAdded, setJustAdded] = useState<{ id: string; name: string } | null>(null);
   const [date, setDate] = useState(preselectedDate || new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [serviceEntries, setServiceEntries] = useState<ServiceEntry[]>([
@@ -102,6 +107,7 @@ export function BookingFormDialog({
       ]);
       setClientId('');
       setNotes('');
+      setJustAdded(null);
       setDate(preselectedDate || new Date().toISOString().split('T')[0]);
     }
   }, [open, preselectedStaffId, preselectedTime, preselectedDate]);
@@ -169,19 +175,46 @@ export function BookingFormDialog({
           {/* Client */}
           <div className="space-y-2">
             <Label>Client</Label>
-            <Select value={clientId} onValueChange={setClientId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select client..." />
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name} {client.tier === 'vip' && '⭐'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Select value={clientId} onValueChange={setClientId}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Select client..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* Merge any just-added client that may not yet be in the
+                      refetched list, de-duplicated by id. */}
+                  {(justAdded && !clients.some((c) => c.id === justAdded.id)
+                    ? [{ id: justAdded.id, name: justAdded.name, tier: 'normal' } as Client, ...clients]
+                    : clients
+                  ).map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name} {client.tier === 'vip' && '⭐'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                onClick={() => setAddClientOpen(true)}
+                aria-label="Add new client"
+              >
+                <UserPlus className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
+
+          {/* Inline new-client creation with phone/email duplicate detection.
+              Selecting a detected duplicate (onPickExisting) or creating a
+              new client (onCreated) both auto-select that client here. */}
+          <AddClientDialog
+            open={addClientOpen}
+            onOpenChange={setAddClientOpen}
+            onCreated={(c) => { setJustAdded(c); setClientId(c.id); }}
+            onPickExisting={(id) => setClientId(id)}
+          />
 
           {/* Date */}
           <div className="space-y-2">
