@@ -10,8 +10,9 @@ import { Staff, Service } from '@/types/calendar';
 import { UserPlus, Clock, Search, Zap, ChevronDown, Phone, CheckCircle2, UserCircle2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { useClients, useCreateClient, type Client } from '@/hooks/useClients';
+import { useClients, useCreateClient, useFindSimilarClients, type Client, type SimilarClient } from '@/hooks/useClients';
 import { useDebounce } from '@/hooks/useDebounce';
+import SimilarClientSuggestions from '@/components/clients/SimilarClientSuggestions';
 
 interface WalkInDialogProps {
   open: boolean;
@@ -64,6 +65,14 @@ export function WalkInDialog({ open, onOpenChange, staff, services, onSubmit }: 
   const debouncedSearch = useDebounce(clientSearch, 300);
   const { data: clients = [] } = useClients(debouncedSearch || undefined);
   const createClient = useCreateClient();
+
+  // Hard duplicate guard for new-client mode: if an exact phone/email match
+  // already exists, block creation (the user should pick the existing one).
+  const { data: dupMatches = [] } = useFindSimilarClients(
+    clientMode === 'new' ? { name: newName, phone: newPhone, email: newEmail } : {}
+  );
+  const hasHardDuplicate = clientMode === 'new'
+    && dupMatches.some(d => d.match_reason === 'phone' || d.match_reason === 'email');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Reset on open
@@ -111,6 +120,20 @@ export function WalkInDialog({ open, onOpenChange, staff, services, onSubmit }: 
     setShowDropdown(false);
   };
 
+  // When a duplicate (same phone/email) surfaces in the new-client form,
+  // let the user adopt the existing client instead of creating a dupe.
+  const handlePickSimilar = (c: SimilarClient) => {
+    setSelectedClient({
+      id: c.id,
+      name: c.name,
+      phone: c.phone ?? '',
+      email: c.email ?? undefined,
+      tier: 'normal',
+    } as Client);
+    setClientMode('selected');
+    setNewName(''); setNewPhone(''); setNewEmail('');
+  };
+
   const selectedService = services.find(s => s.id === serviceId);
   const selectedStaff   = staff.find(s => s.id === staffId);
 
@@ -134,7 +157,7 @@ export function WalkInDialog({ open, onOpenChange, staff, services, onSubmit }: 
       : '';
 
   const canSubmit =
-    serviceId && staffId && (
+    serviceId && staffId && !hasHardDuplicate && (
       (clientMode === 'selected' && selectedClient) ||
       (clientMode === 'new' && newName.trim().length >= 2 && newPhone.trim().length >= 4)
     );
@@ -360,6 +383,15 @@ export function WalkInDialog({ open, onOpenChange, staff, services, onSubmit }: 
                     className="h-8 text-xs"
                   />
                 </div>
+                {/* Live duplicate detection on phone / email (or name).
+                    Picking a match adopts the existing client instead of
+                    creating a duplicate — same RPC AddClientDialog uses. */}
+                <SimilarClientSuggestions
+                  name={newName}
+                  phone={newPhone}
+                  email={newEmail}
+                  onPickExisting={handlePickSimilar}
+                />
                 {newName.trim().length >= 2 && newPhone.trim().length >= 4 && (
                   <p className="text-[10px] text-emerald-600 flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3" /> Client will be created when you check in
