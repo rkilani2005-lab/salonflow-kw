@@ -502,14 +502,13 @@ export default function CalendarPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Mark service complete without payment?</AlertDialogTitle>
+            <AlertDialogTitle>Collect payment for this appointment?</AlertDialogTitle>
             <AlertDialogDescription>
-              No completed transaction is linked to this appointment. Marking it
-              complete now will record the service as delivered but will NOT
-              register any payment. The invoice will remain unpaid.
-              <br /><br />
-              The recommended action is to collect payment through POS, which
-              marks the appointment complete automatically.
+              No payment is linked to this appointment yet. Choose <strong>Checkout</strong>
+              {' '}to collect payment in POS (this marks the appointment complete
+              automatically and carries the customer and services over). Or choose
+              {' '}<strong>Continue without payment</strong> to mark the service as
+              delivered now and leave the invoice unpaid.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
@@ -520,22 +519,22 @@ export default function CalendarPage() {
                 if (pendingComplete) {
                   const id = pendingComplete.id;
                   setPendingComplete(null);
-                  navigate(`/pos?bookingId=${id}`);
+                  applyStatusChange(id, 'completed');
                 }
               }}
             >
-              Go to POS instead
+              Continue without payment
             </Button>
             <AlertDialogAction
               onClick={() => {
                 if (pendingComplete) {
                   const id = pendingComplete.id;
                   setPendingComplete(null);
-                  applyStatusChange(id, 'completed');
+                  navigate(`/pos?bookingId=${id}&from=calendar`, { state: { returnTo: '/calendar', fromAppointmentId: id } });
                 }
               }}
             >
-              Complete without payment
+              Checkout
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

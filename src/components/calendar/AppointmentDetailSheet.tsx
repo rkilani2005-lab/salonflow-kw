@@ -53,6 +53,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useBookingPayment } from '@/hooks/useBookingPayment';
+import { ReceiptView } from '@/components/pos/ReceiptView';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -219,6 +220,9 @@ export function AppointmentDetailSheet({
   // order stable across renders (otherwise React throws "Rendered more hooks
   // than during the previous render" and the sheet fails to mount).
   const { data: payment } = useBookingPayment(appointment?.id);
+  // Receipt overlay for an already-paid appointment. Declared before the
+  // early return below to keep hook order stable.
+  const [receiptOpen, setReceiptOpen] = useState(false);
 
   // Sync state when appointment changes
   const apt = editedAppointment?.id === appointment?.id ? editedAppointment : appointment;
@@ -806,7 +810,8 @@ export function AppointmentDetailSheet({
             <Button
               className="flex-1 gap-1.5"
               variant="outline"
-              onClick={() => navigate(`/pos?bookingId=${appointment.id}&from=calendar`, { state: { returnTo: '/calendar', fromAppointmentId: appointment.id } })}
+              onClick={() => setReceiptOpen(true)}
+              disabled={!payment?.transaction?.id}
             >
               <CreditCard className="h-4 w-4" />
               View Receipt
@@ -849,6 +854,17 @@ export function AppointmentDetailSheet({
             </>
           )}
         </div>
+
+        {/* Receipt overlay for an already-paid appointment. */}
+        {payment?.transaction?.id && (
+          <ReceiptView
+            open={receiptOpen}
+            onOpenChange={setReceiptOpen}
+            transactionId={payment.transaction.id}
+            clientName={appointment.clientName}
+            staffName={staff.find((s) => s.id === apt.staffId)?.name}
+          />
+        )}
       </>
     );
 

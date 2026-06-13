@@ -17,32 +17,35 @@ interface ReceiptViewProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   transactionId: string;
-  items: CartItem[];
-  payments: PaymentEntry[];
-  subtotal: number;
-  discountAmount: number;
-  taxAmount: number;
-  tipAmount: number;
-  grandTotal: number;
+  // When opened from the POS sale flow these are passed directly. When
+  // opened standalone (e.g. "View Receipt" on a past appointment), they
+  // are omitted and derived from the fetched transaction instead.
+  items?: CartItem[];
+  payments?: PaymentEntry[];
+  subtotal?: number;
+  discountAmount?: number;
+  taxAmount?: number;
+  tipAmount?: number;
+  grandTotal?: number;
   clientName?: string;
   staffName?: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 export function ReceiptView({
   open,
   onOpenChange,
   transactionId,
-  items,
-  payments,
-  subtotal,
-  discountAmount,
-  taxAmount,
-  tipAmount,
-  grandTotal,
-  clientName,
+  items: itemsProp,
+  payments: paymentsProp,
+  subtotal: subtotalProp,
+  discountAmount: discountAmountProp,
+  taxAmount: taxAmountProp,
+  tipAmount: tipAmountProp,
+  grandTotal: grandTotalProp,
+  clientName: clientNameProp,
   staffName,
-  createdAt,
+  createdAt: createdAtProp,
 }: ReceiptViewProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
   const { tenant, hasRole } = useAuth();
@@ -56,6 +59,32 @@ export function ReceiptView({
 
   // Fetch full transaction data for the refund dialog
   const { data: fullTransaction } = useTransactionById(open ? transactionId : null);
+
+  // Effective values: use the props passed by the POS sale flow when
+  // present; otherwise derive from the fetched transaction so the receipt
+  // can be opened standalone (e.g. "View Receipt" on a past appointment).
+  const ft: any = fullTransaction;
+  const items: CartItem[] = itemsProp ?? (ft?.transaction_items ?? []).map((ti: any) => ({
+    item_type: ti.item_type,
+    item_id: ti.item_id ?? '',
+    item_name: ti.item_name,
+    item_name_ar: ti.item_name_ar ?? undefined,
+    quantity: ti.quantity,
+    unit_price: Number(ti.unit_price),
+    total_price: Number(ti.total_price),
+    staff_commission_id: ti.staff_commission_id ?? undefined,
+  }));
+  const payments: PaymentEntry[] = paymentsProp ?? (ft?.transaction_payments ?? []).map((tp: any) => ({
+    payment_method: tp.payment_method,
+    amount: Number(tp.amount),
+  }));
+  const subtotal       = subtotalProp       ?? Number(ft?.subtotal ?? 0);
+  const discountAmount = discountAmountProp ?? Number(ft?.discount_amount ?? 0);
+  const taxAmount      = taxAmountProp      ?? Number(ft?.tax_amount ?? 0);
+  const tipAmount      = tipAmountProp      ?? Number(ft?.tip_amount ?? 0);
+  const grandTotal     = grandTotalProp     ?? Number(ft?.grand_total ?? 0);
+  const clientName     = clientNameProp     ?? ft?.client_name ?? undefined;
+  const createdAt      = createdAtProp      ?? ft?.created_at ?? new Date().toISOString();
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');

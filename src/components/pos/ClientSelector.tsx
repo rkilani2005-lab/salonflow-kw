@@ -13,9 +13,13 @@ interface ClientSelectorProps {
   onSelectClient: (client: Client) => void;
   onSelectGuest: () => void;
   onClear: () => void;
+  /** When the guest came from a booking with a captured name/phone, show
+   *  those instead of the generic "Guest Customer" label. */
+  guestLabel?: string;
+  guestPhone?: string | null;
 }
 
-export function ClientSelector({ selectedClient, isGuest, onSelectClient, onSelectGuest, onClear }: ClientSelectorProps) {
+export function ClientSelector({ selectedClient, isGuest, onSelectClient, onSelectGuest, onClear, guestLabel, guestPhone }: ClientSelectorProps) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const { data: clients, isLoading } = useClients(debouncedSearch);
@@ -28,10 +32,13 @@ export function ClientSelector({ selectedClient, isGuest, onSelectClient, onSele
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-medium text-foreground truncate">
-            {isGuest ? 'Guest Customer' : selectedClient?.name}
+            {isGuest ? (guestLabel || 'Guest Customer') : selectedClient?.name}
           </p>
           {selectedClient && (
             <p className="text-sm text-muted-foreground">{selectedClient.phone}</p>
+          )}
+          {isGuest && guestPhone && (
+            <p className="text-sm text-muted-foreground">{guestPhone}</p>
           )}
         </div>
         {selectedClient?.tier && selectedClient.tier !== 'normal' && (

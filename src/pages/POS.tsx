@@ -49,6 +49,9 @@ export default function POS() {
 
   // Client state
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  // Named guest carried from a booking that has client_name/phone but no
+  // linked client record. Display-only — not persisted as a client.
+  const [bookingGuest, setBookingGuest] = useState<{ name: string; phone: string | null } | null>(null);
   const [isGuest, setIsGuest] = useState(false);
 
   // Cart state
@@ -183,6 +186,12 @@ export default function POS() {
       const { data: client } = await supabase
         .from('clients').select('id, name, phone, email, tier, loyalty_points, tenant_id').eq('id', booking.client_id).single();
       if (client) setSelectedClient(client as Client);
+    } else if (booking.client_name || booking.client_phone) {
+      // Booking has no linked client record but DID capture a name/phone
+      // (a named guest). Carry those into checkout instead of showing an
+      // empty selector, so the cashier sees who the sale is for.
+      setBookingGuest({ name: booking.client_name || 'Guest', phone: booking.client_phone || null });
+      setIsGuest(true);
     } else {
       setIsGuest(true);
     }
@@ -436,6 +445,7 @@ export default function POS() {
     setDiscountApprovedBy(null);
     setSelectedClient(null);
     setIsGuest(false);
+    setBookingGuest(null);
     setShowReceipt(false);
     setShowPayment(false);
     setCompletedTxnId(null);
@@ -466,9 +476,11 @@ export default function POS() {
             <ClientSelector
               selectedClient={selectedClient}
               isGuest={isGuest}
-              onSelectClient={(c) => { setSelectedClient(c); setIsGuest(false); }}
-              onSelectGuest={() => { setIsGuest(true); setSelectedClient(null); }}
-              onClear={() => { setSelectedClient(null); setIsGuest(false); }}
+              guestLabel={bookingGuest?.name}
+              guestPhone={bookingGuest?.phone}
+              onSelectClient={(c) => { setSelectedClient(c); setIsGuest(false); setBookingGuest(null); }}
+              onSelectGuest={() => { setIsGuest(true); setSelectedClient(null); setBookingGuest(null); }}
+              onClear={() => { setSelectedClient(null); setIsGuest(false); setBookingGuest(null); }}
             />
           </CardContent>
         </Card>
