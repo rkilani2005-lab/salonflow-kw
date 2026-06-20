@@ -60,9 +60,15 @@ export default function BookingPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const tenantId = searchParams.get('tenant');
+  const tenantParam = searchParams.get('tenant');
+  const slugParam = searchParams.get('slug');
   const lang = searchParams.get('lang') === 'ar' ? 'ar' : 'en';
   const ar = lang === 'ar';
+
+  // tenantId comes from ?tenant=… directly, or is resolved from ?slug=… below.
+  const [tenantId, setTenantId] = useState<string | null>(tenantParam);
+  // While a slug is being resolved we must not show the "no tenant" fallback.
+  const [resolvingSlug, setResolvingSlug] = useState<boolean>(!tenantParam && !!slugParam);
 
   // Flow
   const [step,            setStep]           = useState<Step>('phone');
@@ -112,9 +118,27 @@ export default function BookingPage() {
   const [bookingRef,  setBookingRef]  = useState('');
   const [portalToken, setPortalToken] = useState('');
 
+  // Resolve ?slug=… → tenant_id (once, when no explicit ?tenant= was given)
+  useEffect(() => {
+    if (tenantParam || !slugParam) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.functions.invoke('create-public-booking', {
+          body: { action: 'resolve-slug', slug: slugParam },
+        });
+        if (!cancelled && data?.tenantId) {
+          setTenantId(data.tenantId);
+        }
+      } catch { /* fall through to no-tenant screen */ }
+      finally { if (!cancelled) setResolvingSlug(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [slugParam, tenantParam]);
+
   useEffect(() => {
     if (tenantId) loadData();
-    else setLoading(false);
+    else if (!resolvingSlug) setLoading(false);
     // Handle MyFatoorah payment callback
     const bookingId = searchParams.get('booking');
     const token = searchParams.get('token');
@@ -123,7 +147,7 @@ export default function BookingPage() {
       setBookingRef(bookingId.slice(-6).toUpperCase());
       if (token) setPortalToken(token);
     }
-  }, [tenantId]);
+  }, [tenantId, resolvingSlug]);
 
   const loadData = async () => {
     try {
@@ -289,6 +313,13 @@ export default function BookingPage() {
   ];
   const currentStepIdx = stepConfig.findIndex(s => s.id === step);
 
+  // ── Resolving slug → show a spinner, not the "no tenant" fallback ──
+  if (!tenantId && resolvingSlug) return (
+    <div className="min-h-screen flex items-center justify-center bg-background px-6">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
+
   // ── No tenant ──────────────────────────────────────────────
   if (!tenantId) return (
     <div className="min-h-screen flex items-center justify-center bg-background px-6">
@@ -299,7 +330,7 @@ export default function BookingPage() {
         <h1 className="text-2xl font-bold mb-3" style={{ fontFamily: 'Bricolage Grotesque, sans-serif' }}>Online Booking</h1>
         <p className="text-muted-foreground text-sm mb-6">
           Use the booking link provided by your salon. It looks like:
-          <code className="block bg-muted px-2 py-1 rounded text-xs mt-2">/book?tenant=SALON_ID</code>
+          <code className="block bg-muted px-2 py-1 rounded text-xs mt-2">/book?slug=your-salon</code>
         </p>
         <Link to="/"><Button variant="outline" className="gap-2"><ArrowLeft className="h-4 w-4"/>Back to Home</Button></Link>
       </div>

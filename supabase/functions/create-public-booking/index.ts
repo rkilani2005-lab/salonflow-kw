@@ -13,7 +13,7 @@ function json(body: unknown, status = 200) {
 }
 
 interface BookingRequest {
-  action: 'get-services' | 'get-staff' | 'get-availability' | 'lookup-client' | 'create-booking' | 'get-portal';
+  action: 'get-services' | 'get-staff' | 'get-availability' | 'lookup-client' | 'create-booking' | 'get-portal' | 'resolve-slug';
   tenantId: string;
   serviceId?: string;
   staffId?: string | null;
@@ -23,6 +23,7 @@ interface BookingRequest {
   clientPhone?: string;
   clientEmail?: string;
   portalToken?: string;
+  slug?: string;
 }
 
 /** Build every plausible phone format for DB matching */
@@ -60,6 +61,32 @@ serve(async (req: Request) => {
     );
 
     const body = await req.json() as BookingRequest;
+
+    // ── resolve-slug ──────────────────────────────────────────
+    // Maps a public booking slug → tenant_id. Runs before tenant validation
+    // because the caller doesn't have a tenantId yet (that's what it's resolving).
+    if (body.action === 'resolve-slug') {
+      const slug = (body.slug || '').trim().toLowerCase();
+      if (!slug) return json({ error: 'Slug required' }, 400);
+
+      const { data: cfg } = await supabase
+        .from('booking_config')
+        .select('tenant_id')
+        .eq('slug', slug)
+        .maybeSingle();
+
+      if (!cfg?.tenant_id) return json({ found: false }, 404);
+
+      // Confirm the tenant is active before handing back the id
+      const { data: t } = await supabase
+        .from('tenants')
+        .select('id, is_active')
+        .eq('id', cfg.tenant_id)
+        .maybeSingle();
+
+      if (!t?.is_active) return json({ found: false }, 404);
+      return json({ found: true, tenantId: t.id });
+    }
 
     if (!body.tenantId || !/^[0-9a-f-]{36}$/i.test(body.tenantId)) {
       return json({ error: 'Invalid tenant ID' }, 400);

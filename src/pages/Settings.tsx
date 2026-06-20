@@ -709,12 +709,12 @@ function OnlineBookingConfig({ ar, tenantId }: { ar: boolean; tenantId?: string 
   const [saving,         setSaving]         = useState(false);
 
   if (config && !inited) {
-    setEnabled(config.is_enabled ?? true);
+    setEnabled(true);
     setSlug(config.slug || '');
     setHeaderTitle(config.header_title || '');
     setWelcomeMsg(config.welcome_msg || '');
-    setRequireDeposit(config.require_deposit ?? false);
-    setDepositPct(String(config.deposit_pct || 25));
+    setRequireDeposit(false);
+    setDepositPct('25');
     setAdvanceDays(String(config.advance_booking_days || 30));
     setMinNotice(String(config.min_notice_hours || 2));
     setShowPrices(config.show_prices ?? true);
@@ -729,23 +729,46 @@ function OnlineBookingConfig({ ar, tenantId }: { ar: boolean; tenantId?: string 
   const handleSave = async () => {
     setSaving(true);
     try {
+      const cleanSlug = slug.trim().toLowerCase().replace(/\s+/g, '-') || null;
+
+      // Prevent two salons from claiming the same slug (would break resolve-slug).
+      if (cleanSlug) {
+        const { data: clash } = await supabase
+          .from('booking_config')
+          .select('tenant_id')
+          .eq('slug', cleanSlug)
+          .neq('tenant_id', tenantId!)
+          .maybeSingle();
+        if (clash) {
+          toast({
+            title: ar ? 'هذا الرابط مستخدم' : 'Slug already taken',
+            description: ar ? 'اختر رابطاً مختلفاً' : 'Please choose a different slug.',
+            variant: 'destructive',
+          });
+          setSaving(false);
+          return;
+        }
+      }
+
+      // Only write columns that actually exist on booking_config.
+      // (is_enabled / require_deposit / deposit_pct are not columns — including them
+      //  made the whole save throw, which is why the slug never persisted.)
       const payload = {
         tenant_id:             tenantId,
-        is_enabled:            enabled,
-        slug:                  slug.trim().toLowerCase().replace(/\s+/g, '-') || null,
+        slug:                  cleanSlug,
         header_title:          headerTitle || null,
         welcome_msg:           welcomeMsg || null,
-        require_deposit:       requireDeposit,
-        deposit_pct:           Number(depositPct),
         advance_booking_days:  Number(advanceDays),
         min_notice_hours:      Number(minNotice),
         show_prices:           showPrices,
         show_staff:            showStaff,
       };
       if (config?.id) {
-        await supabase.from('booking_config').update(payload).eq('id', config.id);
+        const { error } = await supabase.from('booking_config').update(payload).eq('id', config.id);
+        if (error) throw error;
       } else {
-        await supabase.from('booking_config').insert(payload);
+        const { error } = await supabase.from('booking_config').insert(payload);
+        if (error) throw error;
       }
       qc.invalidateQueries({ queryKey: ['booking-config'] });
       toast({ title: '✅ Booking settings saved' });
