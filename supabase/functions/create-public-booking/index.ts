@@ -160,7 +160,20 @@ serve(async (req: Request) => {
 
       let client: any = null;
 
+      // 0. Canonical match on phone_norm (digits only) — same key as the unique index.
+      if (digits.length >= 7) {
+        const { data, error } = await supabase
+          .from('clients')
+          .select('id, name, email, tier, created_at, tenant_id')
+          .eq('tenant_id', body.tenantId)
+          .eq('phone_norm', digits)
+          .maybeSingle();
+        if (error) { console.error(`[lookup] phone_norm query error:`, error.message); }
+        if (data) { client = data; console.log(`[lookup] matched (phone_norm): "${digits}"`); }
+      }
+
       // 1. Exact match WITH tenant_id
+      if (!client)
       for (const v of variants) {
         const { data, error } = await supabase
           .from('clients')
@@ -210,24 +223,19 @@ serve(async (req: Request) => {
         return json({ found: false });
       }
 
-      // Fetch completed booking history
-      const { data: bookings } = await supabase
-        .from('bookings')
-        .select('price, status, booking_date, service_name')
-        .eq('client_id', client.id)
-        .eq('status', 'completed')
-        .order('booking_date', { ascending: false })
-        .limit(50);
+      // ── PRIVACY ──────────────────────────────────────────────
+      // This is a PUBLIC, unauthenticated endpoint keyed on a guessable value
+      // (phone number). Returning full name, email, spend or history would let
+      // anyone enumerate a salon's client list. We expose only the minimum needed
+      // to make booking feel personal: the FIRST name to greet, and a count of
+      // active packages so a returning client knows they can use one. Email,
+      // total spend, visit history and loyalty balance stay behind the
+      // authenticated client portal (get-portal, which requires a token).
+      const firstName = (client.name || '').trim().split(/\s+/)[0] || '';
 
-      const totalVisits = bookings?.length || 0;
-      const totalSpent  = bookings?.reduce((s: number, b: any) => s + Number(b.price), 0) || 0;
-      const lastVisit   = bookings?.[0]?.booking_date || null;
-      const lastService = bookings?.[0]?.service_name || null;
-
-      // Active packages
-      const { data: packages } = await supabase
+      const { count: activePackageCount } = await supabase
         .from('client_packages')
-        .select('sessions_remaining, package:package_id(name)')
+        .select('id', { count: 'exact', head: true })
         .eq('client_id', client.id)
         .eq('status', 'active')
         .gt('sessions_remaining', 0);
@@ -236,16 +244,12 @@ serve(async (req: Request) => {
         found: true,
         client: {
           id: client.id,
-          name: client.name,
-          email: client.email,
-          phone: phoneStripped,     // always the input form, stripped of spaces
-          loyaltyPoints: 0,
+          firstName,
+          // full name kept server-known but NOT returned; the booking insert
+          // uses the name the client re-enters/confirms on the form.
+          phone: phoneStripped,
           tier: client.tier,
-          totalVisits,
-          totalSpent,
-          lastVisit,
-          lastService,
-          activePackages: packages || [],
+          activePackageCount: activePackageCount || 0,
         },
       });
     }
@@ -366,18 +370,36 @@ serve(async (req: Request) => {
       const endMin  = h * 60 + m + service.duration;
       const endTime = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
 
-      // ── Find or create client (same bulletproof lookup as lookup-client) ──
+      // ── Find or create client ──
+      // The DB enforces UNIQUE (tenant_id, phone_norm) where phone_norm is the
+      // digits-only form of phone. We MUST match on the same canonical value or
+      // the insert will collide with an existing row → "Failed to create client".
+      const phoneDigits = phoneStripped.replace(/[^\d]/g, '');
       let existingClientId: string | null = null;
 
-      // 1. Exact match with tenant_id
-      for (const v of variants) {
+      // 0. Canonical match on phone_norm (digits only) within this tenant — the
+      //    exact key the unique index uses, so this catches every real duplicate.
+      if (phoneDigits.length >= 7) {
         const { data } = await supabase
           .from('clients')
           .select('id')
-          .eq('phone', v)
           .eq('tenant_id', body.tenantId)
+          .eq('phone_norm', phoneDigits)
           .maybeSingle();
-        if (data) { existingClientId = data.id; break; }
+        if (data) existingClientId = data.id;
+      }
+
+      // 1. Exact match with tenant_id (formatting variants)
+      if (!existingClientId) {
+        for (const v of variants) {
+          const { data } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('phone', v)
+            .eq('tenant_id', body.tenantId)
+            .maybeSingle();
+          if (data) { existingClientId = data.id; break; }
+        }
       }
 
       // 2. Match clients with NULL tenant_id (legacy records)
@@ -400,13 +422,12 @@ serve(async (req: Request) => {
 
       // 3. LIKE fallback
       if (!existingClientId) {
-        const digits = phoneStripped.replace(/[^\d]/g, '');
-        if (digits.length >= 8) {
+        if (phoneDigits.length >= 8) {
           const { data } = await supabase
             .from('clients')
             .select('id')
             .eq('tenant_id', body.tenantId)
-            .like('phone', `%${digits.slice(-8)}`)
+            .like('phone', `%${phoneDigits.slice(-8)}`)
             .maybeSingle();
           if (data) existingClientId = data.id;
         }
@@ -441,11 +462,30 @@ serve(async (req: Request) => {
           .select('id')
           .single();
         if (ce || !newClient) {
-          console.error('[create-booking] client insert error:', ce);
-          return json({ error: 'Failed to create client' }, 500);
+          // 23505 = unique_violation. A client with this phone_norm already exists
+          // but slipped past the lookups (e.g. different stored format). Recover by
+          // fetching that row instead of failing the whole booking.
+          if (ce && (ce.code === '23505' || /duplicate key|unique/i.test(ce.message))) {
+            const { data: dup } = await supabase
+              .from('clients')
+              .select('id')
+              .eq('tenant_id', body.tenantId)
+              .eq('phone_norm', phoneDigits)
+              .maybeSingle();
+            if (dup) {
+              clientId = dup.id;
+            } else {
+              console.error('[create-booking] client insert conflict but no row found:', ce);
+              return json({ error: 'Could not match your details. Please call the salon.' }, 500);
+            }
+          } else {
+            console.error('[create-booking] client insert error:', ce);
+            return json({ error: 'Failed to create client' }, 500);
+          }
+        } else {
+          clientId = newClient.id;
+          isNewClient = true;
         }
-        clientId = newClient.id;
-        isNewClient = true;
       }
 
       // ── Conflict check: prevent double-booking a stylist ─────

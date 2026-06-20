@@ -28,11 +28,8 @@ interface Staff {
   working_hours_start: string; working_hours_end: string;
 }
 interface ClientData {
-  id: string; name: string; email: string | null; phone: string;
-  loyaltyPoints: number; tier: string;
-  totalVisits: number; totalSpent: number;
-  lastVisit: string | null; lastService: string | null;
-  activePackages: { sessions_remaining: number; package: { name: string } }[];
+  id: string; firstName: string; phone: string;
+  tier: string; activePackageCount: number;
 }
 
 type Step = 'phone' | 'service' | 'datetime' | 'details' | 'success';
@@ -176,12 +173,12 @@ export default function BookingPage() {
         body: { action: 'lookup-client', tenantId, clientPhone: phone },
       });
       if (data?.found && data?.client) {
-        // ── Returning client: pre-fill everything ──
+        // ── Returning client: greet by first name; they confirm details on the form ──
         const c = data.client as ClientData;
         setFoundClient(c);
-        setClientName(c.name);
+        setClientName(c.firstName);   // prefilled greeting name; editable on confirm step
         setClientPhone(c.phone);
-        setClientEmail(c.email || '');
+        setClientEmail('');
         setIsNewClient(false);
       } else {
         // ── New client: only phone is known ──
@@ -429,26 +426,15 @@ export default function BookingPage() {
                     </div>
                     <div>
                       <p className="font-semibold text-sm">
-                        {ar
-                          ? `لديكِ ${foundClient?.loyaltyPoints || 0} نقطة ولاء 🎁`
-                          : `You have ${foundClient?.loyaltyPoints || 0} loyalty points 🎁`}
+                        {ar ? 'سعيدون بعودتك! 🎁' : 'Great to see you again! 🎁'}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {ar
-                          ? 'شاهدي مواعيدك القادمة، تاريخ زياراتك، والعروض المتاحة.'
-                          : 'View your upcoming appointments, visit history, and available offers.'}
+                          ? 'افتحي بوابتك لرؤية مواعيدك، نقاط الولاء، والباقات المتاحة.'
+                          : 'Open your portal to see your appointments, loyalty points, and packages.'}
                       </p>
                     </div>
                   </div>
-                  {foundClient?.activePackages && foundClient.activePackages.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {foundClient.activePackages.slice(0, 2).map((p, i) => (
-                        <Badge key={i} className="text-[10px] gap-1 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800">
-                          <Gift className="h-2.5 w-2.5"/>{p.package.name} ({p.sessions_remaining} left)
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
                 </>
               )}
               <Button
@@ -595,12 +581,12 @@ export default function BookingPage() {
                       foundClient.tier === 'vip'  ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 ring-amber-300/50' :
                       'bg-muted text-muted-foreground ring-border'
                     )}>
-                      {foundClient.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                      {foundClient.firstName.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-sm">
-                          {ar ? `مرحباً ${foundClient.name} 👋` : `Welcome back, ${foundClient.name} 👋`}
+                          {ar ? `مرحباً ${foundClient.firstName} 👋` : `Welcome back, ${foundClient.firstName} 👋`}
                         </p>
                         {foundClient.tier !== 'normal' && (
                           <Badge className={cn(
@@ -611,69 +597,26 @@ export default function BookingPage() {
                           </Badge>
                         )}
                       </div>
-                      {/* Email if available */}
-                      {foundClient.email && (
-                        <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <Mail className="h-2.5 w-2.5"/>{foundClient.email}
-                        </p>
-                      )}
                     </div>
-                  </div>
-                  {/* Points badge */}
-                  <div className="text-right">
-                    <div className="flex items-center gap-1 justify-end text-amber-500">
-                      <Star className="h-4 w-4 fill-amber-400"/>
-                      <span className="font-black stat-number text-base">{foundClient.loyaltyPoints}</span>
-                    </div>
-                    <p className="text-[9px] text-muted-foreground">{ar ? 'نقطة ولاء' : 'loyalty pts'}</p>
                   </div>
                 </div>
 
-                {/* Active packages */}
-                {foundClient.activePackages.length > 0 && (
+                {/* Active packages — count only (no names/details on public page) */}
+                {foundClient.activePackageCount > 0 && (
                   <div className="flex gap-2 flex-wrap mt-3">
-                    {foundClient.activePackages.map((p, i) => (
-                      <Badge key={i} className="text-[10px] gap-1 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400">
-                        <Gift className="h-2.5 w-2.5"/>
-                        {p.package.name} · {p.sessions_remaining} {ar ? 'جلسات باقية' : 'left'}
-                      </Badge>
-                    ))}
+                    <Badge className="text-[10px] gap-1 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400">
+                      <Gift className="h-2.5 w-2.5"/>
+                      {ar
+                        ? `لديكِ ${foundClient.activePackageCount} باقة نشطة`
+                        : `${foundClient.activePackageCount} active package${foundClient.activePackageCount > 1 ? 's' : ''}`}
+                    </Badge>
                   </div>
-                )}
-
-                {/* Expandable stats */}
-                {foundClient.lastVisit && (
-                  <>
-                    <button
-                      className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-3 hover:text-foreground transition-colors"
-                      onClick={() => setShowStats(s => !s)}>
-                      <History className="h-3 w-3"/>
-                      {ar ? `آخر زيارة: ${foundClient.lastService}` : `Last: ${foundClient.lastService}`}
-                      · {foundClient.lastVisit}
-                      {showStats ? <ChevronUp className="h-3 w-3"/> : <ChevronDown className="h-3 w-3"/>}
-                    </button>
-
-                    {showStats && (
-                      <div className="mt-3 pt-3 border-t border-border/40 grid grid-cols-3 gap-2 text-center">
-                        {[
-                          { val: foundClient.totalVisits,           label: ar ? 'زيارة' : 'visits',      color: 'text-primary' },
-                          { val: foundClient.totalSpent.toFixed(0), label: ar ? 'KWD' : 'KWD spent',     color: 'text-emerald-600' },
-                          { val: foundClient.loyaltyPoints,         label: ar ? 'نقطة' : 'points',       color: 'text-amber-600' },
-                        ].map(({ val, label, color }) => (
-                          <div key={label} className="bg-background/60 rounded-xl p-2">
-                            <p className={cn('text-base font-black stat-number', color)}>{val}</p>
-                            <p className="text-[9px] text-muted-foreground">{label}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
                 )}
 
                 {/* "Not you?" escape */}
                 <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/30">
                   <p className="text-[10px] text-muted-foreground">
-                    {ar ? 'تم ملء بياناتك تلقائياً' : 'Details pre-filled from your account'}
+                    {ar ? 'يرجى تأكيد بياناتك في الخطوة الأخيرة' : 'Please confirm your details on the final step'}
                   </p>
                   <button
                     onClick={resetIdentity}
