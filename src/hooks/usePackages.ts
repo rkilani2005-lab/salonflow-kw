@@ -234,6 +234,27 @@ export const useRedeemPackageSession = () => {
   });
 };
 
+export const usePackagesSoldThisMonth = () => {
+  const { tenant } = useAuth();
+  return useQuery({
+    queryKey: ['packages-sold-month', tenant?.id],
+    queryFn: async () => {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { data, error } = await supabase
+        .from('client_packages')
+        .select('price_paid, purchase_date, created_at')
+        .eq('tenant_id', tenant!.id)
+        .gte('created_at', monthStart);
+      if (error) throw error;
+      const rows = data || [];
+      const total = rows.reduce((s: number, r: any) => s + Number(r.price_paid || 0), 0);
+      return { count: rows.length, total };
+    },
+    enabled: !!tenant?.id,
+  });
+};
+
 export const useDueRenewals = () => {
   const { tenant } = useAuth();
   return useQuery({

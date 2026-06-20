@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useToast } from '@/hooks/use-toast';
 import {
   useServicePackages, useCreateServicePackage, useUpdateServicePackage,
   useClientPackages, useSellPackage, useRedeemPackageSession,
-  useDueRenewals, useResolveRenewal,
+  useDueRenewals, useResolveRenewal, usePackagesSoldThisMonth,
   type ServicePackage, type ClientPackage, type PackageType, type PackageItem,
 } from '@/hooks/usePackages';
 import { useServicesManagement } from '@/hooks/useServices';
 import { useClients } from '@/hooks/useClients';
+import { useCreateTransaction } from '@/hooks/useTransactions';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,6 +69,7 @@ const emptyForm = {
 export default function Packages() {
   const { tenant } = useAuth();
   const { language } = useLanguage();
+  const { toast } = useToast();
   const ar = language === 'ar';
   const currency = tenant?.currency || 'KWD';
 
@@ -74,6 +77,7 @@ export default function Packages() {
   const { data: services  = [] } = useServicesManagement();
   const { data: clients   = [] } = useClients();
   const { data: dueRenewals = [] } = useDueRenewals();
+  const { data: soldMonth = { count: 0, total: 0 } } = usePackagesSoldThisMonth();
   const createPkg  = useCreateServicePackage();
   const updatePkg  = useUpdateServicePackage();
   const sellPkg    = useSellPackage();
@@ -88,6 +92,8 @@ export default function Packages() {
   const [sellPkgId, setSellPkgId] = useState('');
   const [sellClientId, setSellClientId] = useState('');
   const [sellNotes, setSellNotes] = useState('');
+  const [sellPayMethod, setSellPayMethod] = useState<'cash' | 'knet' | 'credit_card'>('cash');
+  const createTxn = useCreateTransaction();
 
   const [lookupOpen, setLookupOpen] = useState(false);
   const [lookupClient, setLookupClient] = useState('');
@@ -149,8 +155,45 @@ export default function Packages() {
 
   const handleSell = async () => {
     if (!sellPkgId || !sellClientId) return;
-    await sellPkg.mutateAsync({ package_id: sellPkgId, client_id: sellClientId, notes: sellNotes || undefined });
-    setSellOpen(false); setSellPkgId(''); setSellClientId(''); setSellNotes('');
+    const pkg = packages.find(p => p.id === sellPkgId);
+    if (!pkg) return;
+    const price = Number(pkg.price) || 0;
+    try {
+      // 1) Record a real POS sale so the money is captured, hits the till/cash
+      //    session, and shows up in sales reports — same path as POS checkout.
+      const txnId = await createTxn.mutateAsync({
+        client_id: sellClientId,
+        items: [{
+          item_type: 'package',
+          item_id: pkg.id,
+          item_name: pkg.name,
+          item_name_ar: pkg.name_ar || undefined,
+          quantity: 1,
+          unit_price: price,
+          total_price: price,
+        }],
+        payments: [{ payment_method: sellPayMethod, amount: price }],
+        subtotal: price,
+        tax_amount: 0,
+        tip_amount: 0,
+        grand_total: price,
+        notes: sellNotes || `Package sale: ${pkg.name}`,
+      });
+
+      // 2) Create + activate the entitlement, linked to that transaction, and
+      //    post the GL sale with the ACTUAL payment method (not hardcoded cash).
+      await sellPkg.mutateAsync({
+        package_id: sellPkgId,
+        client_id: sellClientId,
+        transaction_id: typeof txnId === 'string' ? txnId : (txnId as any)?.id,
+        payment_method: sellPayMethod,
+        notes: sellNotes || undefined,
+      });
+
+      setSellOpen(false); setSellPkgId(''); setSellClientId(''); setSellNotes(''); setSellPayMethod('cash');
+    } catch (e: any) {
+      toast({ title: ar ? 'فشل البيع' : 'Sale failed', description: e.message, variant: 'destructive' });
+    }
   };
 
   const handleRedeem = async (cp: ClientPackage, serviceId?: string | null) => {
@@ -223,7 +266,7 @@ export default function Packages() {
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: ar ? 'الباقات النشطة' : 'Active Packages', val: activePackages.length, color: 'text-primary', icon: Package },
-          { label: ar ? 'الأنواع' : 'Package Types', val: new Set(packages.map(p => p.package_type)).size, color: 'text-blue-600', icon: Layers },
+          { label: ar ? 'مبيعات الشهر' : 'Sold (mo)', val: `${soldMonth.count} · ${soldMonth.total.toFixed(3)} ${currency}`, color: 'text-emerald-600', icon: Layers },
           { label: ar ? 'تجديدات مستحقة' : 'Renewals Due', val: dueRenewals.length, color: 'text-amber-600', icon: CalendarClock },
         ].map(({ label, val, color, icon: Icon }) => (
           <Card key={label} className="border">
@@ -232,7 +275,7 @@ export default function Packages() {
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
                 <Icon className={cn('h-4 w-4', color)} />
               </div>
-              <p className={cn('stat-number text-xl font-black', color)}>{val}</p>
+              <p className={cn('stat-number font-black', color, typeof val === 'string' && val.length > 6 ? 'text-sm' : 'text-xl')}>{val}</p>
             </CardContent>
           </Card>
         ))}
@@ -565,6 +608,36 @@ export default function Packages() {
                 )}
               </div>
             )}
+            {selectedSellPkg && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">{ar ? 'طريقة الدفع *' : 'Payment Method *'}</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { v: 'cash',        en: 'Cash',   ar: 'نقدي' },
+                    { v: 'knet',        en: 'KNET',   ar: 'كي نت' },
+                    { v: 'credit_card', en: 'Card',   ar: 'بطاقة' },
+                  ] as const).map(m => (
+                    <button
+                      key={m.v}
+                      type="button"
+                      onClick={() => setSellPayMethod(m.v)}
+                      className={
+                        'h-9 rounded-md border text-sm font-medium transition-colors ' +
+                        (sellPayMethod === m.v
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background border-border hover:bg-muted')
+                      }>
+                      {ar ? m.ar : m.en}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground pt-1">
+                  {ar
+                    ? `سيتم تحصيل ${Number(selectedSellPkg.price).toFixed(3)} ${currency} وتسجيلها كعملية بيع.`
+                    : `${Number(selectedSellPkg.price).toFixed(3)} ${currency} will be collected and recorded as a sale.`}
+                </p>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">{ar ? 'ملاحظات' : 'Notes'}</Label>
               <Input value={sellNotes} onChange={e => setSellNotes(e.target.value)} className="h-9" placeholder={ar ? 'اختياري' : 'Optional'} />
@@ -572,8 +645,8 @@ export default function Packages() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" size="sm" onClick={() => setSellOpen(false)}>{ar ? 'إلغاء' : 'Cancel'}</Button>
-            <Button size="sm" onClick={handleSell} disabled={sellPkg.isPending || !sellPkgId || !sellClientId} className="gap-1.5 min-w-[110px]">
-              {sellPkg.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Tag className="h-3.5 w-3.5" />}
+            <Button size="sm" onClick={handleSell} disabled={sellPkg.isPending || createTxn.isPending || !sellPkgId || !sellClientId} className="gap-1.5 min-w-[110px]">
+              {(sellPkg.isPending || createTxn.isPending) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Tag className="h-3.5 w-3.5" />}
               {ar ? 'بيع وتفعيل' : 'Sell & Activate'}
             </Button>
           </DialogFooter>
