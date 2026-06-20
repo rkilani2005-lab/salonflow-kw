@@ -75,14 +75,16 @@ serve(async (req) => {
         status: 'sending',
       });
     } else {
-      // Find active trigger for this event
+      // Find active trigger for this event.
+      // Live schema columns are `event` and `is_enabled` (older code used the
+      // since-renamed `event_type`/`is_active`, which broke every templated send).
       const { data: trigger } = await supabase
         .from('whatsapp_triggers')
         .select('*, template:whatsapp_templates(*)')
         .eq('tenant_id', tenant_id)
-        .eq('event_type', event_type)
-        .eq('is_active', true)
-        .single();
+        .eq('event', event_type)
+        .eq('is_enabled', true)
+        .maybeSingle();
 
       if (!trigger?.template) {
         return json({ error: `No active template for event: ${event_type}` }, 400);

@@ -352,20 +352,33 @@ serve(async (req: Request) => {
       if (tokenRow?.token) {
         const origin = req.headers.get('origin') || 'https://app.zaina.ai';
         const link = `${origin}/my?tenant=${body.tenantId}&token=${tokenRow.token}`;
-        const phoneForWa = (client.phone || rawPhone).replace(/[^\d]/g, '');
-        const msg = `${tenant.name}\n\nHere's your link to view your appointments, points and packages:\n${link}\n\nThis link is private to you.`;
-        // Non-blocking; a send failure must not reveal anything to the caller.
-        supabase.functions.invoke('whatsapp-send', {
-          body: {
-            tenant_id: body.tenantId,
-            phone_number: phoneForWa,
-            direct_message: msg,
-            reference_id: client.id,
-            reference_type: 'client_portal',
-          },
-        }).then(({ error: waErr }) => {
-          if (waErr) console.warn('[request-portal-link] whatsapp send failed:', waErr.message);
-        });
+        const msg = `${tenant.name}\n\nHere's your private link to view your appointments, points and packages:\n${link}`;
+
+        // Send through the same Baileys path the AI agent uses. We need an existing
+        // WhatsApp conversation for this client (anyone who booked via WhatsApp has one).
+        // If none exists we silently skip — Baileys can't cold-initiate reliably.
+        const { data: conv } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('tenant_id', body.tenantId)
+          .eq('channel', 'whatsapp')
+          .eq('client_id', client.id)
+          .order('last_message_at', { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (conv?.id) {
+          const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+          const SRK = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+          // fire-and-forget; failure must not reveal anything to the caller
+          fetch(`${SUPABASE_URL}/functions/v1/channel-send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SRK}` },
+            body: JSON.stringify({ conversation_id: conv.id, text: msg, sender_type: 'system' }),
+          }).catch((e) => console.warn('[request-portal-link] channel-send failed:', e?.message));
+        } else {
+          console.log('[request-portal-link] no WhatsApp conversation for client; skipping send');
+        }
       }
 
       return json(generic);
