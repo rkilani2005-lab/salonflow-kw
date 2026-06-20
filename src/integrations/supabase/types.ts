@@ -873,15 +873,77 @@ export type Database = {
           },
         ]
       }
+      client_package_items: {
+        Row: {
+          client_package_id: string
+          created_at: string
+          id: string
+          quantity_total: number
+          quantity_used: number
+          service_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          client_package_id: string
+          created_at?: string
+          id?: string
+          quantity_total?: number
+          quantity_used?: number
+          service_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          client_package_id?: string
+          created_at?: string
+          id?: string
+          quantity_total?: number
+          quantity_used?: number
+          service_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_package_items_client_package_id_fkey"
+            columns: ["client_package_id"]
+            isOneToOne: false
+            referencedRelation: "client_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_package_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_package_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_packages: {
         Row: {
+          auto_renew: boolean
+          billing_interval: string | null
           client_id: string
           created_at: string
+          credit_remaining: number | null
+          credit_total: number | null
+          cycle_started_at: string | null
           expires_at: string | null
           id: string
+          is_unlimited: boolean
           notes: string | null
           package_id: string
+          package_type: Database["public"]["Enums"]["package_type"]
+          price_paid: number | null
           purchase_date: string
+          renews_at: string | null
+          sessions_per_cycle: number | null
           sessions_remaining: number | null
           sessions_total: number
           sessions_used: number | null
@@ -890,13 +952,23 @@ export type Database = {
           transaction_id: string | null
         }
         Insert: {
+          auto_renew?: boolean
+          billing_interval?: string | null
           client_id: string
           created_at?: string
+          credit_remaining?: number | null
+          credit_total?: number | null
+          cycle_started_at?: string | null
           expires_at?: string | null
           id?: string
+          is_unlimited?: boolean
           notes?: string | null
           package_id: string
+          package_type?: Database["public"]["Enums"]["package_type"]
+          price_paid?: number | null
           purchase_date?: string
+          renews_at?: string | null
+          sessions_per_cycle?: number | null
           sessions_remaining?: number | null
           sessions_total?: number
           sessions_used?: number | null
@@ -905,13 +977,23 @@ export type Database = {
           transaction_id?: string | null
         }
         Update: {
+          auto_renew?: boolean
+          billing_interval?: string | null
           client_id?: string
           created_at?: string
+          credit_remaining?: number | null
+          credit_total?: number | null
+          cycle_started_at?: string | null
           expires_at?: string | null
           id?: string
+          is_unlimited?: boolean
           notes?: string | null
           package_id?: string
+          package_type?: Database["public"]["Enums"]["package_type"]
+          price_paid?: number | null
           purchase_date?: string
+          renews_at?: string | null
+          sessions_per_cycle?: number | null
           sessions_remaining?: number | null
           sessions_total?: number
           sessions_used?: number | null
@@ -2020,6 +2102,67 @@ export type Database = {
           },
         ]
       }
+      membership_renewals: {
+        Row: {
+          amount_due: number
+          client_package_id: string
+          collected_at: string | null
+          created_at: string
+          cycle_date: string
+          id: string
+          note: string | null
+          status: string
+          tenant_id: string
+          transaction_id: string | null
+        }
+        Insert: {
+          amount_due?: number
+          client_package_id: string
+          collected_at?: string | null
+          created_at?: string
+          cycle_date: string
+          id?: string
+          note?: string | null
+          status?: string
+          tenant_id: string
+          transaction_id?: string | null
+        }
+        Update: {
+          amount_due?: number
+          client_package_id?: string
+          collected_at?: string | null
+          created_at?: string
+          cycle_date?: string
+          id?: string
+          note?: string | null
+          status?: string
+          tenant_id?: string
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membership_renewals_client_package_id_fkey"
+            columns: ["client_package_id"]
+            isOneToOne: false
+            referencedRelation: "client_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_renewals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_renewals_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           ai_handled: boolean
@@ -2193,6 +2336,55 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "owner_briefing_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      package_items: {
+        Row: {
+          created_at: string
+          id: string
+          package_id: string
+          quantity: number
+          service_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          package_id: string
+          quantity?: number
+          service_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          package_id?: string
+          quantity?: number
+          service_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "package_items_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "service_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "package_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "package_items_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -3124,44 +3316,65 @@ export type Database = {
       }
       service_packages: {
         Row: {
+          auto_renew: boolean
+          billing_interval: string | null
           color: string | null
           created_at: string
+          credit_bonus: number | null
+          credit_value: number | null
           description: string | null
           id: string
           is_active: boolean | null
+          is_unlimited: boolean
           name: string
           name_ar: string | null
+          package_type: Database["public"]["Enums"]["package_type"]
           price: number
           service_id: string | null
-          sessions_total: number
+          sessions_per_cycle: number | null
+          sessions_total: number | null
           tenant_id: string
           valid_days: number | null
         }
         Insert: {
+          auto_renew?: boolean
+          billing_interval?: string | null
           color?: string | null
           created_at?: string
+          credit_bonus?: number | null
+          credit_value?: number | null
           description?: string | null
           id?: string
           is_active?: boolean | null
+          is_unlimited?: boolean
           name: string
           name_ar?: string | null
+          package_type?: Database["public"]["Enums"]["package_type"]
           price?: number
           service_id?: string | null
-          sessions_total?: number
+          sessions_per_cycle?: number | null
+          sessions_total?: number | null
           tenant_id: string
           valid_days?: number | null
         }
         Update: {
+          auto_renew?: boolean
+          billing_interval?: string | null
           color?: string | null
           created_at?: string
+          credit_bonus?: number | null
+          credit_value?: number | null
           description?: string | null
           id?: string
           is_active?: boolean | null
+          is_unlimited?: boolean
           name?: string
           name_ar?: string | null
+          package_type?: Database["public"]["Enums"]["package_type"]
           price?: number
           service_id?: string | null
-          sessions_total?: number
+          sessions_per_cycle?: number | null
+          sessions_total?: number | null
           tenant_id?: string
           valid_days?: number | null
         }
@@ -5253,6 +5466,13 @@ export type Database = {
         Args: { p_prefix: string; p_tenant_id: string }
         Returns: string
       }
+      _pkg_liability_account: {
+        Args: {
+          p_tenant: string
+          p_type: Database["public"]["Enums"]["package_type"]
+        }
+        Returns: string
+      }
       activate_subscription: {
         Args: {
           p_amount: number
@@ -5318,6 +5538,18 @@ export type Database = {
         Args: { p_duplicate: string; p_primary: string }
         Returns: Json
       }
+      post_package_redemption_to_gl: {
+        Args: {
+          p_amount?: number
+          p_client_package_id: string
+          p_service_id?: string
+        }
+        Returns: string
+      }
+      post_package_sale_to_gl: {
+        Args: { p_client_package_id: string; p_payment_method?: string }
+        Returns: string
+      }
       post_service_consumption_to_gl: {
         Args: { p_transaction_id: string }
         Returns: string
@@ -5339,6 +5571,16 @@ export type Database = {
         }
         Returns: string
       }
+      redeem_package: {
+        Args: {
+          p_amount?: number
+          p_booking_id?: string
+          p_client_package_id: string
+          p_service_id?: string
+          p_transaction_id?: string
+        }
+        Returns: Json
+      }
       redeem_package_for_item: {
         Args: { p_client_package_id: string; p_transaction_item_id: string }
         Returns: boolean
@@ -5351,6 +5593,7 @@ export type Database = {
         Args: { p_refund_transaction_id: string }
         Returns: number
       }
+      run_membership_renewals: { Args: never; Returns: number }
       save_onboarding_progress: {
         Args: { p_answers: Json; p_tenant_id: string }
         Returns: undefined
@@ -5358,6 +5601,15 @@ export type Database = {
       seed_salon_chart_of_accounts: {
         Args: { p_tenant_id: string }
         Returns: Json
+      }
+      sell_package: {
+        Args: {
+          p_client_id: string
+          p_notes?: string
+          p_package_id: string
+          p_transaction_id?: string
+        }
+        Returns: string
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
@@ -5398,6 +5650,7 @@ export type Database = {
         | "adjustment"
         | "wastage"
         | "return"
+      package_type: "session" | "bundle" | "wallet" | "membership" | "unlimited"
       payment_status: "pending" | "paid" | "failed" | "refunded" | "partial"
       po_sent_via: "email" | "whatsapp" | "manual"
       po_status:
@@ -5613,6 +5866,7 @@ export const Constants = {
         "wastage",
         "return",
       ],
+      package_type: ["session", "bundle", "wallet", "membership", "unlimited"],
       payment_status: ["pending", "paid", "failed", "refunded", "partial"],
       po_sent_via: ["email", "whatsapp", "manual"],
       po_status: [
