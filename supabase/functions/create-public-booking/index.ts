@@ -271,9 +271,9 @@ serve(async (req: Request) => {
 
       const { data: client } = await supabase
         .from('clients')
-        .select('id, name, email, phone, loyalty_points, tier, created_at')
+        .select('id, name, email, phone, tier, created_at')
         .eq('id', tokenRow.client_id)
-        .single();
+        .maybeSingle();
       if (!client) return json({ error: 'Client not found' }, 404);
 
       const today = new Date().toISOString().split('T')[0];
@@ -309,8 +309,11 @@ serve(async (req: Request) => {
         .order('created_at', { ascending: false })
         .limit(5);
 
+      // clients has no loyalty_points column — balance lives in loyalty_transactions.
+      const loyaltyPoints = loyaltyLog?.[0]?.balance_after ?? 0;
+
       return json({
-        client: { ...client, loyaltyPoints: client.loyalty_points },
+        client: { ...client, loyaltyPoints },
         upcoming: upcoming || [],
         history: history || [],
         packages: packages || [],
