@@ -36,7 +36,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { tenant_id, event_type, phone_number, variables = {}, reference_id, reference_type, language } = body;
+    const { tenant_id, event_type, phone_number, variables = {}, reference_id, reference_type, language, direct_message } = body;
 
     if (!tenant_id || !phone_number) {
       return json({ error: 'tenant_id and phone_number are required' }, 400);
@@ -63,6 +63,17 @@ serve(async (req) => {
     if (event_type === 'test') {
       // Simple test message
       messageBody = `🟢 *ZAINA WhatsApp Connected!*\n\nYour WhatsApp Business number is active and ready.\n\nPowered by ZAINA Salon Management 💅`;
+    } else if (direct_message) {
+      // Direct system message (e.g. portal re-link) — no trigger/template needed.
+      messageBody = String(direct_message);
+      await supabase.from('whatsapp_sent_log').insert({
+        tenant_id,
+        reference_id: reference_id || null,
+        reference_type: reference_type || null,
+        phone_number,
+        message_body: messageBody,
+        status: 'sending',
+      });
     } else {
       // Find active trigger for this event
       const { data: trigger } = await supabase

@@ -353,13 +353,13 @@ serve(async (req: Request) => {
         const origin = req.headers.get('origin') || 'https://app.zaina.ai';
         const link = `${origin}/my?tenant=${body.tenantId}&token=${tokenRow.token}`;
         const phoneForWa = (client.phone || rawPhone).replace(/[^\d]/g, '');
-        // Non-blocking send; failure must not reveal anything to the caller.
+        const msg = `${tenant.name}\n\nHere's your link to view your appointments, points and packages:\n${link}\n\nThis link is private to you.`;
+        // Non-blocking; a send failure must not reveal anything to the caller.
         supabase.functions.invoke('whatsapp-send', {
           body: {
             tenant_id: body.tenantId,
-            event_type: 'portal_link',
             phone_number: phoneForWa,
-            variables: { portal_link: link, salon_name: tenant.name },
+            direct_message: msg,
             reference_id: client.id,
             reference_type: 'client_portal',
           },
