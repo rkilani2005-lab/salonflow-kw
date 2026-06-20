@@ -118,17 +118,22 @@ export default function BookingPage() {
   const [bookingRef,  setBookingRef]  = useState('');
   const [portalToken, setPortalToken] = useState('');
 
-  // Resolve ?slug=… → tenant_id (once, when no explicit ?tenant= was given)
+  // Resolve ?slug=… → tenant_id (once, when no explicit ?tenant= was given).
+  // Queried directly against booking_config (anon-readable) so it works without
+  // depending on a separate edge-function deploy.
   useEffect(() => {
     if (tenantParam || !slugParam) return;
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase.functions.invoke('create-public-booking', {
-          body: { action: 'resolve-slug', slug: slugParam },
-        });
-        if (!cancelled && data?.tenantId) {
-          setTenantId(data.tenantId);
+        const cleanSlug = slugParam.trim().toLowerCase();
+        const { data } = await supabase
+          .from('booking_config')
+          .select('tenant_id')
+          .eq('slug', cleanSlug)
+          .maybeSingle();
+        if (!cancelled && data?.tenant_id) {
+          setTenantId(data.tenant_id);
         }
       } catch { /* fall through to no-tenant screen */ }
       finally { if (!cancelled) setResolvingSlug(false); }
