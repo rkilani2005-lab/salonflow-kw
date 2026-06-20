@@ -13,7 +13,7 @@ function json(body: unknown, status = 200) {
 }
 
 interface BookingRequest {
-  action: 'get-services' | 'get-staff' | 'get-availability' | 'lookup-client' | 'create-booking' | 'get-portal' | 'resolve-slug';
+  action: 'get-services' | 'get-staff' | 'get-availability' | 'lookup-client' | 'create-booking' | 'get-portal' | 'resolve-slug' | 'request-portal-link';
   tenantId: string;
   serviceId?: string;
   staffId?: string | null;
@@ -320,6 +320,55 @@ serve(async (req: Request) => {
         loyaltyLog: loyaltyLog || [],
         tenant,
       });
+    }
+
+    // ── request-portal-link ───────────────────────────────────
+    // Customer lost their portal link → send a fresh one to their WhatsApp.
+    // Always returns the same generic response so it can't be used to probe
+    // which phone numbers are registered clients.
+    if (body.action === 'request-portal-link') {
+      const rawPhone = body.clientPhone?.trim() || '';
+      const digits = rawPhone.replace(/[^\d]/g, '');
+      const generic = { ok: true, message: 'If your number is registered, you will receive a link on WhatsApp shortly.' };
+      if (digits.length < 7) return json(generic);
+
+      // Find the client by canonical phone within this tenant.
+      const { data: client } = await supabase
+        .from('clients')
+        .select('id, phone')
+        .eq('tenant_id', body.tenantId)
+        .eq('phone_norm', digits)
+        .maybeSingle();
+
+      if (!client) return json(generic);   // don't reveal non-existence
+
+      // Fresh token
+      const { data: tokenRow } = await supabase
+        .from('client_portal_tokens')
+        .insert({ client_id: client.id, tenant_id: body.tenantId })
+        .select('token')
+        .single();
+
+      if (tokenRow?.token) {
+        const origin = req.headers.get('origin') || 'https://app.zaina.ai';
+        const link = `${origin}/my?tenant=${body.tenantId}&token=${tokenRow.token}`;
+        const phoneForWa = (client.phone || rawPhone).replace(/[^\d]/g, '');
+        // Non-blocking send; failure must not reveal anything to the caller.
+        supabase.functions.invoke('whatsapp-send', {
+          body: {
+            tenant_id: body.tenantId,
+            event_type: 'portal_link',
+            phone_number: phoneForWa,
+            variables: { portal_link: link, salon_name: tenant.name },
+            reference_id: client.id,
+            reference_type: 'client_portal',
+          },
+        }).then(({ error: waErr }) => {
+          if (waErr) console.warn('[request-portal-link] whatsapp send failed:', waErr.message);
+        });
+      }
+
+      return json(generic);
     }
 
     // ── create-booking ────────────────────────────────────────

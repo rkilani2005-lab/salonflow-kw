@@ -70,6 +70,9 @@ export default function ClientPortal() {
   const [editName,  setEditName]  = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [relinkPhone, setRelinkPhone] = useState('');
+  const [relinkBusy,  setRelinkBusy]  = useState(false);
+  const [relinkSent,  setRelinkSent]  = useState(false);
 
   useEffect(() => {
     if (!tenantId || !token) { setError('Invalid portal link'); setLoading(false); return; }
@@ -123,16 +126,50 @@ export default function ClientPortal() {
 
   // ── Error ──────────────────────────────────────────────────
   if (error || !data) return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-6">
-      <div className="text-center max-w-sm">
+    <div className="min-h-screen bg-muted/40 flex items-center justify-center px-6">
+      <div className="text-center max-w-sm w-full bg-background rounded-2xl border border-border/60 p-8 md:shadow-xl">
         <div className="h-16 w-16 rounded-2xl bg-red-100 dark:bg-red-950/30 flex items-center justify-center mx-auto mb-4">
           <XCircle className="h-8 w-8 text-red-500"/>
         </div>
         <h2 className="text-xl font-bold mb-2">Portal Unavailable</h2>
         <p className="text-muted-foreground text-sm mb-6">{error || 'This link may have expired or is invalid.'}</p>
+
+        {/* Re-access: request a fresh link on WhatsApp */}
+        {tenantId && (
+          <div className="text-left bg-muted/40 rounded-xl p-4 mb-4">
+            <p className="text-sm font-semibold mb-1">Lost your link?</p>
+            <p className="text-xs text-muted-foreground mb-3">Enter your phone number and we'll send a fresh portal link to your WhatsApp.</p>
+            {relinkSent ? (
+              <p className="text-xs text-emerald-600 font-medium">If your number is registered, you'll receive a link on WhatsApp shortly. ✅</p>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  value={relinkPhone}
+                  onChange={e => setRelinkPhone(e.target.value)}
+                  placeholder="+965 …"
+                  inputMode="tel"
+                  className="flex-1 h-9 px-3 rounded-lg border border-border bg-background text-sm"/>
+                <Button size="sm" disabled={relinkBusy || relinkPhone.replace(/\D/g,'').length < 7}
+                  onClick={async () => {
+                    setRelinkBusy(true);
+                    try {
+                      await supabase.functions.invoke('create-public-booking', {
+                        body: { action: 'request-portal-link', tenantId, clientPhone: relinkPhone.trim() },
+                      });
+                      setRelinkSent(true);
+                    } catch { setRelinkSent(true); /* generic regardless */ }
+                    finally { setRelinkBusy(false); }
+                  }}>
+                  {relinkBusy ? '…' : 'Send'}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         {tenantId && (
           <Link to={`/book?tenant=${tenantId}`}>
-            <Button className="gap-2"><Calendar className="h-4 w-4"/>Book an Appointment</Button>
+            <Button variant="outline" className="gap-2"><Calendar className="h-4 w-4"/>Book an Appointment</Button>
           </Link>
         )}
       </div>
@@ -147,7 +184,8 @@ export default function ClientPortal() {
   const pointsValue = (client.loyaltyPoints * 0.01).toFixed(3);
 
   return (
-    <div className="min-h-screen bg-background max-w-md mx-auto flex flex-col">
+    <div className="min-h-screen bg-muted/40 flex justify-center">
+    <div className="min-h-screen bg-background w-full max-w-md mx-auto flex flex-col relative md:shadow-xl md:border-x border-border/60">
 
       {/* ── Primary header (always visible) ── */}
       <div className="bg-primary text-primary-foreground px-5 pt-10 pb-6 relative overflow-hidden flex-shrink-0">
@@ -186,7 +224,7 @@ export default function ClientPortal() {
         <div className="grid grid-cols-3 gap-2 mt-5 relative z-10">
           {[
             { emoji: '📋', val: history.length,              label: 'Visits',  onClick: () => setView('history')  },
-            { emoji: '💳', val: `${totalSpent.toFixed(0)}K`, label: 'KWD',     onClick: () => setView('history')  },
+            { emoji: '💳', val: totalSpent.toFixed(0),       label: 'KWD',     onClick: () => setView('history')  },
             { emoji: '⭐', val: client.loyaltyPoints,        label: 'Points',  onClick: () => setView('points')   },
           ].map(({ emoji, val, label, onClick }) => (
             <button key={label} onClick={onClick}
@@ -609,6 +647,7 @@ export default function ClientPortal() {
           );
         })}
       </nav>
+    </div>
     </div>
   );
 }
