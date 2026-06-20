@@ -70,7 +70,7 @@ async function safeDecrementStock(
 }
 
 export interface CartItem {
-  item_type: 'service' | 'product';
+  item_type: 'service' | 'product' | 'package';
   item_id: string;
   item_name: string;
   item_name_ar?: string;
