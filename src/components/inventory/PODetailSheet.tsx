@@ -201,20 +201,54 @@ export const PODetailSheet = ({ po, onClose }: PODetailSheetProps) => {
 
   const generatePdf = async (mode: 'download' | 'print') => {
     setPdfLoading(true);
+    // Open the window synchronously inside the click handler so popup blockers allow it.
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      setPdfLoading(false);
+      toast({
+        title: 'Please allow popups',
+        description: 'Enable popups for this site, then try again to generate the PDF.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    printWindow.document.write(
+      '<!DOCTYPE html><html><head><title>Loading…</title></head><body style="font-family:sans-serif;padding:40px;color:#6b7280;">Preparing purchase order…</body></html>'
+    );
     try {
       const { data, error } = await supabase.functions.invoke('generate-po-pdf', {
         body: { po_id: po.id },
       });
-      if (error) throw error;
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        toast({ title: 'Please allow popups to generate PDF', variant: 'destructive' });
-        return;
+      if (error) {
+        // Surface the real edge-function error body, not the generic non-2xx message.
+        let msg = error.message;
+        try {
+          const ctx = (error as any)?.context;
+          if (ctx && typeof ctx.json === 'function') {
+            const b = await ctx.json();
+            msg = b?.error || msg;
+          }
+        } catch { /* keep generic */ }
+        throw new Error(msg);
       }
+      if (!data?.html) throw new Error('No document was returned. Please try again.');
+
+      printWindow.document.open();
       printWindow.document.write(data.html);
       printWindow.document.close();
-      if (mode === 'print') printWindow.onload = () => printWindow.print();
+
+      // Both modes use the browser's print dialog → "Save as PDF" gives a real PDF file,
+      // and the same dialog prints. Trigger once the document has rendered.
+      const triggerPrint = () => {
+        try { printWindow.focus(); printWindow.print(); } catch { /* user can print manually */ }
+      };
+      if (printWindow.document.readyState === 'complete') {
+        setTimeout(triggerPrint, 300);
+      } else {
+        printWindow.onload = () => setTimeout(triggerPrint, 300);
+      }
     } catch (err: any) {
+      try { printWindow.close(); } catch { /* already closed */ }
       toast({ title: 'Failed to generate PDF', description: err.message, variant: 'destructive' });
     } finally {
       setPdfLoading(false);
@@ -282,9 +316,9 @@ export const PODetailSheet = ({ po, onClose }: PODetailSheetProps) => {
               <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
                 <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">4-eyes approval policy</p>
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Waiting for a second approver</p>
                   <p className="text-xs text-amber-700/80 dark:text-amber-400/70 mt-0.5">
-                    You submitted this PO — a different person must approve it.
+                    You submitted this PO, so a different owner or manager needs to approve it (4-eyes policy).
                     {matchingRule && ` Rule: "${matchingRule.name}"`}
                   </p>
                 </div>
@@ -296,10 +330,37 @@ export const PODetailSheet = ({ po, onClose }: PODetailSheetProps) => {
               <div className="flex items-start gap-2 p-3 rounded-lg bg-muted border">
                 <Shield className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium">Approval not permitted for your role</p>
+                  <p className="text-sm font-medium">You can't approve this PO</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {approvalBlockReason}
+                    {approvalBlockReason || 'Approval is restricted for your role.'}
                     {matchingRule && ` — Rule: "${matchingRule.name}"`}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ── Non-manager staff viewing a pending PO ── */}
+            {po.status === 'pending_approval' && !isOwnerOrManager && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-muted border">
+                <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Awaiting approval</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    This PO is waiting for an owner or manager to approve it before it can be sent.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ── Ready to approve (clear green prompt) ── */}
+            {canApprove && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">Ready for your approval</p>
+                  <p className="text-xs text-emerald-700/80 dark:text-emerald-400/70 mt-0.5">
+                    Review the items below, then approve to allow this PO to be sent to the supplier.
+                    {matchingRule ? ` Rule: "${matchingRule.name}".` : ' No approval rule set — owner/manager approval applies.'}
                   </p>
                 </div>
               </div>

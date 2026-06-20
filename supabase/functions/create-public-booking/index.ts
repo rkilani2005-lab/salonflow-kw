@@ -441,6 +441,7 @@ serve(async (req: Request) => {
 
       // Insert booking — status: 'planned' (awaits admin confirmation)
       const { data: booking, error: be } = await supabase.from('bookings').insert({
+        tenant_id:         body.tenantId,
         client_id:         clientId,
         client_name:       sanitizedName,
         client_phone:      normalizedPhone,

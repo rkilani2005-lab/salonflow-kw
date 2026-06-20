@@ -232,7 +232,20 @@ export default function BookingPage() {
       const bookingId = d?.bookingId || d?.booking?.id || null;
 
       // Application-level error in response body (returned with 4xx/5xx)
-      const appError = d?.error || null;
+      let appError = d?.error || null;
+
+      // SDK-level error: on a non-2xx the Supabase SDK leaves `data` null and the
+      // real body lives on the thrown FunctionsHttpError's `context` (a Response).
+      // Read it so we show the actual reason, not "non-2xx status code".
+      if (response.error && !bookingId && !appError) {
+        try {
+          const ctx = (response.error as any)?.context;
+          if (ctx && typeof ctx.json === 'function') {
+            const errBody = await ctx.json();
+            appError = errBody?.error || null;
+          }
+        } catch { /* body not JSON — fall through to generic message */ }
+      }
 
       // SDK-level error (non-2xx returned and SDK caught it)
       if (response.error && !bookingId) {

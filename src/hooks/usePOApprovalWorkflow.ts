@@ -80,11 +80,26 @@ export function useCanApprove(poAmount: number, requestedByUserId: string | null
   const { user, userRoles } = useAuth();
   const rule = useMatchingRule(poAmount);
 
-  if (!rule || !user) return { canApprove: false, rule: null, reason: 'No rule configured' };
+  if (!user) return { canApprove: false, rule: null, reason: 'Not signed in' };
 
+  const isOwnerOrManager = userRoles.includes('owner' as any) || userRoles.includes('manager' as any);
   const isRequester = requestedByUserId === user.id;
+
+  // No rule configured → sensible default: owners & managers can approve.
+  // 4-eyes is still enforced as a safe default (you can't approve your own PO),
+  // but an owner may override their own as a fallback so a PO is never stuck.
+  if (!rule) {
+    if (!isOwnerOrManager) {
+      return { canApprove: false, rule: null, reason: 'Only an owner or manager can approve' };
+    }
+    if (isRequester && !userRoles.includes('owner' as any)) {
+      return { canApprove: false, rule: null, reason: '4-eyes: you submitted this PO — another approver is needed' };
+    }
+    return { canApprove: true, rule: null, reason: null };
+  }
+
   if (rule.four_eyes_enforced && isRequester) {
-    return { canApprove: false, rule, reason: '4-eyes: you submitted this PO' };
+    return { canApprove: false, rule, reason: '4-eyes: you submitted this PO — another approver is needed' };
   }
 
   // Check role

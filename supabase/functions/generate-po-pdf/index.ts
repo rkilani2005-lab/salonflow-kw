@@ -182,8 +182,8 @@ function generatePOHtml(data: POHtmlData): string {
 <title>Purchase Order ${data.poNumber}</title>
 <style>
   @page { size: A4; margin: 20mm; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1f2937; margin: 0; padding: 20px; font-size: 13px; }
-  @media print { body { padding: 0; } }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1f2937; margin: 0; padding: 20px; font-size: 13px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @media print { body { padding: 0; } .no-print { display: none !important; } }
 </style>
 </head>
 <body>
